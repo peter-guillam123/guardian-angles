@@ -5,15 +5,17 @@ on:
     - cron: '0 3 * * *'  # 03:00 UTC nightly
   workflow_dispatch:      # manual trigger from the Actions tab
   push:
-    branches: [ main ]
-    paths:
-      - 'build/**'
-      - '.github/workflows/build.yml'
+    branches: [ main ]    # any push to main → rebuild + deploy
 
 permissions:
   contents: write
   pages: write
   id-token: write
+
+# Prevent overlapping runs from stepping on each other's commits.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -35,17 +37,19 @@ jobs:
         run: pip install -r build/requirements.txt
 
       - name: Fetch missing months
+        # Only fetch on schedule / manual dispatch. Regular pushes just re-index
+        # and redeploy what's already in the repo, to avoid hitting the API
+        # when a code change lands.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
-        run: |
-          # Skip months we've already fetched. On first run this fetches the
-          # full decade (slow; ~1 req/sec). After that it's typically 1 month.
-          python build/fetch_guardian.py --skip-existing
+        run: python build/fetch_guardian.py --skip-existing
 
-      - name: Build index
+      - name: Build indexes
         run: python build/build_index.py
 
       - name: Commit updated data
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "guardian-trends-bot"
           git config user.email "bot@users.noreply.github.com"
@@ -59,12 +63,13 @@ jobs:
 
   deploy:
     needs: build
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check out (with new data)
+      - name: Check out (with any newly-committed data)
         uses: actions/checkout@v4
         with:
           ref: main
