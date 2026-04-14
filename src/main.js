@@ -1,12 +1,16 @@
 // Entry: wires search → chart → reading panel → headline explorer + section breakdown.
+// Supports two modes: "words" (headline substring search) and "tags" (editorial tag picker).
 
 import {
-  loadIndex, loadSections, loadMeta,
-  queryTerm, headlinesForTermInBucket, normalisePerMille,
+  loadSections, loadMeta,
+  queryTerm, queryTag,
+  headlinesForTermInBucket, headlinesForTagInBucket,
+  normalisePerMille, loadTagCatalog,
 } from './data.js';
 import { TrendChart, PALETTE } from './chart.js';
 import { HeadlineExplorer } from './headlines.js';
-import { sectionLabel, sectionColor } from './sections.js';
+import { sectionLabel } from './sections.js';
+import { attachAutocomplete, detachAutocomplete, seedInput } from './autocomplete.js';
 
 const MAX_TERMS = 4;
 
@@ -27,15 +31,23 @@ const periodStatsEl = document.getElementById('period-stats');
 const statBig = document.getElementById('stat-big');
 const breakdownEl = document.getElementById('breakdown');
 const breakdownBarsEl = document.getElementById('breakdown-bars');
+const searchLabelEl = document.getElementById('search-label');
+const examplesWordsEl = document.getElementById('examples-words');
+const examplesTagsEl = document.getElementById('examples-tags');
 
 const chart = new TrendChart(chartEl);
 const explorer = new HeadlineExplorer(headlinesEl);
 
-let currentTerms = [];
-let currentSeries = [];       // [{term, buckets, values}]
+let currentMode = 'words'; // 'words' | 'tags'
+let currentQueries = [];   // for words: [strings]; for tags: [tag ids]
+let currentLabels = [];    // display labels aligned with currentQueries
+let currentSeries = [];
 let currentGranularity = 'monthly';
-let currentTotals = null;     // totals array aligned with buckets
+let currentTotals = null;
 let currentBuckets = null;
+let tagCatalog = null;
+
+const inputs = () => [1,2,3,4].map(i => document.getElementById('q' + i));
 
 async function init() {
   setReadingIdle('Loading the archive…');
@@ -51,15 +63,28 @@ async function init() {
 
   setReadingIdle('Hover the chart.');
 
-  // Example links
-  document.querySelectorAll('.examples a[data-query]').forEach(a => {
+  // Example links — words
+  document.querySelectorAll('#examples-words a[data-query]').forEach(a => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
+      if (currentMode !== 'words') setMode('words');
       const terms = a.dataset.query.split(',');
-      for (let i = 0; i < MAX_TERMS; i++) {
-        document.getElementById(`q${i + 1}`).value = terms[i] || '';
-      }
-      runSearch(terms);
+      inputs().forEach((inp, i) => { inp.value = terms[i] || ''; delete inp.dataset.tagId; });
+      runSearch();
+    });
+  });
+
+  // Example links — tags
+  document.querySelectorAll('#examples-tags a[data-tag-query]').forEach(a => {
+    a.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (currentMode !== 'tags') await setMode('tags');
+      const tagIds = a.dataset.tagQuery.split(',');
+      inputs().forEach((inp, i) => {
+        if (tagIds[i] && tagCatalog) seedInput(inp, tagIds[i], tagCatalog);
+        else { inp.value = ''; delete inp.dataset.tagId; }
+      });
+      runSearch();
     });
   });
 
@@ -70,82 +95,144 @@ async function init() {
       if (g === currentGranularity) return;
       document.querySelectorAll('.gran-btn').forEach(b => b.classList.toggle('active', b === btn));
       currentGranularity = g;
-      if (currentTerms.length) runSearch(currentTerms);
+      if (currentQueries.length) runSearch();
     });
   });
 
+  // Mode buttons
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
   // Chart events
-  chart.addEventListener('pointclick', (e) => openHeadlines(e.detail.term, e.detail.bucket));
+  chart.addEventListener('pointclick', (e) => openHeadlines(e.detail));
   chart.addEventListener('hover', (e) => {
     if (e.detail) updateReadingPanel(e.detail.idx);
     else resetReadingPanel();
   });
 
-  // URL ?q=term1,term2&g=weekly
+  // URL params: ?q=... (words) or ?tags=... (tags)
   const params = new URLSearchParams(location.search);
-  const qParam = params.get('q');
   const gParam = params.get('g');
   if (gParam && ['monthly', 'weekly', 'daily'].includes(gParam)) {
     currentGranularity = gParam;
     document.querySelectorAll('.gran-btn').forEach(b => b.classList.toggle('active', b.dataset.granularity === gParam));
   }
-  if (qParam) {
+  const qParam = params.get('q');
+  const tagsParam = params.get('tags');
+  if (tagsParam) {
+    await setMode('tags');
+    const ids = tagsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_TERMS);
+    inputs().forEach((inp, i) => {
+      if (ids[i] && tagCatalog) seedInput(inp, ids[i], tagCatalog);
+    });
+    if (ids.length) runSearch();
+  } else if (qParam) {
     const terms = qParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_TERMS);
-    for (let i = 0; i < MAX_TERMS; i++) {
-      document.getElementById(`q${i + 1}`).value = terms[i] || '';
-    }
-    if (terms.length) runSearch(terms);
+    inputs().forEach((inp, i) => { inp.value = terms[i] || ''; });
+    if (terms.length) runSearch();
+  }
+}
+
+async function setMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  examplesWordsEl.hidden = mode !== 'words';
+  examplesTagsEl.hidden = mode !== 'tags';
+
+  // Reset inputs and state
+  chart.setSeries([]);
+  legendEl.innerHTML = '';
+  headlinesSection.hidden = true;
+  currentQueries = []; currentLabels = []; currentSeries = [];
+  resetReadingPanel();
+  inputs().forEach(inp => { inp.value = ''; delete inp.dataset.tagId; });
+
+  if (mode === 'tags') {
+    searchLabelEl.textContent = 'Search tags';
+    chartTitleEl.textContent = 'Pick up to four Guardian tags to compare their coverage.';
+    inputs().forEach((inp, i) => {
+      inp.placeholder = i === 0 ? 'e.g. donald trump, climate…' : 'add another tag…';
+    });
+    if (!tagCatalog) tagCatalog = await loadTagCatalog();
+    inputs().forEach(inp => attachAutocomplete(inp, tagCatalog));
+  } else {
+    searchLabelEl.textContent = 'Search headlines';
+    chartTitleEl.textContent = 'Type a word — or four — to plot a decade of Guardian coverage.';
+    inputs().forEach((inp, i) => {
+      inp.placeholder = [ 'e.g. starmer', 'add another…', 'and another…', 'and one more' ][i];
+      detachAutocomplete(inp);
+    });
   }
 }
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  const terms = [];
-  for (let i = 1; i <= MAX_TERMS; i++) {
-    const v = document.getElementById(`q${i}`).value.trim();
-    if (v) terms.push(v);
-  }
-  runSearch(terms);
+  runSearch();
 });
 
 clearBtn.addEventListener('click', () => {
-  for (let i = 1; i <= MAX_TERMS; i++) document.getElementById(`q${i}`).value = '';
+  inputs().forEach(inp => { inp.value = ''; delete inp.dataset.tagId; });
   chart.setSeries([]);
   legendEl.innerHTML = '';
-  chartTitleEl.textContent = 'Type a word — or four — to plot a decade of Guardian coverage.';
+  const placeholder = currentMode === 'tags'
+    ? 'Pick up to four Guardian tags to compare their coverage.'
+    : 'Type a word — or four — to plot a decade of Guardian coverage.';
+  chartTitleEl.textContent = placeholder;
   headlinesSection.hidden = true;
-  currentTerms = [];
-  currentSeries = [];
+  currentQueries = []; currentLabels = []; currentSeries = [];
   resetReadingPanel();
   history.replaceState(null, '', location.pathname);
 });
 
-async function runSearch(terms) {
-  if (!terms.length) return;
-  currentTerms = terms;
+async function runSearch() {
+  // Collect queries from inputs depending on mode
+  const queries = [];
+  const labels = [];
+  for (const inp of inputs()) {
+    if (currentMode === 'tags') {
+      const id = inp.dataset.tagId;
+      if (id) { queries.push(id); labels.push(inp.value || id); }
+    } else {
+      const v = inp.value.trim();
+      if (v) { queries.push(v); labels.push(v); }
+    }
+  }
+  if (!queries.length) return;
+
+  currentQueries = queries;
+  currentLabels = labels;
   setReadingIdle('Searching the archive…');
 
-  const results = await Promise.all(terms.map(t => queryTerm(t, currentGranularity)));
+  const results = await Promise.all(queries.map(q =>
+    currentMode === 'tags'
+      ? queryTag(q, currentGranularity)
+      : queryTerm(q, currentGranularity)
+  ));
   const valid = results.filter(Boolean);
   if (!valid.length) { setReadingIdle('No results.'); return; }
 
   currentBuckets = valid[0].buckets;
   currentTotals = valid[0].totals;
-  currentSeries = valid.map(r => ({
-    term: r.term,
+  currentSeries = valid.map((r, i) => ({
+    query: currentMode === 'tags' ? r.tag : r.term,
+    label: labels[i],
     buckets: r.buckets,
     values: normalisePerMille(r.counts, r.totals),
     counts: r.counts,
   }));
 
   chart.setGranularity(currentGranularity);
-  chart.setSeries(currentSeries);
+  chart.setSeries(currentSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
   renderLegend(currentSeries);
   renderChartTitle(currentSeries);
   resetReadingPanel();
 
   const p = new URLSearchParams();
-  p.set('q', terms.join(','));
+  if (currentMode === 'tags') p.set('tags', queries.join(','));
+  else p.set('q', queries.join(','));
   if (currentGranularity !== 'monthly') p.set('g', currentGranularity);
   history.replaceState(null, '', `?${p.toString()}`);
 }
@@ -155,7 +242,7 @@ function renderLegend(series) {
   series.forEach((s, i) => {
     const item = document.createElement('span');
     item.className = 'item';
-    item.innerHTML = `<span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span><span class="term">${escapeHtml(s.term)}</span>`;
+    item.innerHTML = `<span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span><span class="term">${escapeHtml(s.label)}</span>`;
     item.addEventListener('mouseenter', () => chart.setActiveSeries(i));
     item.addEventListener('mouseleave', () => chart.setActiveSeries(null));
     legendEl.appendChild(item);
@@ -164,11 +251,17 @@ function renderLegend(series) {
 
 function renderChartTitle(series) {
   if (!series.length) return;
-  const phrases = series.map(s => `"${s.term}"`);
+  const phrases = series.map(s => currentMode === 'tags' ? s.label : `"${s.label}"`);
+  const tail = granularityAdverb();
+  const unit = currentMode === 'tags' ? 'Guardian coverage' : 'Guardian headlines';
   let str;
-  if (phrases.length === 1) str = `${phrases[0]} in Guardian headlines, ${granularityAdverb()}`;
-  else if (phrases.length === 2) str = `${phrases[0]} versus ${phrases[1]}, ${granularityAdverb()}`;
-  else str = `${phrases.slice(0, -1).join(', ')} and ${phrases.slice(-1)} — Guardian headlines, ${granularityAdverb()}`;
+  if (phrases.length === 1) {
+    str = `${phrases[0]} in ${unit}, ${tail}`;
+  } else if (phrases.length === 2) {
+    str = `${phrases[0]} versus ${phrases[1]} — ${unit}, ${tail}`;
+  } else {
+    str = `${phrases.slice(0, -1).join(', ')} and ${phrases.slice(-1)} — ${unit}, ${tail}`;
+  }
   chartTitleEl.textContent = str;
 }
 
@@ -195,17 +288,18 @@ function updateReadingPanel(bucketIdx) {
         const change = ((value - prev) / prev) * 100;
         delta = Math.abs(change) < 5 ? null : { change, dir: change > 0 ? 'up' : 'down' };
       }
-      return { term: s.term, value, count, pct, delta, color: PALETTE[i % PALETTE.length] };
+      return { label: s.label, value, count, pct, delta, color: PALETTE[i % PALETTE.length] };
     })
     .sort((a, b) => b.value - a.value);
 
+  const noun = currentMode === 'tags' ? 'article' : 'headline';
   readingValues.innerHTML = rows.map(r => `
     <div class="value-row">
       <span class="rule" style="background:${r.color}"></span>
-      <span class="term">${escapeHtml(r.term)}</span>
+      <span class="term">${escapeHtml(r.label)}</span>
       <span class="num">${formatReadingValue(r.value)}</span>
       <span class="sub">
-        <span class="meta">${formatCountPlain(r.count)} ${r.count === 1 ? 'headline' : 'headlines'} · ${formatPct(r.pct)}</span>
+        <span class="meta">${formatCountPlain(r.count)} ${r.count === 1 ? noun : noun + 's'} · ${formatPct(r.pct)}</span>
         ${r.delta ? `<span class="delta ${r.delta.dir}">${r.delta.dir === 'up' ? '↑' : '↓'} ${Math.abs(r.delta.change).toFixed(0)}%</span>` : ''}
       </span>
     </div>
@@ -229,7 +323,7 @@ function resetReadingPanel() {
   }
   readingEyebrow.textContent = 'Overview · hover for a period';
   readingMonth.classList.remove('idle');
-  readingMonth.textContent = currentSeries.length === 1 ? `"${currentSeries[0].term}"` : 'Compare';
+  readingMonth.textContent = currentSeries.length === 1 ? currentSeries[0].label : 'Compare';
 
   const rows = currentSeries
     .map((s, i) => {
@@ -238,11 +332,10 @@ function resetReadingPanel() {
       let peakIdx = 0;
       for (let k = 1; k < s.values.length; k++) if (s.values[k] > s.values[peakIdx]) peakIdx = k;
       return {
-        term: s.term,
+        label: s.label,
         value: mean,
         total,
         peakBucket: currentBuckets[peakIdx],
-        peakValue: s.values[peakIdx],
         color: PALETTE[i % PALETTE.length],
       };
     })
@@ -251,7 +344,7 @@ function resetReadingPanel() {
   readingValues.innerHTML = rows.map(r => `
     <div class="value-row dim">
       <span class="rule" style="background:${r.color}"></span>
-      <span class="term">${escapeHtml(r.term)}</span>
+      <span class="term">${escapeHtml(r.label)}</span>
       <span class="num">${formatReadingValue(r.value)}</span>
       <span class="sub">
         <span class="meta">${formatCountPlain(r.total)} total · peak ${formatBucketShort(r.peakBucket)}</span>
@@ -282,46 +375,37 @@ function granularityEyebrow() {
 function periodWord() {
   return { monthly: 'this month', weekly: 'this week', daily: 'this day' }[currentGranularity];
 }
-function formatBucketShort(bucket) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
-    return new Date(bucket + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
-  }
-  if (/^\d{4}-\d{2}$/.test(bucket)) {
-    const [y, mo] = bucket.split('-').map(Number);
-    return new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-  }
-  const m = bucket.match(/^(\d{4})-W(\d{2})$/);
-  if (m) return `wk ${m[2]} '${m[1].slice(2)}`;
-  return bucket;
-}
-function formatPct(p) {
-  if (p === 0) return '0%';
-  if (p >= 10) return p.toFixed(0) + '%';
-  if (p >= 1) return p.toFixed(1) + '%';
-  return p.toFixed(2) + '%';
-}
-function formatCountPlain(n) {
-  return n.toLocaleString('en-GB');
-}
 
-async function openHeadlines(term, bucket) {
+async function openHeadlines({ term: queryLabel, bucket, seriesIdx }) {
+  // The TrendChart emits `term` = whatever label we passed as the series name.
+  // We need the original query (word or tag id) to fetch headlines.
+  const series = currentSeries[seriesIdx];
+  if (!series) return;
+
   headlinesSection.hidden = false;
-  headlinesTitle.innerHTML = `Headlines naming <em>${escapeHtml(term)}</em>, ${formatBucketLong(bucket)}`;
+  const formatted = formatBucketLong(bucket);
+  if (currentMode === 'tags') {
+    headlinesTitle.innerHTML = `Articles tagged <em>${escapeHtml(series.label)}</em>, ${formatted}`;
+  } else {
+    headlinesTitle.innerHTML = `Headlines naming <em>${escapeHtml(series.label)}</em>, ${formatted}`;
+  }
   headlinesMeta.textContent = 'Loading dispatches…';
   breakdownBarsEl.innerHTML = '';
   headlinesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const list = await headlinesForTermInBucket(term, bucket);
-  headlinesMeta.textContent = `${list.length} headline${list.length === 1 ? '' : 's'} · rendered with Pretext`;
+  const list = currentMode === 'tags'
+    ? await headlinesForTagInBucket(series.query, bucket)
+    : await headlinesForTermInBucket(series.query, bucket);
+  headlinesMeta.textContent = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'} · rendered with Pretext`;
   renderSectionBreakdown(list);
-  explorer.render(list, term);
+  // Pass the display label as the highlighter for the headline explorer;
+  // in tag mode there's no substring to highlight (but still pass nothing).
+  const highlight = currentMode === 'tags' ? '' : series.query;
+  explorer.render(list, highlight);
 }
 
 function renderSectionBreakdown(headlines) {
-  if (!headlines.length) {
-    breakdownEl.hidden = true;
-    return;
-  }
+  if (!headlines.length) { breakdownEl.hidden = true; return; }
   breakdownEl.hidden = false;
   const counts = {};
   for (const h of headlines) {
@@ -333,13 +417,11 @@ function renderSectionBreakdown(headlines) {
     .map(([id, n]) => ({ id, n, pct: (n / total) * 100 }))
     .sort((a, b) => b.n - a.n)
     .slice(0, 8);
-
   const maxPct = rows[0].pct;
-
   breakdownBarsEl.innerHTML = rows.map(r => {
     const label = sectionLabel(r.id);
-    const col = sectionColor(r.id);
-    const fillW = (r.pct / maxPct) * 100; // scale so tallest = 100% width
+    const col = sectionColorFor(r.id);
+    const fillW = (r.pct / maxPct) * 100;
     return `
       <div class="breakdown-row">
         <div class="name">${escapeHtml(label)}</div>
@@ -349,6 +431,9 @@ function renderSectionBreakdown(headlines) {
     `;
   }).join('');
 }
+
+// Imported for reuse; keeps main.js lean
+import { sectionColor as sectionColorFor } from './sections.js';
 
 // ----- helpers -----
 function formatBucketLong(bucket) {
@@ -362,10 +447,19 @@ function formatBucketLong(bucket) {
     return new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   }
   const m = bucket.match(/^(\d{4})-W(\d{2})$/);
-  if (m) {
-    const [y, w] = [parseInt(m[1]), parseInt(m[2])];
-    return `Week ${w}, ${y}`;
+  if (m) return `Week ${m[2]}, ${m[1]}`;
+  return bucket;
+}
+function formatBucketShort(bucket) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
+    return new Date(bucket + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
   }
+  if (/^\d{4}-\d{2}$/.test(bucket)) {
+    const [y, mo] = bucket.split('-').map(Number);
+    return new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  }
+  const m = bucket.match(/^(\d{4})-W(\d{2})$/);
+  if (m) return `wk ${m[2]} '${m[1].slice(2)}`;
   return bucket;
 }
 function formatCount(n) {
@@ -377,6 +471,15 @@ function formatReadingValue(v) {
   if (v >= 10) return v.toFixed(1);
   if (v >= 1) return v.toFixed(2);
   return v.toFixed(3);
+}
+function formatPct(p) {
+  if (p === 0) return '0%';
+  if (p >= 10) return p.toFixed(0) + '%';
+  if (p >= 1) return p.toFixed(1) + '%';
+  return p.toFixed(2) + '%';
+}
+function formatCountPlain(n) {
+  return n.toLocaleString('en-GB');
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

@@ -28,7 +28,11 @@
   <main>
     <!-- LEFT: editorial sidebar with search + examples -->
     <aside class="controls">
-      <p class="label">Search</p>
+      <div class="mode-toggle" role="group" aria-label="Search mode">
+        <button type="button" class="mode-btn active" data-mode="words">Words</button>
+        <button type="button" class="mode-btn" data-mode="tags">Tags</button>
+      </div>
+      <p class="label" id="search-label">Search headlines</p>
       <form id="search-form" autocomplete="off">
         <input type="text" id="q1" placeholder="e.g. starmer" />
         <input type="text" id="q2" placeholder="add another…" />
@@ -40,7 +44,7 @@
         </div>
       </form>
 
-      <div class="examples">
+      <div class="examples" id="examples-words">
         <p class="label">Try</p>
         <ul>
           <li><a data-query="corbyn,starmer">Corbyn <em>vs.</em> Starmer</a></li>
@@ -49,6 +53,17 @@
           <li><a data-query="trump,johnson,sunak,badenoch">Four leaders</a></li>
           <li><a data-query="russia,china">Russia <em>vs.</em> China</a></li>
           <li><a data-query="ai,crypto">AI <em>vs.</em> crypto</a></li>
+        </ul>
+      </div>
+
+      <div class="examples" id="examples-tags" hidden>
+        <p class="label">Try</p>
+        <ul>
+          <li><a data-tag-query="us-news/donaldtrump,politics/keir-starmer">Trump <em>vs.</em> Starmer (tags)</a></li>
+          <li><a data-tag-query="environment/climate-crisis,business/cost-of-living-crisis">Climate <em>vs.</em> cost of living</a></li>
+          <li><a data-tag-query="world/ukraine,world/israel-hamas-war,world/gaza">Three conflicts</a></li>
+          <li><a data-tag-query="technology/artificialintelligenceai,technology/cryptocurrencies">AI <em>vs.</em> crypto (tags)</a></li>
+          <li><a data-tag-query="politics/conservatives,politics/labour,politics/reformuk">Three parties</a></li>
         </ul>
       </div>
     </aside>
