@@ -43,6 +43,7 @@ function bucketToDate(b) {
   return new Date(NaN);
 }
 
+// Detailed label for the hover pill
 function formatPill(b) {
   const d = bucketToDate(b);
   if (/^\d{4}-\d{2}-\d{2}$/.test(b)) {
@@ -52,8 +53,21 @@ function formatPill(b) {
     return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
   }
   const m = b.match(/^(\d{4})-W(\d{2})$/);
-  if (m) return `Wk ${m[2]} · ${m[1]}`;
+  if (m) {
+    // Show the Monday of that week — e.g. "Wk of 25 Aug 2025"
+    const monday = bucketToDate(b);
+    return `Wk of ${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  }
   return b;
+}
+
+// Compact label for the rightmost tick on the x-axis.
+// Always a month-year regardless of granularity — avoids the ugly
+// "Wk 35 · 2025" and confusion over whether it means "today".
+function formatAxisEnd(b) {
+  const d = bucketToDate(b);
+  if (isNaN(d)) return b;
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
 function formatValue(v) {
@@ -252,7 +266,7 @@ export class TrendChart extends EventTarget {
 
     // Reserve space on both edges for the first/last bucket labels
     // (left-aligned and right-aligned respectively)
-    const lastLabel = formatPill(buckets[buckets.length - 1]);
+    const lastLabel = formatAxisEnd(buckets[buckets.length - 1]);
     const lastLabelWidth = ctx.measureText(lastLabel).width;
     const firstLabelWidth = ctx.measureText(buckets[0].slice(0, 4)).width;
     const GAP = 12;
@@ -282,7 +296,7 @@ export class TrendChart extends EventTarget {
     ctx.textAlign = 'left';
     ctx.fillText(buckets[0].slice(0, 4), firstX, p.y + p.h + 10);
 
-    // Last bucket: right-aligned full short label
+    // Last bucket: right-aligned, clean month-year regardless of granularity
     const lastIdx = buckets.length - 1;
     const lastX = this._xForIdx(lastIdx, buckets.length, p);
     ctx.beginPath();
@@ -290,7 +304,7 @@ export class TrendChart extends EventTarget {
     ctx.lineTo(lastX, p.y + p.h + 5);
     ctx.stroke();
     ctx.textAlign = 'right';
-    ctx.fillText(formatPill(buckets[lastIdx]), lastX, p.y + p.h + 10);
+    ctx.fillText(formatAxisEnd(buckets[lastIdx]), lastX, p.y + p.h + 10);
   }
 
   _drawLines(p, buckets, yMax) {
