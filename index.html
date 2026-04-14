@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guardian Trends — a decade of Guardian headlines, measured</title>
-  <meta name="description" content="Search a decade of Guardian headlines. See how coverage of people, places and ideas has risen and fallen." />
+  <title>Guardian Angles — a decade of Guardian headlines, measured</title>
+  <meta name="description" content="Search a decade of Guardian headlines. See how coverage of people, places and ideas has risen and fallen — from every angle." />
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body>
@@ -12,10 +12,10 @@
   <header class="masthead">
     <h1 class="title">
       Guardian<br/>
-      <span class="and">&amp;</span> Trends
+      <span class="and">&sdot;</span> Angles
     </h1>
     <p class="dek">
-      A decade of Guardian headlines rendered as <em>curves</em>. Type a word — or compare four — and see how often it's run across the top of Guardian articles, month by month. Click any peak to read the headlines from that month as the newsroom wrote them.
+      A decade of Guardian coverage, from <em>every angle</em>. Type a word — or compare four — and see how often it's run across the top of Guardian articles, month by month. Click any peak to read the headlines from that moment and the sections they ran in.
     </p>
     <div class="stat" id="stat-counter">
       <span class="big" id="stat-big">—</span>
@@ -72,14 +72,15 @@
       </div>
     </section>
 
-    <!-- RIGHT: reading panel (replaces the illegible canvas tooltip) -->
+    <!-- RIGHT: reading panel — compare metadata + absolute counts -->
     <aside class="reading-panel" id="reading-panel">
-      <p class="eyebrow">Reading panel</p>
+      <p class="eyebrow" id="reading-eyebrow">Reading panel</p>
       <p class="month-label idle" id="reading-month">Hover the chart.</p>
       <div class="panel-rule"></div>
       <div class="values" id="reading-values"></div>
-      <p class="cta">
-        <strong>Click</strong> a point on the chart to open the Guardian's headlines from that month.
+      <div class="period-stats" id="period-stats"></div>
+      <p class="cta" id="reading-cta">
+        <strong>Click</strong> a point on the chart to open the Guardian's headlines from that period.
       </p>
     </aside>
   </main>
@@ -100,7 +101,7 @@
 
   <footer class="footer">
     Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
-    Data rebuilds nightly. Source on <a href="https://github.com/peter-guillam123/guardian-trends">GitHub</a>.
+    Data rebuilds nightly. Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
     Headlines © Guardian News &amp; Media.
   </footer>
 

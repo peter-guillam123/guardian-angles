@@ -468,25 +468,34 @@ main {
   background: var(--paper-rule);
   margin: 10px 0 14px;
 }
-.reading-panel .values { display: flex; flex-direction: column; gap: 10px; }
+.reading-panel .values { display: flex; flex-direction: column; gap: 14px; }
 .reading-panel .value-row {
   display: grid;
   grid-template-columns: 4px 1fr auto;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 2px;
   align-items: baseline;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 .reading-panel .value-row .rule {
+  grid-row: 1 / span 2;
   align-self: stretch;
   background: var(--ink-mute);
 }
 .reading-panel .value-row .term {
+  grid-column: 2;
+  grid-row: 1;
   font-family: var(--body);
   font-size: 18px;
   color: var(--ink);
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .reading-panel .value-row .num {
+  grid-column: 3;
+  grid-row: 1;
   font-family: var(--mono);
   font-size: 18px;
   font-weight: 500;
@@ -494,9 +503,53 @@ main {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
-.reading-panel .value-row.dim { opacity: 0.5; }
+.reading-panel .value-row .sub {
+  grid-column: 2 / span 2;
+  grid-row: 2;
+  font-family: var(--ui);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.reading-panel .value-row .sub .meta { color: var(--ink-mute); }
+.reading-panel .value-row .sub .delta { color: var(--ink-soft); font-weight: 700; }
+.reading-panel .value-row .sub .delta.up { color: var(--news-red); }
+.reading-panel .value-row .sub .delta.down { color: var(--eco-green); }
+.reading-panel .value-row.dim { opacity: 0.55; }
+
+.reading-panel .period-stats {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--paper-rule);
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reading-panel .period-stats .big {
+  display: block;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-transform: none;
+  margin-bottom: 2px;
+}
+
 .reading-panel .cta {
-  margin-top: 20px;
+  margin-top: 18px;
   font-family: var(--ui);
   font-size: 12px;
   color: var(--ink-mute);
