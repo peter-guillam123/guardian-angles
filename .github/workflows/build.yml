@@ -1,0 +1,82 @@
+name: Build Guardian Trends data
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC nightly
+  workflow_dispatch:      # manual trigger from the Actions tab
+  push:
+    branches: [ main ]
+    paths:
+      - 'build/**'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: build/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r build/requirements.txt
+
+      - name: Fetch missing months
+        env:
+          GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
+        run: |
+          # Skip months we've already fetched. On first run this fetches the
+          # full decade (slow; ~1 req/sec). After that it's typically 1 month.
+          python build/fetch_guardian.py --skip-existing
+
+      - name: Build index
+        run: python build/build_index.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "guardian-trends-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No data changes to commit."
+          else
+            git commit -m "data: nightly build"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out (with new data)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
