@@ -1,6 +1,6 @@
-# Guardian Trends
+# Guardian Angles
 
-A decade of Guardian headlines, searchable and graphed. Inspired by [Ted Alcorn's NYT dashboard](https://tedalcorn.github.io/nyt/), but scoped to tags and sections rather than individual journalists.
+A decade of Guardian coverage, from every angle. Search and compare words across Guardian headlines at monthly, weekly, or daily granularity, and open the actual headlines behind any spike. Inspired by [Ted Alcorn's NYT dashboard](https://tedalcorn.github.io/nyt/), but scoped to tags and sections rather than individual journalists.
 
 ## How it works
 
@@ -51,7 +51,7 @@ After the first full build, future nightlies only need to fetch the current mont
 
 ## Deploying to GitHub Pages
 
-1. Create a repo `guardian-trends` under `peter-guillam123` and push this folder to it.
+1. Create a repo `guardian-angles` under `peter-guillam123` and push this folder to it.
 2. In the repo **Settings → Secrets and variables → Actions**, add `GUARDIAN_API_KEY`.
 3. In **Settings → Pages**, set source to "GitHub Actions".
 4. Run the **Build Guardian Trends data** workflow once manually (Actions tab → Run workflow). The first run does the full decade fetch and takes ~2 hours.

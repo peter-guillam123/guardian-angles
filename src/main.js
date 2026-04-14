@@ -21,6 +21,9 @@ const form = document.getElementById('search-form');
 const clearBtn = document.getElementById('clear-btn');
 const readingMonth = document.getElementById('reading-month');
 const readingValues = document.getElementById('reading-values');
+const readingEyebrow = document.getElementById('reading-eyebrow');
+const readingCta = document.getElementById('reading-cta');
+const periodStatsEl = document.getElementById('period-stats');
 const statBig = document.getElementById('stat-big');
 const breakdownEl = document.getElementById('breakdown');
 const breakdownBarsEl = document.getElementById('breakdown-bars');
@@ -176,11 +179,24 @@ function granularityAdverb() {
 function updateReadingPanel(bucketIdx) {
   if (!currentSeries.length || !currentBuckets) return;
   const bucket = currentBuckets[bucketIdx];
+  const periodTotal = currentTotals[bucketIdx];
+  readingEyebrow.textContent = granularityEyebrow();
   readingMonth.classList.remove('idle');
   readingMonth.textContent = formatBucketLong(bucket);
 
   const rows = currentSeries
-    .map((s, i) => ({ term: s.term, value: s.values[bucketIdx], count: s.counts[bucketIdx], color: PALETTE[i % PALETTE.length] }))
+    .map((s, i) => {
+      const count = s.counts[bucketIdx];
+      const value = s.values[bucketIdx];
+      const pct = periodTotal > 0 ? (count / periodTotal) * 100 : 0;
+      const prev = bucketIdx > 0 ? s.values[bucketIdx - 1] : null;
+      let delta = null;
+      if (prev != null && prev > 0 && value > 0) {
+        const change = ((value - prev) / prev) * 100;
+        delta = Math.abs(change) < 5 ? null : { change, dir: change > 0 ? 'up' : 'down' };
+      }
+      return { term: s.term, value, count, pct, delta, color: PALETTE[i % PALETTE.length] };
+    })
     .sort((a, b) => b.value - a.value);
 
   readingValues.innerHTML = rows.map(r => `
@@ -188,37 +204,104 @@ function updateReadingPanel(bucketIdx) {
       <span class="rule" style="background:${r.color}"></span>
       <span class="term">${escapeHtml(r.term)}</span>
       <span class="num">${formatReadingValue(r.value)}</span>
+      <span class="sub">
+        <span class="meta">${formatCountPlain(r.count)} ${r.count === 1 ? 'headline' : 'headlines'} · ${formatPct(r.pct)}</span>
+        ${r.delta ? `<span class="delta ${r.delta.dir}">${r.delta.dir === 'up' ? '↑' : '↓'} ${Math.abs(r.delta.change).toFixed(0)}%</span>` : ''}
+      </span>
     </div>
   `).join('');
+
+  periodStatsEl.innerHTML = `
+    <span class="big">${formatCountPlain(periodTotal)}</span>
+    Guardian headlines ${periodWord()}
+  `;
+  readingCta.style.display = '';
 }
 
 function resetReadingPanel() {
   if (!currentSeries.length) {
     setReadingIdle('Hover the chart.');
     readingValues.innerHTML = '';
+    periodStatsEl.innerHTML = '';
+    readingCta.style.display = 'none';
+    readingEyebrow.textContent = 'Reading panel';
     return;
   }
+  readingEyebrow.textContent = 'Overview · hover for a period';
   readingMonth.classList.remove('idle');
   readingMonth.textContent = currentSeries.length === 1 ? `"${currentSeries[0].term}"` : 'Compare';
+
   const rows = currentSeries
     .map((s, i) => {
       const mean = s.values.reduce((a, b) => a + b, 0) / s.values.length;
-      return { term: s.term, value: mean, color: PALETTE[i % PALETTE.length] };
+      const total = s.counts.reduce((a, b) => a + b, 0);
+      let peakIdx = 0;
+      for (let k = 1; k < s.values.length; k++) if (s.values[k] > s.values[peakIdx]) peakIdx = k;
+      return {
+        term: s.term,
+        value: mean,
+        total,
+        peakBucket: currentBuckets[peakIdx],
+        peakValue: s.values[peakIdx],
+        color: PALETTE[i % PALETTE.length],
+      };
     })
     .sort((a, b) => b.value - a.value);
+
   readingValues.innerHTML = rows.map(r => `
     <div class="value-row dim">
       <span class="rule" style="background:${r.color}"></span>
       <span class="term">${escapeHtml(r.term)}</span>
       <span class="num">${formatReadingValue(r.value)}</span>
+      <span class="sub">
+        <span class="meta">${formatCountPlain(r.total)} total · peak ${formatBucketShort(r.peakBucket)}</span>
+      </span>
     </div>
   `).join('');
+
+  const grandTotal = currentTotals.reduce((a, b) => a + b, 0);
+  periodStatsEl.innerHTML = `
+    <span class="big">${formatCount(grandTotal)}</span>
+    Guardian headlines across view
+  `;
+  readingCta.style.display = '';
 }
 
 function setReadingIdle(text) {
+  readingEyebrow.textContent = 'Reading panel';
   readingMonth.classList.add('idle');
   readingMonth.textContent = text;
   readingValues.innerHTML = '';
+  periodStatsEl.innerHTML = '';
+  readingCta.style.display = 'none';
+}
+
+function granularityEyebrow() {
+  return { monthly: 'This month', weekly: 'This week', daily: 'This day' }[currentGranularity];
+}
+function periodWord() {
+  return { monthly: 'this month', weekly: 'this week', daily: 'this day' }[currentGranularity];
+}
+function formatBucketShort(bucket) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
+    return new Date(bucket + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  }
+  if (/^\d{4}-\d{2}$/.test(bucket)) {
+    const [y, mo] = bucket.split('-').map(Number);
+    return new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  }
+  const m = bucket.match(/^(\d{4})-W(\d{2})$/);
+  if (m) return `wk ${m[2]} '${m[1].slice(2)}`;
+  return bucket;
+}
+function formatPct(p) {
+  if (p === 0) return '0%';
+  if (p >= 10) return p.toFixed(0) + '%';
+  if (p >= 1) return p.toFixed(1) + '%';
+  return p.toFixed(2) + '%';
+}
+function formatCountPlain(n) {
+  return n.toLocaleString('en-GB');
 }
 
 async function openHeadlines(term, bucket) {
