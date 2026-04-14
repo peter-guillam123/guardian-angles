@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian Trends — a decade of Guardian headlines, measured</title>
+  <meta name="description" content="Search a decade of Guardian headlines. See how coverage of people, places and ideas has risen and fallen." />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      Guardian<br/>
+      <span class="and">&amp;</span> Trends
+    </h1>
+    <p class="dek">
+      A decade of Guardian headlines rendered as <em>curves</em>. Type a word — or compare four — and see how often it's run across the top of Guardian articles, month by month. Click any peak to read the headlines from that month as the newsroom wrote them.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      headlines indexed
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <main>
+    <!-- LEFT: editorial sidebar with search + examples -->
+    <aside class="controls">
+      <p class="label">Search</p>
+      <form id="search-form" autocomplete="off">
+        <input type="text" id="q1" placeholder="e.g. starmer" />
+        <input type="text" id="q2" placeholder="add another…" />
+        <input type="text" id="q3" placeholder="and another…" />
+        <input type="text" id="q4" placeholder="and one more" />
+        <div class="actions">
+          <button type="submit">Compare</button>
+          <button type="button" id="clear-btn" class="ghost">Clear</button>
+        </div>
+      </form>
+
+      <div class="examples">
+        <p class="label">Try</p>
+        <ul>
+          <li><a data-query="corbyn,starmer">Corbyn <em>vs.</em> Starmer</a></li>
+          <li><a data-query="brexit,covid,ukraine">Brexit, covid &amp; Ukraine</a></li>
+          <li><a data-query="climate,inflation">climate <em>vs.</em> inflation</a></li>
+          <li><a data-query="trump,johnson,sunak,badenoch">Four leaders</a></li>
+          <li><a data-query="russia,china">Russia <em>vs.</em> China</a></li>
+          <li><a data-query="ai,crypto">AI <em>vs.</em> crypto</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- MIDDLE: chart -->
+    <section class="chart-stage">
+      <div class="chart-head">
+        <h2 id="chart-title">Type a word — or four — to plot a decade of Guardian coverage.</h2>
+        <div class="granularity" role="group" aria-label="Time granularity">
+          <button type="button" data-granularity="monthly" class="gran-btn active">Month</button>
+          <button type="button" data-granularity="weekly"  class="gran-btn">Week</button>
+          <button type="button" data-granularity="daily"   class="gran-btn">Day</button>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="yaxis-label">Share of Guardian headlines (per 1,000)</div>
+      <canvas id="chart"></canvas>
+      <div class="chart-hint">
+        <strong>10 per 1,000 = 1% of that period's Guardian headlines.</strong>
+        Hover the chart to read the numbers · click any point to open that day/week/month's headlines.
+      </div>
+    </section>
+
+    <!-- RIGHT: reading panel (replaces the illegible canvas tooltip) -->
+    <aside class="reading-panel" id="reading-panel">
+      <p class="eyebrow">Reading panel</p>
+      <p class="month-label idle" id="reading-month">Hover the chart.</p>
+      <div class="panel-rule"></div>
+      <div class="values" id="reading-values"></div>
+      <p class="cta">
+        <strong>Click</strong> a point on the chart to open the Guardian's headlines from that month.
+      </p>
+    </aside>
+  </main>
+
+  <!-- Headline explorer section, hidden until a peak is clicked -->
+  <section class="headlines-section" id="headlines-section" hidden>
+    <p class="kicker">Dispatches</p>
+    <h2 id="headlines-title">Headlines</h2>
+    <p class="meta" id="headlines-meta"></p>
+
+    <div class="breakdown" id="breakdown">
+      <p class="breakdown-eyebrow">Where it ran — section mix</p>
+      <div class="breakdown-bars" id="breakdown-bars"></div>
+    </div>
+
+    <canvas id="headlines"></canvas>
+  </section>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Data rebuilds nightly. Source on <a href="https://github.com/peter-guillam123/guardian-trends">GitHub</a>.
+    Headlines © Guardian News &amp; Media.
+  </footer>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
