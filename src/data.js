@@ -5,8 +5,10 @@ const DATA_BASE = './data';
 
 // granularity → cached Promise of { buckets, totals, terms }
 const _indexPromises = {};
+const _tagIndexPromises = {};
 let _sectionsPromise = null;
 let _metaPromise = null;
+let _tagCatalogPromise = null;
 const _shardCache = new Map();
 
 async function fetchJsonMaybeGz(url) {
@@ -31,6 +33,22 @@ export function loadIndex(granularity = 'monthly') {
     );
   }
   return _indexPromises[granularity];
+}
+
+export function loadTagIndex(granularity = 'monthly') {
+  if (!_tagIndexPromises[granularity]) {
+    _tagIndexPromises[granularity] = fetchJsonMaybeGz(
+      `${DATA_BASE}/tag-index-${granularity}.json`,
+    );
+  }
+  return _tagIndexPromises[granularity];
+}
+
+export function loadTagCatalog() {
+  if (!_tagCatalogPromise) {
+    _tagCatalogPromise = fetch(`${DATA_BASE}/tag-catalog.json`).then(r => r.json());
+  }
+  return _tagCatalogPromise;
 }
 
 export function loadSections() {
@@ -146,6 +164,27 @@ export async function headlinesForTermInBucket(term, bucket) {
   const filtered = all.filter(h => dateInBucket(h.d || '', bucket));
   if (!q) return filtered;
   return filtered.filter(h => h.t.toLowerCase().includes(q));
+}
+
+// Query a tag at a specific granularity. Tags only exist in the top-N catalog
+// so there is no substring-scan fallback — if it's not in the catalog, the UI
+// should not have let the user pick it.
+export async function queryTag(tagId, granularity = 'monthly') {
+  if (!tagId) return null;
+  const idx = await loadTagIndex(granularity);
+  const counts = idx.tags[tagId];
+  if (!counts) return null;
+  return { tag: tagId, buckets: idx.buckets, counts, totals: idx.totals, source: 'tag-index' };
+}
+
+// Headlines in a bucket whose tag array includes this tag id.
+export async function headlinesForTagInBucket(tagId, bucket) {
+  const monthKeys = bucketToMonths(bucket);
+  const shards = await Promise.all(monthKeys.map(loadShard));
+  const all = shards.flatMap(s => s.headlines);
+  return all
+    .filter(h => dateInBucket(h.d || '', bucket))
+    .filter(h => Array.isArray(h.g) && h.g.includes(tagId));
 }
 
 export function normalisePerMille(counts, totals) {
