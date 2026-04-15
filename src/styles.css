@@ -252,6 +252,49 @@ main {
 }
 .controls button.ghost:hover { color: var(--ink); border-color: var(--ink); }
 
+.section-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dotted var(--paper-rule);
+}
+.section-filter-label {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.section-filter select {
+  font: 400 14px/1.3 var(--body);
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid var(--paper-rule);
+  background: transparent;
+  color: var(--ink);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-mute) 50%),
+    linear-gradient(135deg, var(--ink-mute) 50%, transparent 50%);
+  background-position: calc(100% - 12px) calc(50% - 2px), calc(100% - 7px) calc(50% - 2px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.section-filter select.active {
+  border-bottom-color: var(--guardian-blue);
+  color: var(--guardian-blue);
+  font-weight: 700;
+}
+.section-filter select:focus {
+  outline: none;
+  border-bottom-color: var(--guardian-blue);
+}
+
 .controls .examples {
   margin-top: 28px;
   padding-top: 16px;

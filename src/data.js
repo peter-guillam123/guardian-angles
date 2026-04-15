@@ -11,6 +11,25 @@ let _metaPromise = null;
 let _tagCatalogPromise = null;
 const _shardCache = new Map();
 
+// Build a headline matcher for a free-text query.
+//   - Phrase (contains whitespace): substring match
+//   - Single word: case-insensitive word-boundary match
+//
+// This mirrors the build-time tokenizer's view of headlines, so the chart
+// counts and the headline-explorer list agree on what "matches" the query.
+// Importantly: "AI" no longer matches "rain", "Spain", "again", and so on.
+export function makeWordMatcher(q) {
+  const trimmed = (q || '').trim();
+  if (!trimmed) return () => true;
+  const lower = trimmed.toLowerCase();
+  if (/\s/.test(lower)) {
+    return (text) => text.toLowerCase().includes(lower);
+  }
+  const escaped = lower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\b${escaped}\\b`, 'i');
+  return (text) => re.test(text);
+}
+
 async function fetchJsonMaybeGz(url) {
   try {
     const res = await fetch(url + '.gz');
@@ -122,7 +141,8 @@ export function dateInBucket(isoDateTime, bucket) {
   return false;
 }
 
-// Query a term at a specific granularity.
+// Query a term at a specific granularity. Word-boundary semantics:
+// "ai" won't match "rain"; "trump" won't match "trumpism" — same as the index.
 export async function queryTerm(term, granularity = 'monthly') {
   const q = term.trim().toLowerCase();
   if (!q) return null;
@@ -143,10 +163,11 @@ export async function queryTerm(term, granularity = 'monthly') {
   const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
   const counts = new Array(buckets.length).fill(0);
 
+  const matcher = makeWordMatcher(q);
   const toBucket = makeBucketer(granularity);
   for (const shard of shards) {
     for (const h of shard.headlines) {
-      if (!h.t.toLowerCase().includes(q)) continue;
+      if (!matcher(h.t)) continue;
       const b = toBucket((h.d || '').slice(0, 10));
       const bi = bucketIdx.get(b);
       if (bi != null) counts[bi]++;
@@ -155,15 +176,18 @@ export async function queryTerm(term, granularity = 'monthly') {
   return { term: q, buckets, counts, totals: idx.totals, source: 'scan' };
 }
 
-// Headlines for a term in a given bucket (month/week/day).
+// Headlines for a term in a given bucket (month/week/day). Uses the same
+// word-boundary semantics as queryTerm so the headline list and the chart
+// curve always agree on what counts as "matching".
 export async function headlinesForTermInBucket(term, bucket) {
-  const q = term.trim().toLowerCase();
+  const q = (term || '').trim();
   const monthKeys = bucketToMonths(bucket);
   const shards = await Promise.all(monthKeys.map(loadShard));
   const all = shards.flatMap(s => s.headlines);
   const filtered = all.filter(h => dateInBucket(h.d || '', bucket));
   if (!q) return filtered;
-  return filtered.filter(h => h.t.toLowerCase().includes(q));
+  const matcher = makeWordMatcher(q);
+  return filtered.filter(h => matcher(h.t));
 }
 
 // Query a tag at a specific granularity. Tags only exist in the top-N catalog
@@ -189,6 +213,73 @@ export async function headlinesForTagInBucket(tagId, bucket) {
 
 export function normalisePerMille(counts, totals) {
   return counts.map((c, i) => (totals[i] > 0 ? (c * 1000) / totals[i] : 0));
+}
+
+// Section-filtered query: re-aggregates from raw shards (no pre-built index),
+// so this is slower than queryTerm/queryTag — but it lets the user ask things
+// like "starmer in Opinion only" or "us-news/donaldtrump in World news only"
+// which the bulk indexes can't answer.
+//
+// Loads all monthly shards on first call (heavy first-time cost; subsequent
+// calls reuse the in-memory cache via loadShard).
+export async function queryInSection({ kind, key, granularity, sectionId }) {
+  if (!sectionId) throw new Error('queryInSection requires sectionId');
+  const sections = await loadSections();
+  const allMonths = sections.months;
+  const shards = await Promise.all(allMonths.map(loadShard));
+
+  const bucketer = makeBucketer(granularity);
+
+  // First pass: collect bucket keys (matching the global universe so x-axes
+  // line up with non-filtered queries)
+  const bucketsSet = new Set();
+  for (const shard of shards) {
+    for (const h of shard.headlines) {
+      const date = (h.d || '').slice(0, 10);
+      if (date) bucketsSet.add(bucketer(date));
+    }
+  }
+  const buckets = Array.from(bucketsSet).sort();
+  const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
+  const n = buckets.length;
+  const counts = new Array(n).fill(0);
+  const totals = new Array(n).fill(0);   // per-bucket totals WITHIN this section
+
+  const matcher = kind === 'words' ? makeWordMatcher(key) : null;
+  const tagId = kind === 'tags' ? key : null;
+
+  for (const shard of shards) {
+    for (const h of shard.headlines) {
+      if (h.s !== sectionId) continue;
+      const date = (h.d || '').slice(0, 10);
+      if (!date) continue;
+      const bi = bucketIdx.get(bucketer(date));
+      if (bi == null) continue;
+      totals[bi]++;
+      if (matcher) {
+        if (matcher(h.t)) counts[bi]++;
+      } else {
+        if (Array.isArray(h.g) && h.g.includes(tagId)) counts[bi]++;
+      }
+    }
+  }
+
+  return { key, buckets, counts, totals, source: 'section-scan' };
+}
+
+// Headlines for a (term|tag) in a (bucket, section).
+export async function headlinesForKeyInBucketAndSection({ kind, key, bucket, sectionId }) {
+  const monthKeys = bucketToMonths(bucket);
+  const shards = await Promise.all(monthKeys.map(loadShard));
+  const all = shards.flatMap(s => s.headlines);
+  const inBucketAndSection = all.filter(h =>
+    dateInBucket(h.d || '', bucket) && (!sectionId || h.s === sectionId)
+  );
+  if (kind === 'tags') {
+    return inBucketAndSection.filter(h => Array.isArray(h.g) && h.g.includes(key));
+  }
+  const matcher = makeWordMatcher(key);
+  return inBucketAndSection.filter(h => matcher(h.t));
 }
 
 function makeBucketer(granularity) {

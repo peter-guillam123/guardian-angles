@@ -7,6 +7,7 @@ import {
   headlinesForTermInBucket, headlinesForTagInBucket,
   normalisePerMille, loadTagCatalog,
   loadIndex, loadTagIndex,
+  queryInSection, headlinesForKeyInBucketAndSection,
 } from './data.js';
 import { TrendChart, PALETTE } from './chart.js';
 import { HeadlineExplorer } from './headlines.js';
@@ -39,6 +40,7 @@ const examplesTagsEl = document.getElementById('examples-tags');
 const risingPanelEl = document.getElementById('rising-panel');
 const risingTagsListEl = document.querySelector('#rising-tags .rising-list');
 const risingWordsListEl = document.querySelector('#rising-words .rising-list');
+const sectionFilterEl = document.getElementById('section-filter');
 
 const chart = new TrendChart(chartEl);
 const explorer = new HeadlineExplorer(headlinesEl);
@@ -60,6 +62,7 @@ async function init() {
   try {
     const [sections, meta] = await Promise.all([loadSections(), loadMeta()]);
     if (statBig) statBig.textContent = formatCount(meta.total_headlines);
+    populateSectionFilter(sections);
   } catch (e) {
     setReadingIdle('Could not load data. Has the build run yet?');
     console.error(e);
@@ -112,6 +115,12 @@ async function init() {
   // Rising panel click handler (one-shot setup; uses event delegation)
   attachRisingClickHandler();
 
+  // Section filter — re-runs the search when changed
+  sectionFilterEl.addEventListener('change', () => {
+    sectionFilterEl.classList.toggle('active', !!sectionFilterEl.value);
+    if (currentQueries.length) runSearch();
+  });
+
   // Chart events
   chart.addEventListener('pointclick', (e) => openHeadlines(e.detail));
   chart.addEventListener('hover', (e) => {
@@ -128,6 +137,11 @@ async function init() {
   }
   const qParam = params.get('q');
   const tagsParam = params.get('tags');
+  const sParam = params.get('s');
+  if (sParam) {
+    sectionFilterEl.value = sParam;
+    sectionFilterEl.classList.add('active');
+  }
 
   // Resolve initial mode: URL params override the HTML default.
   if (qParam && !tagsParam) {
@@ -224,20 +238,29 @@ async function runSearch() {
 
   currentQueries = queries;
   currentLabels = labels;
-  setReadingIdle('Searching the archive…');
+  const sectionId = sectionFilterEl.value || null;
+  setReadingIdle(sectionId ? 'Filtering by section…' : 'Searching the archive…');
 
-  const results = await Promise.all(queries.map(q =>
-    currentMode === 'tags'
-      ? queryTag(q, currentGranularity)
-      : queryTerm(q, currentGranularity)
-  ));
+  let results;
+  if (sectionId) {
+    // Section-filtered: re-aggregate from raw shards client-side.
+    results = await Promise.all(queries.map(q =>
+      queryInSection({ kind: currentMode, key: q, granularity: currentGranularity, sectionId })
+    ));
+  } else {
+    results = await Promise.all(queries.map(q =>
+      currentMode === 'tags'
+        ? queryTag(q, currentGranularity)
+        : queryTerm(q, currentGranularity)
+    ));
+  }
   const valid = results.filter(Boolean);
   if (!valid.length) { setReadingIdle('No results.'); return; }
 
   currentBuckets = valid[0].buckets;
   currentTotals = valid[0].totals;
   currentSeries = valid.map((r, i) => ({
-    query: currentMode === 'tags' ? r.tag : r.term,
+    query: currentMode === 'tags' ? (r.tag || r.key) : (r.term || r.key),
     label: labels[i],
     buckets: r.buckets,
     values: normalisePerMille(r.counts, r.totals),
@@ -254,6 +277,7 @@ async function runSearch() {
   if (currentMode === 'tags') p.set('tags', queries.join(','));
   else p.set('q', queries.join(','));
   if (currentGranularity !== 'monthly') p.set('g', currentGranularity);
+  if (sectionId) p.set('s', sectionId);
   history.replaceState(null, '', `?${p.toString()}`);
 }
 
@@ -481,6 +505,19 @@ function attachRisingClickHandler() {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
+function populateSectionFilter(sections) {
+  // Sort by total volume desc; show pretty section names
+  const entries = Object.entries(sections.sections || {})
+    .map(([id, counts]) => ({ id, total: counts.reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => b.total - a.total);
+  for (const { id, total } of entries) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${sectionLabel(id)}  (${formatCount(total)})`;
+    sectionFilterEl.appendChild(opt);
+  }
+}
+
 function granularityEyebrow() {
   return { monthly: 'This month', weekly: 'This week', daily: 'This day' }[currentGranularity];
 }
@@ -505,9 +542,14 @@ async function openHeadlines({ term: queryLabel, bucket, seriesIdx }) {
   breakdownBarsEl.innerHTML = '';
   headlinesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const list = currentMode === 'tags'
-    ? await headlinesForTagInBucket(series.query, bucket)
-    : await headlinesForTermInBucket(series.query, bucket);
+  const sectionId = sectionFilterEl.value || null;
+  const list = sectionId
+    ? await headlinesForKeyInBucketAndSection({
+        kind: currentMode, key: series.query, bucket, sectionId,
+      })
+    : (currentMode === 'tags'
+        ? await headlinesForTagInBucket(series.query, bucket)
+        : await headlinesForTermInBucket(series.query, bucket));
   headlinesMeta.textContent = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'} · rendered with Pretext`;
   renderSectionBreakdown(list);
   // Pass the display label as the highlighter for the headline explorer;
