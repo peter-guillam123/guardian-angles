@@ -641,6 +641,86 @@ main {
   color: var(--ink-mute);
   line-height: 1.5;
 }
+
+/* ----- Rising / trending panels (idle reading panel) ----- */
+.rising { margin-top: 4px; }
+.rising-block { margin-bottom: 22px; }
+.rising-eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--news-red);
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.rising-eyebrow span {
+  color: var(--ink-mute);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+.rising-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  counter-reset: rising;
+}
+.rising-list li {
+  counter-increment: rising;
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 6px 4px 2px;
+  font-family: var(--ui);
+  cursor: pointer;
+  transition: background 100ms;
+  border-radius: 1px;
+}
+.rising-list li:hover { background: var(--paper-deep); }
+.rising-list li::before {
+  content: counter(rising);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rising-list .rising-label {
+  font-family: var(--body);
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rising-list .rising-jump {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--news-red);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rising-list .rising-jump.flat { color: var(--ink-mute); font-weight: 400; }
+.rising-cta {
+  font: italic 12px/1.4 var(--body);
+  color: var(--ink-mute);
+  margin: 4px 0 0;
+}
+.rising-loading {
+  font: italic 13px var(--body);
+  color: var(--ink-mute);
+  padding: 8px 0;
+}
 .reading-panel .cta kbd {
   font-family: var(--mono);
   font-size: 11px;

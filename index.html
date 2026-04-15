@@ -15,7 +15,7 @@
       Angles
     </h1>
     <p class="dek">
-      A decade of Guardian coverage, from <em>every angle</em>. Type a word — or compare four — and see how often it's run across the top of Guardian articles, month by month. Click any peak to read the headlines from that moment and the sections they ran in.
+      A decade of Guardian coverage rendered as <em>curves</em>. Pick from thousands of editorial <strong>tags</strong> — climate crisis, Donald Trump, cost of living — or switch to <strong>words</strong> and search any phrase across Guardian headlines. Compare up to four. Click any peak to read the headlines and see which sections they ran in.
     </p>
     <div class="stat" id="stat-counter">
       <span class="big" id="stat-big">—</span>
@@ -29,22 +29,22 @@
     <!-- LEFT: editorial sidebar with search + examples -->
     <aside class="controls">
       <div class="mode-toggle" role="group" aria-label="Search mode">
-        <button type="button" class="mode-btn active" data-mode="words">Words</button>
-        <button type="button" class="mode-btn" data-mode="tags">Tags</button>
+        <button type="button" class="mode-btn" data-mode="words">Words</button>
+        <button type="button" class="mode-btn active" data-mode="tags">Tags</button>
       </div>
-      <p class="label" id="search-label">Search headlines</p>
+      <p class="label" id="search-label">Search tags</p>
       <form id="search-form" autocomplete="off">
-        <input type="text" id="q1" placeholder="e.g. starmer" />
-        <input type="text" id="q2" placeholder="add another…" />
-        <input type="text" id="q3" placeholder="and another…" />
-        <input type="text" id="q4" placeholder="and one more" />
+        <input type="text" id="q1" placeholder="e.g. donald trump, climate…" />
+        <input type="text" id="q2" placeholder="add another tag…" />
+        <input type="text" id="q3" placeholder="add another tag…" />
+        <input type="text" id="q4" placeholder="add another tag…" />
         <div class="actions">
           <button type="submit">Compare</button>
           <button type="button" id="clear-btn" class="ghost">Clear</button>
         </div>
       </form>
 
-      <div class="examples" id="examples-words">
+      <div class="examples" id="examples-words" hidden>
         <p class="label">Try</p>
         <ul>
           <li><a data-query="corbyn,starmer">Corbyn <em>vs.</em> Starmer</a></li>
@@ -56,7 +56,7 @@
         </ul>
       </div>
 
-      <div class="examples" id="examples-tags" hidden>
+      <div class="examples" id="examples-tags">
         <p class="label">Try</p>
         <ul>
           <li><a data-tag-query="us-news/donaldtrump,politics/keir-starmer">Trump <em>vs.</em> Starmer (tags)</a></li>
@@ -87,13 +87,27 @@
       </div>
     </section>
 
-    <!-- RIGHT: reading panel — compare metadata + absolute counts -->
+    <!-- RIGHT: reading panel — compare metadata when active, "rising" lists when idle -->
     <aside class="reading-panel" id="reading-panel">
       <p class="eyebrow" id="reading-eyebrow">Reading panel</p>
       <p class="month-label idle" id="reading-month">Hover the chart.</p>
       <div class="panel-rule"></div>
       <div class="values" id="reading-values"></div>
       <div class="period-stats" id="period-stats"></div>
+
+      <!-- Rising/trending panels — visible only when no search is active -->
+      <div class="rising" id="rising-panel" hidden>
+        <div class="rising-block" id="rising-tags">
+          <p class="rising-eyebrow">Rising tags <span>last 4 weeks</span></p>
+          <ol class="rising-list"></ol>
+        </div>
+        <div class="rising-block" id="rising-words">
+          <p class="rising-eyebrow">Rising words <span>last 4 weeks</span></p>
+          <ol class="rising-list"></ol>
+        </div>
+        <p class="rising-cta">Click any item to chart it.</p>
+      </div>
+
       <p class="cta" id="reading-cta">
         <strong>Click</strong> a point on the chart to open the Guardian's headlines from that period.
       </p>
