@@ -6,11 +6,13 @@ import {
   queryTerm, queryTag,
   headlinesForTermInBucket, headlinesForTagInBucket,
   normalisePerMille, loadTagCatalog,
+  loadIndex, loadTagIndex,
 } from './data.js';
 import { TrendChart, PALETTE } from './chart.js';
 import { HeadlineExplorer } from './headlines.js';
 import { sectionLabel } from './sections.js';
 import { attachAutocomplete, detachAutocomplete, seedInput } from './autocomplete.js';
+import { computeRising } from './trending.js';
 
 const MAX_TERMS = 4;
 
@@ -34,11 +36,14 @@ const breakdownBarsEl = document.getElementById('breakdown-bars');
 const searchLabelEl = document.getElementById('search-label');
 const examplesWordsEl = document.getElementById('examples-words');
 const examplesTagsEl = document.getElementById('examples-tags');
+const risingPanelEl = document.getElementById('rising-panel');
+const risingTagsListEl = document.querySelector('#rising-tags .rising-list');
+const risingWordsListEl = document.querySelector('#rising-words .rising-list');
 
 const chart = new TrendChart(chartEl);
 const explorer = new HeadlineExplorer(headlinesEl);
 
-let currentMode = 'words'; // 'words' | 'tags'
+let currentMode = null; // 'words' | 'tags' — set by setMode() during init
 let currentQueries = [];   // for words: [strings]; for tags: [tag ids]
 let currentLabels = [];    // display labels aligned with currentQueries
 let currentSeries = [];
@@ -104,6 +109,9 @@ async function init() {
     btn.addEventListener('click', () => setMode(btn.dataset.mode));
   });
 
+  // Rising panel click handler (one-shot setup; uses event delegation)
+  attachRisingClickHandler();
+
   // Chart events
   chart.addEventListener('pointclick', (e) => openHeadlines(e.detail));
   chart.addEventListener('hover', (e) => {
@@ -120,35 +128,47 @@ async function init() {
   }
   const qParam = params.get('q');
   const tagsParam = params.get('tags');
-  if (tagsParam) {
-    await setMode('tags');
-    const ids = tagsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_TERMS);
-    inputs().forEach((inp, i) => {
-      if (ids[i] && tagCatalog) seedInput(inp, ids[i], tagCatalog);
-    });
-    if (ids.length) runSearch();
-  } else if (qParam) {
+
+  // Resolve initial mode: URL params override the HTML default.
+  if (qParam && !tagsParam) {
+    await setMode('words');
     const terms = qParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_TERMS);
     inputs().forEach((inp, i) => { inp.value = terms[i] || ''; });
     if (terms.length) runSearch();
+  } else {
+    // Default to tags mode (matches the HTML default-active toggle).
+    await setMode('tags');
+    if (tagsParam) {
+      const ids = tagsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_TERMS);
+      inputs().forEach((inp, i) => {
+        if (ids[i] && tagCatalog) seedInput(inp, ids[i], tagCatalog);
+      });
+      if (ids.length) runSearch();
+    }
   }
 }
 
 async function setMode(mode) {
+  // Idempotent — init() calls this on first load to apply the default.
+  // We bail only on no-op transitions where currentMode was set to the same.
   if (mode === currentMode) return;
+  const previousMode = currentMode;
   currentMode = mode;
 
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   examplesWordsEl.hidden = mode !== 'words';
   examplesTagsEl.hidden = mode !== 'tags';
 
-  // Reset inputs and state
-  chart.setSeries([]);
-  legendEl.innerHTML = '';
-  headlinesSection.hidden = true;
-  currentQueries = []; currentLabels = []; currentSeries = [];
-  resetReadingPanel();
-  inputs().forEach(inp => { inp.value = ''; delete inp.dataset.tagId; });
+  // Reset state — but only clear inputs on a real user-driven mode swap,
+  // not on the very first init where setMode() applies the default.
+  if (previousMode !== null) {
+    chart.setSeries([]);
+    legendEl.innerHTML = '';
+    headlinesSection.hidden = true;
+    currentQueries = []; currentLabels = []; currentSeries = [];
+    resetReadingPanel();
+    inputs().forEach(inp => { inp.value = ''; delete inp.dataset.tagId; });
+  }
 
   if (mode === 'tags') {
     searchLabelEl.textContent = 'Search tags';
@@ -271,6 +291,7 @@ function granularityAdverb() {
 
 function updateReadingPanel(bucketIdx) {
   if (!currentSeries.length || !currentBuckets) return;
+  risingPanelEl.hidden = true;
   const bucket = currentBuckets[bucketIdx];
   const periodTotal = currentTotals[bucketIdx];
   readingEyebrow.textContent = granularityEyebrow();
@@ -321,6 +342,8 @@ function resetReadingPanel() {
     readingEyebrow.textContent = 'Reading panel';
     return;
   }
+  // Active search — hide the rising panel
+  risingPanelEl.hidden = true;
   readingEyebrow.textContent = 'Overview · hover for a period';
   readingMonth.classList.remove('idle');
   readingMonth.textContent = currentSeries.length === 1 ? currentSeries[0].label : 'Compare';
@@ -367,7 +390,96 @@ function setReadingIdle(text) {
   readingValues.innerHTML = '';
   periodStatsEl.innerHTML = '';
   readingCta.style.display = 'none';
+  // Surface the rising lists when there's no active comparison
+  showRisingPanel();
 }
+
+// ---------- Rising / trending ----------
+let _risingLoaded = false;
+
+async function showRisingPanel() {
+  if (currentSeries.length) { risingPanelEl.hidden = true; return; }
+  risingPanelEl.hidden = false;
+  if (_risingLoaded) return;
+  _risingLoaded = true;
+
+  risingTagsListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
+  risingWordsListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
+
+  try {
+    const [tagIdx, termIdx, catalog] = await Promise.all([
+      loadTagIndex('weekly'),
+      loadIndex('weekly'),
+      loadTagCatalog(),
+    ]);
+
+    const risingTags = computeRising(tagIdx, { topK: 6 });
+    const risingTerms = computeRising(termIdx, { topK: 6 });
+    const catalogIndex = new Map(catalog.map(t => [t.id, t.name]));
+
+    risingTagsListEl.innerHTML = risingTags.map(r => {
+      const label = catalogIndex.get(r.key) || r.key.split('/').pop();
+      const ratio = formatRatio(r.ratio);
+      return `<li data-mode="tags" data-key="${escapeAttr(r.key)}" data-label="${escapeAttr(label)}">
+        <span class="rising-label">${escapeHtml(label)}</span>
+        <span class="rising-jump${ratio.flat ? ' flat' : ''}">${ratio.text}</span>
+      </li>`;
+    }).join('') || '<li class="rising-loading">Not enough data yet.</li>';
+
+    risingWordsListEl.innerHTML = risingTerms.map(r => {
+      const ratio = formatRatio(r.ratio);
+      return `<li data-mode="words" data-key="${escapeAttr(r.key)}" data-label="${escapeAttr(r.key)}">
+        <span class="rising-label">${escapeHtml(r.key)}</span>
+        <span class="rising-jump${ratio.flat ? ' flat' : ''}">${ratio.text}</span>
+      </li>`;
+    }).join('') || '<li class="rising-loading">Not enough data yet.</li>';
+  } catch (e) {
+    console.error('rising panel failed', e);
+    risingTagsListEl.innerHTML = '<li class="rising-loading">Couldn\u2019t load.</li>';
+    risingWordsListEl.innerHTML = '';
+  }
+}
+
+function formatRatio(r) {
+  if (r >= 10) return { text: `× ${r.toFixed(0)}`, flat: false };
+  if (r >= 2) return { text: `× ${r.toFixed(1)}`, flat: false };
+  if (r >= 1.2) return { text: `+${Math.round((r - 1) * 100)}%`, flat: false };
+  return { text: `+${Math.round((r - 1) * 100)}%`, flat: true };
+}
+
+// Click handler delegated on the lists (event delegation survives re-renders)
+function attachRisingClickHandler() {
+  const onClick = async (e) => {
+    const li = e.target.closest('li[data-mode]');
+    if (!li) return;
+    const mode = li.dataset.mode;
+    const key = li.dataset.key;
+    const label = li.dataset.label;
+    if (mode === 'tags') {
+      if (currentMode !== 'tags') await setMode('tags');
+      // Wait for catalog if needed, then seed input 1
+      if (!tagCatalog) tagCatalog = await loadTagCatalog();
+      inputs().forEach((inp, i) => {
+        if (i === 0) {
+          inp.value = label;
+          inp.dataset.tagId = key;
+        } else {
+          inp.value = '';
+          delete inp.dataset.tagId;
+        }
+      });
+    } else {
+      if (currentMode !== 'words') await setMode('words');
+      inputs().forEach((inp, i) => {
+        inp.value = i === 0 ? key : '';
+      });
+    }
+    runSearch();
+  };
+  risingTagsListEl.addEventListener('click', onClick);
+  risingWordsListEl.addEventListener('click', onClick);
+}
+function escapeAttr(s) { return escapeHtml(s); }
 
 function granularityEyebrow() {
   return { monthly: 'This month', weekly: 'This week', daily: 'This day' }[currentGranularity];

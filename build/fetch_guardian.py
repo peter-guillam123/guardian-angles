@@ -106,7 +106,11 @@ def fetch_page(from_date: str, to_date: str, page: int) -> dict:
 
 
 def compact_result(item: dict) -> dict:
-    """Strip a raw Guardian API result down to the tiny shape we store."""
+    """Strip a raw Guardian API result down to the tiny shape we store.
+
+    Includes `u` — the article's relative path / id — so the frontend can
+    construct https://www.theguardian.com/{u} as a clickable link.
+    """
     tags = item.get("tags", []) or []
     # Only keep topical tag ids, up to 8 (most articles have < 5)
     tag_ids = [t["id"] for t in tags if t.get("type") in ("keyword", "series", "tone")][:8]
@@ -115,6 +119,7 @@ def compact_result(item: dict) -> dict:
         "d": item.get("webPublicationDate", ""),
         "s": item.get("sectionId", ""),
         "g": tag_ids,
+        "u": item.get("id", ""),
     }
 
 
