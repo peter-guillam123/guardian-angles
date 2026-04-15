@@ -1,18 +1,21 @@
-name: Build Guardian Trends data
+name: Build Guardian Angles data
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # 03:00 UTC nightly
+    # Every 30 minutes during the backfill/enrichment phase.
+    # Once the dataset is complete (no missing months, all URL-enriched),
+    # batch_fetch is a no-op and runs finish in seconds. Can slow this
+    # down to daily later.
+    - cron: '*/30 * * * *'
   workflow_dispatch:      # manual trigger from the Actions tab
   push:
-    branches: [ main ]    # any push to main → rebuild + deploy
+    branches: [ main ]    # any push to main → redeploy existing data
 
 permissions:
   contents: write
   pages: write
   id-token: write
 
-# Prevent overlapping runs from stepping on each other's commits.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -36,28 +39,29 @@ jobs:
       - name: Install dependencies
         run: pip install -r build/requirements.txt
 
-      - name: Fetch missing months
-        # Only fetch on schedule / manual dispatch. Regular pushes just re-index
-        # and redeploy what's already in the repo, to avoid hitting the API
-        # when a code change lands.
+      - name: Batch fetch (small chunk per run — rate-limit friendly)
+        # Only fetch on schedule / manual dispatch. Pushes of code just
+        # rebuild indexes + redeploy; they don't hit the Guardian API.
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
-        run: python build/fetch_guardian.py --skip-existing
+        run: python build/batch_fetch.py
 
-      - name: Build indexes
-        run: python build/build_index.py
+      - name: Rebuild indexes
+        run: |
+          python build/build_index.py
+          python build/build_tag_index.py
 
       - name: Commit updated data
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
-          git config user.name "guardian-trends-bot"
+          git config user.name "guardian-angles-bot"
           git config user.email "bot@users.noreply.github.com"
           git add data/
           if git diff --cached --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "data: nightly build"
+            git commit -m "data: batch fetch + rebuild"
             git push
           fi
 
