@@ -2,11 +2,12 @@ name: Build Guardian Angles data
 
 on:
   schedule:
-    # Every 30 minutes during the backfill/enrichment phase.
-    # Once the dataset is complete (no missing months, all URL-enriched),
-    # batch_fetch is a no-op and runs finish in seconds. Can slow this
-    # down to daily later.
-    - cron: '*/30 * * * *'
+    # Hourly at :07 past. GitHub docs warn that scheduled runs at the
+    # top of the hour get deprioritised under load; picking :07 and a
+    # 60-minute cadence gives us far more reliable firing than the
+    # */30 cadence we had before. Once the dataset is complete the
+    # runs become no-ops anyway; we can slow to daily then.
+    - cron: '7 * * * *'
   workflow_dispatch:      # manual trigger from the Actions tab
   push:
     branches: [ main ]    # any push to main → redeploy existing data
