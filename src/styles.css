@@ -1115,7 +1115,7 @@ main.subjects {
 .compare-bar {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: var(--ink);
+  background: var(--guardian-blue);
   color: var(--paper);
   border-top: 4px solid var(--guardian-yellow);
   z-index: 40;
