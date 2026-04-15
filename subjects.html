@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subjects — Guardian Angles</title>
+  <meta name="description" content="Browse thousands of Guardian tags ranked by coverage volume. Check up to four and compare their trends." />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      The <em>subject index</em>. Every Guardian tag with a decade of coverage behind it, ranked and searchable. Tick up to four to compare their curves on the main chart.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      subjects indexed
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html" class="active" aria-current="page">Subjects</a>
+  </nav>
+
+  <main class="subjects">
+    <section class="subjects-controls">
+      <div class="ctrl ctrl-range">
+        <label class="ctrl-label">Limit years</label>
+        <div class="range-wrapper" id="range-wrapper">
+          <div class="range-track"></div>
+          <div class="range-fill" id="range-fill"></div>
+          <input type="range" id="year-from" min="2016" max="2026" value="2016" step="1" aria-label="From year" />
+          <input type="range" id="year-to"   min="2016" max="2026" value="2026" step="1" aria-label="To year" />
+        </div>
+        <div class="range-values">
+          <span id="year-from-display">2016</span>
+          <span id="year-to-display">2026</span>
+        </div>
+      </div>
+
+      <div class="ctrl ctrl-filter">
+        <label class="ctrl-label" for="name-filter">Filter by name</label>
+        <input type="text" id="name-filter" placeholder="e.g. climate, starmer, football…" autocomplete="off" />
+      </div>
+
+      <div class="ctrl ctrl-chips">
+        <label class="ctrl-label">Section</label>
+        <div class="section-chips" id="section-chips"></div>
+      </div>
+    </section>
+
+    <p class="subjects-meta" id="subjects-meta">Loading…</p>
+
+    <div class="subjects-table-wrap">
+      <table class="subjects-table">
+        <thead>
+          <tr>
+            <th class="col-check"><span class="visually-hidden">Select</span></th>
+            <th class="col-name sortable" data-sort="name">Name</th>
+            <th class="col-section sortable" data-sort="section">Section</th>
+            <th class="col-count sortable sort-desc" data-sort="count">Articles</th>
+            <th class="col-trend">Trend</th>
+          </tr>
+        </thead>
+        <tbody id="subjects-body"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="compare-bar" id="compare-bar" hidden>
+    <div class="compare-inner">
+      <span class="compare-count" id="compare-count">0 selected</span>
+      <ul class="compare-chips" id="compare-chips"></ul>
+      <div class="compare-actions">
+        <button type="button" id="compare-clear" class="ghost">Clear</button>
+        <button type="button" id="compare-go">Compare as curves →</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media.
+  </footer>
+
+  <script type="module" src="./src/subjects.js"></script>
+</body>
+</html>
