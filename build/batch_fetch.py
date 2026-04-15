@@ -40,6 +40,13 @@ def current_month() -> str:
     return f"{today.year:04d}-{today.month:02d}"
 
 
+def previous_month() -> str:
+    today = dt.date.today()
+    first_of_this = today.replace(day=1)
+    last_of_prev = first_of_this - dt.timedelta(days=1)
+    return f"{last_of_prev.year:04d}-{last_of_prev.month:02d}"
+
+
 def existing_shards() -> set[str]:
     return {p.stem.replace(".json", "") for p in SHARD_DIR.glob("*.json.gz")}
 
@@ -92,16 +99,29 @@ def main() -> int:
     missing = find_missing_months()
     url_less = find_url_less_shards()
 
-    print(f"Status: {len(missing)} months missing, {len(url_less)} shards without URLs", file=sys.stderr)
-    if not missing and not url_less:
-        print("Nothing to do — dataset is complete and URL-enriched.", file=sys.stderr)
-        return 0
+    print(f"Status: {len(missing)} months missing, {len(url_less)} shards without URLs",
+          file=sys.stderr)
 
-    # Queue: new months first (they're strictly additive), then URL refetches
-    queue = []
-    queue.extend(missing[: args.new])
-    queue.extend(url_less[: args.refetch])
-    queue = queue[: args.max_total]
+    queue: list[str] = []
+
+    if missing or url_less:
+        # Backfill mode — prioritise getting the dataset complete first.
+        # We skip the current-month freshness refresh while we're still
+        # catching up, to keep every run small.
+        queue.extend(missing[: args.new])
+        queue.extend(url_less[: args.refetch])
+        queue = queue[: args.max_total]
+    else:
+        # Steady state: the archive is complete. Keep the current and
+        # previous months fresh so the dashboard stays close to live.
+        # (Previous-month because articles sometimes get their dates
+        # shifted by editors on publish, or we just want to catch any
+        # late-breaking stragglers.)
+        cur = current_month()
+        prev = previous_month()
+        queue = [cur, prev]
+        print("Dataset complete — refreshing current + previous month.",
+              file=sys.stderr)
 
     if not queue:
         print("Nothing selected for this run.", file=sys.stderr)
