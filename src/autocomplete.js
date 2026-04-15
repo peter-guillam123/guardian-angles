@@ -43,6 +43,9 @@ function buildDropdown() {
   const el = document.createElement('ul');
   el.className = 'ac-dropdown';
   el.setAttribute('role', 'listbox');
+  el.hidden = true;   // must start hidden — otherwise it renders as a thin
+                      // empty bordered box under its input until the user
+                      // interacts with that field
   document.body.appendChild(el);
   return el;
 }
