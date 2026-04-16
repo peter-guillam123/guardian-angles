@@ -14,6 +14,7 @@ import { HeadlineExplorer } from './headlines.js';
 import { sectionLabel } from './sections.js';
 import { attachAutocomplete, detachAutocomplete, seedInput } from './autocomplete.js';
 import { computeRising } from './trending.js';
+import { exportChartAsPNG } from './share.js';
 
 const MAX_TERMS = 4;
 
@@ -32,6 +33,8 @@ const readingEyebrow = document.getElementById('reading-eyebrow');
 const readingCta = document.getElementById('reading-cta');
 const periodStatsEl = document.getElementById('period-stats');
 const statBig = document.getElementById('stat-big');
+const chartActionsEl = document.getElementById('chart-actions');
+const shareBtnEl = document.getElementById('share-btn');
 const breakdownEl = document.getElementById('breakdown');
 const breakdownBarsEl = document.getElementById('breakdown-bars');
 const searchLabelEl = document.getElementById('search-label');
@@ -137,6 +140,20 @@ async function init() {
   // Mode buttons
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  // Share button
+  shareBtnEl.addEventListener('click', () => {
+    const legendItems = [...document.querySelectorAll('#legend .item')].map(el => ({
+      color: el.querySelector('.swatch')?.style.background || '#052962',
+      label: el.querySelector('.term')?.textContent || '',
+    }));
+    exportChartAsPNG({
+      chartCanvas: chartEl,
+      title: chartTitleEl.textContent,
+      legendItems,
+      url: location.href,
+    });
   });
 
   // View toggle (Timeline / Year-on-year)
@@ -247,6 +264,7 @@ clearBtn.addEventListener('click', () => {
   inputs().forEach(inp => { inp.value = ''; delete inp.dataset.tagId; });
   chart.setSeries([]);
   legendEl.innerHTML = '';
+  chartActionsEl.hidden = true;
   const placeholder = currentMode === 'tags'
     ? 'Pick up to four Guardian tags to compare their coverage.'
     : 'Type a word — or four — to plot a decade of Guardian coverage.';
@@ -304,6 +322,7 @@ async function runSearch() {
   }));
 
   renderChart();
+  chartActionsEl.hidden = false;
 
   const p = new URLSearchParams();
   if (currentMode === 'tags') p.set('tags', queries.join(','));
