@@ -2,6 +2,7 @@
 
 import { loadTagIndex, loadTagCatalog, loadShard } from './data.js';
 import { sectionLabel } from './sections.js';
+import { prepareWithSegments, layoutWithLines } from 'https://esm.sh/@chenglou/pretext@0.0.3';
 
 // Skip noise tags: structural (tone/type), section mega-tags (uk/uk),
 // and geo/regional catch-all tags that are too broad to be editorially
@@ -77,7 +78,7 @@ async function init() {
   if (heroTag) {
     const name = tagName(heroTag);
     const pct = ((heroCount / thisWeekTotal) * 100).toFixed(1);
-    heroTitle.textContent = name;
+    typewriterTitle(heroTitle, name);
 
     // Find this tag's all-time peak week
     const counts = tags[heroTag];
@@ -321,4 +322,103 @@ function slugToName(slug) {
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Pretext-powered teleprinter: types the hero title character by character
+// on a Canvas that sits over the <h2>, then swaps to real DOM text at the
+// end so it remains selectable / accessible.
+async function typewriterTitle(el, text) {
+  await document.fonts.ready;
+
+  const style = getComputedStyle(el);
+  const fontSize = parseInt(style.fontSize) || 48;
+  const fontWeight = style.fontWeight || '700';
+  const fontFamily = style.fontFamily || "Georgia, serif";
+  const fontStr = `${fontWeight} ${fontSize}px/0.95 ${fontFamily}`;
+  const color = style.color || '#121212';
+
+  // Measure with Pretext
+  const prepared = prepareWithSegments(text, fontStr);
+  const containerW = el.parentElement?.clientWidth || el.clientWidth || 600;
+  const { lines } = layoutWithLines(prepared, containerW);
+  const lineH = Math.round(fontSize * 1.0);
+  const totalH = lines.length * lineH + 8;
+
+  // Create canvas overlay
+  const canvas = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = containerW + 'px';
+  canvas.style.height = totalH + 'px';
+  canvas.style.display = 'block';
+  canvas.width = Math.round(containerW * dpr);
+  canvas.height = Math.round(totalH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Hide real text, show canvas in its place
+  el.style.visibility = 'hidden';
+  el.style.height = totalH + 'px';
+  el.textContent = text; // set for accessibility / final swap
+  el.parentElement.insertBefore(canvas, el);
+
+  // Build a flat array of characters with their positions
+  const chars = [];
+  lines.forEach((line, li) => {
+    const y = li * lineH + fontSize * 0.85;
+    // Measure each character's x offset
+    let x = 0;
+    for (const ch of line.text) {
+      chars.push({ ch, x, y });
+      // Advance x by measuring the char width
+      ctx.font = fontStr;
+      x += ctx.measureText(ch).width;
+    }
+  });
+
+  // Animate: reveal N chars per frame, with a blinking cursor
+  const CHARS_PER_FRAME = 2;
+  let revealed = 0;
+  const startTime = performance.now();
+
+  function draw() {
+    ctx.clearRect(0, 0, containerW, totalH);
+    ctx.font = fontStr;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'alphabetic';
+
+    for (let i = 0; i < revealed && i < chars.length; i++) {
+      ctx.fillText(chars[i].ch, chars[i].x, chars[i].y);
+    }
+
+    // Blinking cursor at the leading edge
+    if (revealed < chars.length) {
+      const cur = chars[Math.min(revealed, chars.length - 1)];
+      const elapsed = performance.now() - startTime;
+      if ((elapsed / 400) % 1 < 0.6) {
+        const cx = revealed < chars.length ? chars[revealed].x : cur.x + ctx.measureText(cur.ch).width;
+        ctx.fillStyle = '#052962';
+        ctx.fillRect(cx + 1, cur.y - fontSize * 0.75, 3, fontSize * 0.85);
+      }
+    }
+  }
+
+  return new Promise(resolve => {
+    function tick() {
+      revealed += CHARS_PER_FRAME;
+      draw();
+      if (revealed >= chars.length) {
+        // Final frame: show all chars, then swap to DOM
+        draw();
+        setTimeout(() => {
+          canvas.remove();
+          el.style.visibility = '';
+          el.style.height = '';
+          resolve();
+        }, 300);
+        return;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
 }
