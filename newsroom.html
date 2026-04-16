@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Newsroom — Guardian Angles</title>
+  <meta name="description" content="How much has the Guardian published — and what's changed? A stacked view of a decade of editorial output, broken down by section." />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      The Guardian's publishing output across a decade, broken down by section. How much gets written — and where has the editorial weight shifted? Toggle sections on and off, or switch to <em>proportional</em> view to see share-of-output over time.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      total articles
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html">Subjects</a>
+    <a href="./newsroom.html" class="active" aria-current="page">Newsroom</a>
+  </nav>
+
+  <main class="newsroom">
+    <section class="nr-controls">
+      <div class="nr-mode" role="group" aria-label="Chart mode">
+        <button type="button" class="mode-btn active" data-mode="absolute">Absolute</button>
+        <button type="button" class="mode-btn" data-mode="normalised">Proportional</button>
+      </div>
+    </section>
+
+    <div class="nr-chart-wrap">
+      <canvas id="nr-chart"></canvas>
+    </div>
+
+    <div class="nr-legend" id="nr-legend"></div>
+
+    <section class="nr-drilldown" id="nr-drilldown" hidden>
+      <div class="nr-drill-head">
+        <h2 id="nr-drill-title">Month</h2>
+        <p class="nr-drill-meta" id="nr-drill-meta"></p>
+      </div>
+      <div class="nr-drill-body">
+        <div class="nr-drill-sections">
+          <p class="nr-drill-eyebrow">Section mix</p>
+          <div class="breakdown-bars" id="nr-drill-sections-bars"></div>
+        </div>
+        <div class="nr-drill-tags">
+          <p class="nr-drill-eyebrow">Biggest tags this month</p>
+          <ol class="nr-tag-list" id="nr-drill-tags-list"></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media.
+  </footer>
+
+  <script type="module" src="./src/newsroom.js"></script>
+</body>
+</html>
