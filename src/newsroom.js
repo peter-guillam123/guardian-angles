@@ -7,7 +7,7 @@ import { sectionLabel, sectionColor } from './sections.js';
 let tagCatalogMap = null;  // tag id → display name, loaded on first drill-down
 
 const TOP_N_SECTIONS = 15;   // named bands; rest merged into "Other"
-const PADDING = { top: 20, right: 20, bottom: 38, left: 56 };
+const PADDING = { top: 36, right: 20, bottom: 38, left: 56 };
 
 // A richer palette for 15+ sections — enough contrast to tell apart
 const STACK_PALETTE = [
@@ -102,15 +102,40 @@ function buildLegend() {
     btn.type = 'button';
     btn.className = 'nr-legend-item' + (s.visible ? ' active' : '');
     btn.dataset.id = s.id;
+    btn.title = s.id === '_other' ? '' : 'Click to solo · Shift+click to toggle';
     btn.innerHTML = `<span class="nr-swatch" style="background:${s.color}"></span>${escHtml(s.label)}`;
-    btn.addEventListener('click', () => {
-      if (s.id === '_other') return; // can't toggle Other
-      s.visible = !s.visible;
-      btn.classList.toggle('active', s.visible);
+    btn.addEventListener('click', (e) => {
+      if (s.id === '_other') return;
+
+      if (e.shiftKey) {
+        // Shift+click = toggle this one on/off (power user)
+        s.visible = !s.visible;
+      } else {
+        // Click = solo (show only this section)
+        const isAlreadySolo = state.stacks.every(st => st.id === s.id ? st.visible : !st.visible);
+        if (isAlreadySolo) {
+          // Click the solo'd item again → show all
+          state.stacks.forEach(st => { st.visible = true; });
+        } else {
+          // Solo: hide everything except this one
+          state.stacks.forEach(st => { st.visible = (st.id === s.id); });
+        }
+      }
+      refreshLegendState();
       draw();
     });
     legendEl.appendChild(btn);
   }
+}
+
+function refreshLegendState() {
+  const items = legendEl.querySelectorAll('.nr-legend-item');
+  items.forEach(btn => {
+    const id = btn.dataset.id;
+    if (id === '_other') return;
+    const stack = state.stacks.find(s => s.id === id);
+    if (stack) btn.classList.toggle('active', stack.visible);
+  });
 }
 
 // ----- Controls -----
@@ -330,7 +355,10 @@ async function openDrilldown(month) {
   drillMetaEl.textContent = `${total.toLocaleString('en-GB')} articles published`;
   drilldownEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // Section bars
+  // Section bars — use the same colours as the stacked chart bands
+  const stackColorMap = new Map(state.stacks.map(s => [s.id, s.color]));
+  const drillColor = (id) => stackColorMap.get(id) || '#ccc';
+
   const sectionCounts = {};
   for (const [id, counts] of Object.entries(state.sections.sections)) {
     const mi = state.months.indexOf(month);
@@ -345,7 +373,7 @@ async function openDrilldown(month) {
     const fillW = (n / maxSec) * 100;
     return `<div class="breakdown-row">
       <div class="name">${escHtml(sectionLabel(id))}</div>
-      <div class="bar-track"><div class="bar-fill" style="background:${sectionColor(id)}; width:${fillW.toFixed(1)}%"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="background:${drillColor(id)}; width:${fillW.toFixed(1)}%"></div></div>
       <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
     </div>`;
   }).join('');
