@@ -131,6 +131,12 @@ body {
   font-style: italic;
   color: var(--ink);
 }
+.masthead .dek a {
+  color: var(--guardian-blue);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--guardian-blue);
+}
+.masthead .dek a:hover { border-bottom-style: solid; }
 .masthead .stat {
   font-family: var(--mono);
   font-size: 11px;
