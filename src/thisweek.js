@@ -40,6 +40,11 @@ const heroKicker = document.getElementById('tw-kicker');
 const risersList = document.getElementById('tw-risers');
 const fallersList = document.getElementById('tw-fallers');
 const historyGrid = document.getElementById('tw-history-grid');
+const prevBtn = document.getElementById('tw-prev');
+const nextBtn = document.getElementById('tw-next');
+
+let _idx, _catalogMap, _tagName, _currentWeekIdx;
+let _isFirstRender = true;
 
 init();
 
@@ -49,18 +54,54 @@ async function init() {
     loadTagCatalog(),
   ]);
 
-  const catalogMap = new Map(catalog.map(t => [t.id, t.name]));
-  const tagName = (id) => catalogMap.get(id) || slugToName(id);
+  _idx = idx;
+  _catalogMap = new Map(catalog.map(t => [t.id, t.name]));
+  _tagName = (id) => _catalogMap.get(id) || slugToName(id);
 
+  const n = idx.buckets.length;
+
+  // Check URL param for a specific week, otherwise use second-to-last
+  const params = new URLSearchParams(location.search);
+  const weekParam = params.get('week');
+  if (weekParam && idx.buckets.includes(weekParam)) {
+    _currentWeekIdx = idx.buckets.indexOf(weekParam);
+  } else {
+    _currentWeekIdx = n - 2;
+  }
+
+  prevBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx - 1); });
+  nextBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx + 1); });
+
+  renderWeek(_currentWeekIdx);
+}
+
+function goToWeek(newIdx) {
+  const n = _idx.buckets.length;
+  if (newIdx < 0 || newIdx >= n - 1) return; // -1 because last bucket may be partial
+  _currentWeekIdx = newIdx;
+  _isFirstRender = false; // skip typewriter on navigation
+  renderWeek(newIdx);
+  // Update URL without reload
+  const p = new URLSearchParams();
+  p.set('week', _idx.buckets[newIdx]);
+  history.replaceState(null, '', `?${p.toString()}`);
+}
+
+function renderWeek(weekIdx) {
+  const idx = _idx;
+  const tagName = _tagName;
   const buckets = idx.buckets;
   const totals = idx.totals;
   const tags = idx.tags;
   const n = buckets.length;
 
-  // Use the second-to-last bucket as "this week" (last may be partial)
-  const thisWeekIdx = n - 2;
+  const thisWeekIdx = weekIdx;
   const thisWeek = buckets[thisWeekIdx];
   const thisWeekTotal = totals[thisWeekIdx];
+
+  // Update nav button states
+  prevBtn.disabled = thisWeekIdx <= 0;
+  nextBtn.disabled = thisWeekIdx >= n - 2;
 
   statBig.textContent = thisWeekTotal.toLocaleString('en-GB');
   heroKicker.textContent = `Story of the week · ${formatWeek(thisWeek)}`;
@@ -78,7 +119,16 @@ async function init() {
   if (heroTag) {
     const name = tagName(heroTag);
     const pct = ((heroCount / thisWeekTotal) * 100).toFixed(1);
-    typewriterTitle(heroTitle, name);
+    if (_isFirstRender) {
+      typewriterTitle(heroTitle, name);
+    } else {
+      heroTitle.textContent = name;
+      heroTitle.style.visibility = '';
+      heroTitle.style.height = '';
+      // Remove any leftover canvas from previous render
+      const oldCanvas = heroTitle.parentElement.querySelector('canvas');
+      if (oldCanvas) oldCanvas.remove();
+    }
 
     // Find this tag's all-time peak week
     const counts = tags[heroTag];
