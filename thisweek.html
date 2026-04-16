@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>This Week — Guardian Angles</title>
+  <meta name="description" content="What dominated Guardian coverage this week? The biggest stories, fastest risers, and a look back at the same week in every year since 2016." />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      What's driving Guardian coverage <em>right now</em>? The biggest story of the week, the fastest-rising topics, what fell off the radar — and what was dominating the same week in every year back to 2016.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      headlines this week
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html">Subjects</a>
+    <a href="./newsroom.html">Newsroom</a>
+    <a href="./thisweek.html" class="active" aria-current="page">This Week</a>
+  </nav>
+
+  <main class="tw">
+    <!-- Hero: biggest tag -->
+    <section class="tw-hero" id="tw-hero">
+      <p class="tw-kicker" id="tw-kicker">Story of the week</p>
+      <h2 class="tw-hero-title" id="tw-hero-title">Loading…</h2>
+      <p class="tw-hero-meta" id="tw-hero-meta"></p>
+      <div class="tw-hero-body">
+        <div class="tw-hero-stats" id="tw-hero-stats"></div>
+        <div class="tw-hero-headline" id="tw-hero-headline"></div>
+      </div>
+      <div class="tw-hero-spark-wrap">
+        <p class="tw-spark-label">Coverage over time</p>
+        <canvas class="tw-spark-canvas" id="tw-hero-spark" height="80"></canvas>
+      </div>
+    </section>
+
+    <!-- Two columns: risers / fallers -->
+    <div class="tw-columns">
+      <section class="tw-col">
+        <h3 class="tw-col-title tw-rising">Rising fastest</h3>
+        <p class="tw-col-sub">vs. the previous 4 weeks</p>
+        <ol class="tw-list" id="tw-risers"></ol>
+      </section>
+      <section class="tw-col">
+        <h3 class="tw-col-title tw-falling">Falling fastest</h3>
+        <p class="tw-col-sub">vs. the previous 4 weeks</p>
+        <ol class="tw-list" id="tw-fallers"></ol>
+      </section>
+    </div>
+
+    <!-- On this week in… -->
+    <section class="tw-history">
+      <h3 class="tw-history-title">On this week in…</h3>
+      <p class="tw-history-sub">The biggest Guardian tag in the same week of each year</p>
+      <div class="tw-history-grid" id="tw-history-grid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media.
+  </footer>
+
+  <script type="module" src="./src/thisweek.js"></script>
+</body>
+</html>
