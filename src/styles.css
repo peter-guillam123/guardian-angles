@@ -333,6 +333,15 @@ main {
   border-bottom-color: var(--guardian-blue);
   color: var(--guardian-blue);
 }
+.controls .examples a.lucky {
+  font-weight: 700;
+  color: var(--guardian-blue);
+  border-bottom-color: var(--guardian-blue);
+  border-bottom-style: dashed;
+}
+.controls .examples a.lucky:hover {
+  border-bottom-style: solid;
+}
 .controls .examples em { color: var(--ink-mute); font-style: italic; }
 
 /* Middle: chart */

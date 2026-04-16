@@ -96,6 +96,32 @@ async function init() {
     });
   });
 
+  // "I feel lucky" — picks 4 random tags from the top 200 (interesting, not obscure)
+  document.getElementById('lucky-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (currentMode !== 'tags') await setMode('tags');
+    if (!tagCatalog) tagCatalog = await loadTagCatalog();
+    const pool = tagCatalog.slice(0, 200);
+    const picked = [];
+    const used = new Set();
+    while (picked.length < 4 && picked.length < pool.length) {
+      const idx = Math.floor(Math.random() * pool.length);
+      if (used.has(idx)) continue;
+      used.add(idx);
+      picked.push(pool[idx]);
+    }
+    inputs().forEach((inp, i) => {
+      if (picked[i]) {
+        inp.value = picked[i].name;
+        inp.dataset.tagId = picked[i].id;
+      } else {
+        inp.value = '';
+        delete inp.dataset.tagId;
+      }
+    });
+    runSearch();
+  });
+
   // Granularity buttons
   document.querySelectorAll('.gran-btn').forEach(btn => {
     btn.addEventListener('click', () => {
