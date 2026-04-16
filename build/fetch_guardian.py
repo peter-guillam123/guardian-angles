@@ -46,7 +46,9 @@ load_dotenv()
 API_KEY = os.environ.get("GUARDIAN_API_KEY")
 API_BASE = "https://content.guardianapis.com/search"
 PAGE_SIZE = 200  # API max
-RATE_LIMIT_SECONDS = 1.1  # free tier: 1 req/sec, pad slightly
+RATE_LIMIT_SECONDS = 3.5  # Guardian's real throttle is tighter than stated;
+                          # 3.5s keeps us under the ~1000 calls/hour burst limit
+INTER_MONTH_PAUSE = 20    # extra breathing room between months
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SHARD_DIR = REPO_ROOT / "data" / "shards"
 
@@ -193,7 +195,7 @@ def main() -> int:
         shard = fetch_month(month)
         write_shard(shard)
         if i < len(months) - 1:
-            time.sleep(RATE_LIMIT_SECONDS)
+            time.sleep(INTER_MONTH_PAUSE)
 
     print("Done.", file=sys.stderr)
     return 0
