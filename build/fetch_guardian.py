@@ -46,9 +46,8 @@ load_dotenv()
 API_KEY = os.environ.get("GUARDIAN_API_KEY")
 API_BASE = "https://content.guardianapis.com/search"
 PAGE_SIZE = 200  # API max
-RATE_LIMIT_SECONDS = 3.5  # Guardian's real throttle is tighter than stated;
-                          # 3.5s keeps us under the ~1000 calls/hour burst limit
-INTER_MONTH_PAUSE = 20    # extra breathing room between months
+RATE_LIMIT_SECONDS = 1.2  # 2 req/sec burst limit; 1.2s gives headroom
+INTER_MONTH_PAUSE = 3     # brief pause between months
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SHARD_DIR = REPO_ROOT / "data" / "shards"
 
