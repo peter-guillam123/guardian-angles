@@ -100,7 +100,29 @@ async function init() {
     });
   });
 
-  // "I feel lucky" — picks 4 random tags from the top 200 (interesting, not obscure)
+  // "I feel lucky" for words — picks 4 random terms from the top 5000 index
+  document.getElementById('lucky-words-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (currentMode !== 'words') await setMode('words');
+    const idx = await loadIndex('monthly');
+    const allTerms = Object.keys(idx.terms)
+      .filter(t => t.length >= 4);  // skip short boring ones like "uk", "us"
+    const picked = [];
+    const used = new Set();
+    while (picked.length < 4 && picked.length < allTerms.length) {
+      const i = Math.floor(Math.random() * Math.min(500, allTerms.length)); // top 500 for relevance
+      if (used.has(i)) continue;
+      used.add(i);
+      picked.push(allTerms[i]);
+    }
+    inputs().forEach((inp, i) => {
+      inp.value = picked[i] || '';
+      delete inp.dataset.tagId;
+    });
+    runSearch();
+  });
+
+  // "I feel lucky" for tags — picks 4 random tags from the top 200 (interesting, not obscure)
   document.getElementById('lucky-btn')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (currentMode !== 'tags') await setMode('tags');
