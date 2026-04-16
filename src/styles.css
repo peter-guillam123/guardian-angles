@@ -414,6 +414,27 @@ main {
   cursor: crosshair;
 }
 
+.chart-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.share-btn {
+  font: 700 11px/1 var(--ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 120ms;
+}
+.share-btn:hover {
+  background: var(--guardian-blue);
+  color: var(--paper);
+  border-color: var(--guardian-blue);
+}
 .chart-hint {
   font: 12px/1.5 var(--body);
   color: var(--ink-soft);
