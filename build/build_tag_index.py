@@ -146,6 +146,26 @@ NAME_OVERRIDES = {
     "uk-news/london": "London",
     "uk-news/england": "England",
     "world/europeannews": "European news",
+    # Sport events + smooshed names caught in This Week
+    "sport/grandnational": "Grand National",
+    "sport/sixnations": "Six Nations",
+    "sport/pga-tour": "PGA Tour",
+    "sport/europeanfootball": "European football",
+    "sport/aintree": "Aintree",
+    "sport/benrobertssmith": "Ben Roberts Smith",
+    "sport/tyson-fury": "Tyson Fury",
+    "world/coronavirusoutbreak": "Coronavirus outbreak",
+    "world/coronavirus-outbreak": "Coronavirus outbreak",
+    "politics/eu-referendum": "EU referendum",
+    "politics/eureferendum": "EU referendum",
+    "world/basharal-assad": "Bashar al-Assad",
+    "us-news/us-israel-war-on-iran": "US–Israel war on Iran",
+    "world/netanyahu": "Benjamin Netanyahu",
+    "football/tottenham-hotspur": "Tottenham Hotspur",
+    "football/arsenalfc": "Arsenal FC",
+    "football/chelseafc": "Chelsea FC",
+    "football/liverpoolfc": "Liverpool FC",
+    "football/manunitedfc": "Manchester United",
 }
 
 # Suppress display names for structural tags that aren't useful to search
