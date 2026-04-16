@@ -3,11 +3,29 @@
 import { loadTagIndex, loadTagCatalog, loadShard } from './data.js';
 import { sectionLabel } from './sections.js';
 
-// Skip noise tags
+// Skip noise tags: structural (tone/type), section mega-tags (uk/uk),
+// and geo/regional catch-all tags that are too broad to be editorially
+// interesting as "story of the week" — they win every week by sheer
+// volume rather than because anything specific happened.
 const SKIP_PREFIXES = ['tone/', 'type/', 'publication/', 'tracking/'];
+const SKIP_TAGS = new Set([
+  'world/europe-news',
+  'world/americas',
+  'world/asia-pacific',
+  'world/middleeast',
+  'world/africa',
+  'us-news/us-politics',
+  'australia-news/australian-politics',
+  'uk-news/england',
+  'uk-news/scotland',
+  'uk-news/wales',
+  'uk-news/london',
+]);
 const isMegaTag = (id) => { const p = id.split('/'); return p.length === 2 && p[0] === p[1]; };
 function isUseful(id) {
-  return !SKIP_PREFIXES.some(p => id.startsWith(p)) && !isMegaTag(id);
+  return !SKIP_PREFIXES.some(p => id.startsWith(p))
+    && !isMegaTag(id)
+    && !SKIP_TAGS.has(id);
 }
 
 const statBig = document.getElementById('stat-big');
