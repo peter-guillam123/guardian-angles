@@ -111,8 +111,9 @@ export class TrendChart extends EventTarget {
 
   setGranularity(g) { this.granularity = g; }
 
-  setSeries(series) {
-    this.series = series.map((s, i) => ({ ...s, color: PALETTE[i % PALETTE.length] }));
+  setSeries(series, palette) {
+    const pal = palette || PALETTE;
+    this.series = series.map((s, i) => ({ ...s, color: pal[i % pal.length] }));
     this._animStart = performance.now();
     this.drawProgress = 0;
     this._animate();

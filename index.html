@@ -86,10 +86,16 @@
     <section class="chart-stage">
       <div class="chart-head">
         <h2 id="chart-title">Type a word — or four — to plot a decade of Guardian coverage.</h2>
-        <div class="granularity" role="group" aria-label="Time granularity">
-          <button type="button" data-granularity="monthly" class="gran-btn active">Month</button>
-          <button type="button" data-granularity="weekly"  class="gran-btn">Week</button>
-          <button type="button" data-granularity="daily"   class="gran-btn">Day</button>
+        <div class="chart-toggles">
+          <div class="granularity" role="group" aria-label="Time granularity">
+            <button type="button" data-granularity="monthly" class="gran-btn active">Month</button>
+            <button type="button" data-granularity="weekly"  class="gran-btn">Week</button>
+            <button type="button" data-granularity="daily"   class="gran-btn">Day</button>
+          </div>
+          <div class="view-toggle" role="group" aria-label="Chart view">
+            <button type="button" data-view="timeline" class="view-btn active">Timeline</button>
+            <button type="button" data-view="yoy" class="view-btn">Year‑on‑year</button>
+          </div>
         </div>
       </div>
       <div class="legend" id="legend"></div>
