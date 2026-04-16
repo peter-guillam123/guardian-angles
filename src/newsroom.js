@@ -33,6 +33,7 @@ const chartEl = document.getElementById('nr-chart');
 const ctx = chartEl.getContext('2d');
 const legendEl = document.getElementById('nr-legend');
 const drilldownEl = document.getElementById('nr-drilldown');
+const pillEl = document.getElementById('nr-pill');
 const drillTitleEl = document.getElementById('nr-drill-title');
 const drillMetaEl = document.getElementById('nr-drill-meta');
 const drillSectionsBarsEl = document.getElementById('nr-drill-sections-bars');
@@ -161,7 +162,7 @@ function wireControls() {
   });
 
   chartEl.addEventListener('mousemove', onMove);
-  chartEl.addEventListener('mouseleave', () => { state.hoveredMonth = null; draw(); });
+  chartEl.addEventListener('mouseleave', () => { state.hoveredMonth = null; pillEl.hidden = true; draw(); });
   chartEl.addEventListener('click', onClick);
 }
 
@@ -300,7 +301,7 @@ function drawXAxis(p, n) {
 }
 
 function drawHover(p, n, layers, cumulative, yMax) {
-  if (state.hoveredMonth == null) return;
+  if (state.hoveredMonth == null) { pillEl.hidden = true; return; }
   const mi = state.hoveredMonth.monthIdx;
   const x = p.x + (mi / Math.max(1, n - 1)) * p.w;
 
@@ -315,17 +316,11 @@ function drawHover(p, n, layers, cumulative, yMax) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // Month pill — inside the chart area, pinned to top
-  ctx.fillStyle = '#121212';
-  ctx.font = "600 11px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
-  ctx.textAlign = 'center';
-  const label = formatMonthShort(state.months[mi]);
-  const tw = ctx.measureText(label).width + 14;
-  const lx = Math.max(p.x, Math.min(p.x + p.w - tw, x - tw / 2));
-  const ly = p.y + 6;
-  ctx.fillRect(lx, ly, tw, 22);
-  ctx.fillStyle = '#F4EFE6';
-  ctx.fillText(label, lx + tw / 2, ly + 15);
+  // Month pill — DOM element positioned above the crosshair
+  pillEl.textContent = formatMonthShort(state.months[mi]);
+  pillEl.hidden = false;
+  pillEl.style.left = x + 'px';
+  pillEl.style.top = (p.y - 2) + 'px';
 }
 
 // ----- Mouse events -----
