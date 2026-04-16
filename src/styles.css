@@ -1314,6 +1314,18 @@ main.subjects {
   .subnav { padding: 0 24px; }
   .compare-inner { padding: 12px 24px; flex-wrap: wrap; }
 }
+@media (max-width: 640px) {
+  main.subjects { padding: 16px 16px 120px; }
+  .subjects-table .col-section,
+  .subjects-table .col-trend { display: none; }
+  .subjects-table .col-name { min-width: 0; }
+  .subjects-table .col-name .subject-name { font-size: 14px; }
+  .subjects-table .col-name .subject-slug { display: none; }
+  .subjects-table .col-count { font-size: 12px; padding-right: 8px; min-width: 55px; }
+  .subjects-table .col-check { width: 24px; }
+  .section-chips { max-height: 54px; }
+  .section-chips .chip { font-size: 10px; padding: 5px 8px; }
+}
 
 @media (max-width: 1100px) {
   .masthead { grid-template-columns: 1fr auto; padding: 20px 28px 8px; }
@@ -1326,10 +1338,62 @@ main.subjects {
   .reading-panel { border-left: none; border-top: 1px solid var(--paper-rule); padding-left: 0; padding-top: 20px; }
 }
 @media (max-width: 640px) {
-  .masthead { padding: 16px 20px 6px; }
-  main { padding: 20px 20px 32px; }
-  .headlines-section { padding: 24px 20px 48px; }
-  #chart { height: 360px; }
+  .masthead { padding: 16px 16px 6px; gap: 16px; }
+  .masthead .title { font-size: 32px; }
+  .masthead .dek { font-size: 13px; line-height: 1.4; }
+  .masthead .stat .big { font-size: 28px; }
+  .masthead .stat { font-size: 9px; }
+
+  /* Subnav: horizontal scroll, no wrap */
+  .subnav {
+    padding: 0 16px;
+    gap: 18px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .subnav::-webkit-scrollbar { display: none; }
+  .subnav a { white-space: nowrap; font-size: 10px; padding: 12px 2px 10px; }
+
+  main { padding: 16px 16px 32px; }
+  .headlines-section { padding: 20px 16px 40px; }
+
+  /* Sidebar controls: tighter */
+  .controls .examples { margin-top: 16px; padding-top: 12px; }
+  .controls .examples li { font-size: 13px; }
+
+  /* Chart area */
+  .chart-stage .chart-head { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .chart-stage h2 { font-size: 16px; line-height: 1.2; }
+  .chart-toggles { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
+  .granularity, .view-toggle { flex-shrink: 0; }
+  .gran-btn, .view-btn { padding: 7px 10px; font-size: 9px; }
+
+  #chart { height: 300px; }
+  .yaxis-label { font-size: 8px; }
+  .chart-hint { font-size: 11px; }
+  .chart-hint strong { font-size: 11px; }
+
+  /* Reading panel on mobile */
+  .reading-panel { padding-left: 0; border-left: none; border-top: 1px solid var(--paper-rule); padding-top: 16px; }
+  .reading-panel .month-label { font-size: 22px; }
+  .reading-panel .value-row .term { font-size: 15px; }
+  .reading-panel .value-row .num { font-size: 15px; }
+
+  /* Section filter */
+  .section-filter { margin-top: 10px; padding-top: 8px; }
+
+  /* Mode toggle */
+  .mode-toggle { margin-bottom: 12px; }
+
+  /* Headline explorer */
+  .hl-item { padding: 8px 16px 12px 16px; }
+  .hl-text { font-size: 18px; }
+
+  /* Breakdown */
+  .breakdown { padding: 12px 14px; }
+  .breakdown-bars { font-size: 12px; }
 }
 
 /* ========== Newsroom page ========== */
@@ -1505,6 +1569,14 @@ main.newsroom {
 @media (max-width: 900px) {
   main.newsroom { padding: 20px 24px 48px; }
   .nr-drill-body { grid-template-columns: 1fr; gap: 24px; }
+}
+@media (max-width: 640px) {
+  main.newsroom { padding: 16px 16px 48px; }
+  #nr-chart { height: 320px; }
+  .nr-legend { gap: 2px 6px; }
+  .nr-legend-item { font-size: 10px; padding: 4px 5px; }
+  .nr-swatch { width: 8px; height: 8px; }
+  .nr-drill-head h2 { font-size: 24px; }
 }
 
 /* ========== This Week page ========== */
@@ -1765,6 +1837,13 @@ a.tw-headline-text:hover {
   .tw-history-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
+  main.tw { padding: 16px 16px 48px; }
+  .tw-hero-title { font-size: clamp(32px, 8vw, 48px); }
   .tw-hero-stats { flex-direction: column; gap: 14px; }
-  .tw-history-grid { grid-template-columns: 1fr; }
+  .tw-hero-body { grid-template-columns: 1fr; gap: 20px; }
+  .tw-stat-big { font-size: 22px; }
+  .tw-headline-text { font-size: 17px; }
+  .tw-columns { grid-template-columns: 1fr; gap: 24px; }
+  .tw-history-grid { grid-template-columns: 1fr 1fr; }
+  .tw-history-name { font-size: 15px; }
 }
