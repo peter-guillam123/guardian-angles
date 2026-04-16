@@ -430,6 +430,36 @@ main {
   margin-bottom: 2px;
 }
 
+/* View toggle (Timeline / Year-on-year) */
+.chart-toggles {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--paper-rule);
+  background: var(--paper);
+}
+.view-btn {
+  font: 700 10px/1 var(--ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  cursor: pointer;
+  border-right: 1px solid var(--paper-rule);
+  transition: background 120ms, color 120ms;
+}
+.view-btn:last-child { border-right: none; }
+.view-btn:hover { color: var(--ink); }
+.view-btn.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 /* ----- Autocomplete dropdown (tags mode) ----- */
 .ac-dropdown {
   position: absolute;

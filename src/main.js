@@ -46,6 +46,7 @@ const chart = new TrendChart(chartEl);
 const explorer = new HeadlineExplorer(headlinesEl);
 
 let currentMode = null; // 'words' | 'tags' — set by setMode() during init
+let currentView = 'timeline'; // 'timeline' | 'yoy'
 let currentQueries = [];   // for words: [strings]; for tags: [tag ids]
 let currentLabels = [];    // display labels aligned with currentQueries
 let currentSeries = [];
@@ -136,6 +137,15 @@ async function init() {
   // Mode buttons
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  // View toggle (Timeline / Year-on-year)
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentView = btn.dataset.view;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
+      if (currentQueries.length) renderChart();
+    });
   });
 
   // Rising panel click handler (one-shot setup; uses event delegation)
@@ -293,11 +303,7 @@ async function runSearch() {
     counts: r.counts,
   }));
 
-  chart.setGranularity(currentGranularity);
-  chart.setSeries(currentSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
-  renderLegend(currentSeries);
-  renderChartTitle(currentSeries);
-  resetReadingPanel();
+  renderChart();
 
   const p = new URLSearchParams();
   if (currentMode === 'tags') p.set('tags', queries.join(','));
@@ -305,6 +311,117 @@ async function runSearch() {
   if (currentGranularity !== 'monthly') p.set('g', currentGranularity);
   if (sectionId) p.set('s', sectionId);
   history.replaceState(null, '', `?${p.toString()}`);
+}
+
+// Year-on-year palette — enough for 11 years (2016-2026)
+const YOY_PALETTE = [
+  '#052962', '#C70000', '#22874d', '#6a2c8a', '#ed6f8b',
+  '#b97b32', '#1a6fa0', '#d4351c', '#4a8e3b', '#9b59b6', '#e67e22',
+];
+
+function renderChart() {
+  if (!currentSeries.length) return;
+
+  if (currentView === 'yoy') {
+    renderYearOnYear();
+  } else {
+    chart.setGranularity(currentGranularity);
+    chart.setSeries(currentSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
+    renderLegend(currentSeries);
+    renderChartTitle(currentSeries);
+    resetReadingPanel();
+  }
+}
+
+function renderYearOnYear() {
+  // Take the first series only — YoY with multiple terms is too noisy
+  const s = currentSeries[0];
+  if (!s) return;
+
+  // Group buckets by year → within-year index
+  // For monthly: bucket "2023-07" → year 2023, month index 6 (Jul = 6th month, 0-indexed)
+  // For weekly: bucket "2023-W27" → year 2023, week index 26
+  const yearData = new Map(); // year → { indices: [], values: [], counts: [] }
+
+  for (let i = 0; i < s.buckets.length; i++) {
+    const b = s.buckets[i];
+    let year, withinYearIdx, maxWithin;
+
+    if (/^\d{4}-\d{2}$/.test(b)) {
+      // Monthly
+      year = parseInt(b.slice(0, 4));
+      withinYearIdx = parseInt(b.slice(5, 7)) - 1; // 0-11
+      maxWithin = 12;
+    } else if (/^\d{4}-W\d{2}$/.test(b)) {
+      // Weekly
+      const m = b.match(/^(\d{4})-W(\d{2})$/);
+      year = parseInt(m[1]);
+      withinYearIdx = parseInt(m[2]) - 1; // 0-51
+      maxWithin = 53;
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(b)) {
+      // Daily — use day-of-year
+      year = parseInt(b.slice(0, 4));
+      const d = new Date(b + 'T00:00:00Z');
+      const jan1 = new Date(Date.UTC(year, 0, 1));
+      withinYearIdx = Math.floor((d - jan1) / 86400000);
+      maxWithin = 366;
+    } else continue;
+
+    if (!yearData.has(year)) yearData.set(year, { values: [], indices: [], counts: [] });
+    const yd = yearData.get(year);
+    yd.indices.push(withinYearIdx);
+    yd.values.push(s.values[i]);
+    yd.counts.push(s.counts[i]);
+  }
+
+  // Build per-year series for the chart
+  // X-axis: use labels like "Jan", "Feb", ... for monthly; "W1", "W2" for weekly
+  const years = [...yearData.keys()].sort();
+  const firstYear = yearData.get(years[0]);
+  const maxIdx = Math.max(...[...yearData.values()].flatMap(yd => yd.indices));
+
+  // Create bucket labels for the x-axis (use the within-year labels)
+  const xLabels = [];
+  if (currentGranularity === 'monthly') {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for (let i = 0; i <= Math.min(maxIdx, 11); i++) xLabels.push(months[i]);
+  } else if (currentGranularity === 'weekly') {
+    for (let i = 0; i <= Math.min(maxIdx, 52); i++) xLabels.push(`W${i + 1}`);
+  } else {
+    for (let i = 0; i <= maxIdx; i++) xLabels.push(String(i + 1));
+  }
+
+  // Build chart series — one per year
+  const chartSeries = years.map((year, yi) => {
+    const yd = yearData.get(year);
+    const fullValues = new Array(xLabels.length).fill(null);
+    for (let j = 0; j < yd.indices.length; j++) {
+      const idx = yd.indices[j];
+      if (idx < fullValues.length) fullValues[idx] = yd.values[j];
+    }
+    return {
+      term: String(year),
+      buckets: xLabels,
+      values: fullValues.map(v => v ?? 0),
+    };
+  });
+
+  chart.setGranularity(currentGranularity);
+  chart.setSeries(chartSeries, YOY_PALETTE);
+
+  // Update legend and title for YoY mode
+  legendEl.innerHTML = '';
+  chartSeries.forEach((cs, i) => {
+    const item = document.createElement('span');
+    item.className = 'item';
+    item.innerHTML = `<span class="swatch" style="background:${YOY_PALETTE[i % YOY_PALETTE.length]}"></span><span class="term">${cs.term}</span>`;
+    item.addEventListener('mouseenter', () => chart.setActiveSeries(i));
+    item.addEventListener('mouseleave', () => chart.setActiveSeries(null));
+    legendEl.appendChild(item);
+  });
+
+  chartTitleEl.textContent = `"${s.label}" year on year — ${granularityAdverb()}`;
+  resetReadingPanel();
 }
 
 function renderLegend(series) {
