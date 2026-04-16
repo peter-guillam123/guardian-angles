@@ -16,6 +16,7 @@ const SKIP_TAGS = new Set([
   'world/africa',
   'us-news/us-politics',
   'australia-news/australian-politics',
+  'politics/uk-politics',
   'uk-news/england',
   'uk-news/scotland',
   'uk-news/wales',
