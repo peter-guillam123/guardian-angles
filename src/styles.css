@@ -1593,6 +1593,28 @@ main.tw {
   padding-bottom: 32px;
   border-bottom: 1px solid var(--paper-rule);
 }
+.tw-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.tw-nav-btn {
+  font: 700 16px/1 var(--ui);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 120ms;
+  flex-shrink: 0;
+}
+.tw-nav-btn:hover { background: var(--guardian-blue); color: var(--paper); border-color: var(--guardian-blue); }
+.tw-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background: var(--paper-deep); color: var(--ink-mute); border-color: var(--paper-rule); }
 .tw-kicker {
   font-family: var(--ui);
   font-weight: 700;
@@ -1600,7 +1622,7 @@ main.tw {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--news-red);
-  margin: 0 0 8px;
+  margin: 0;
 }
 .tw-hero-title {
   font-family: var(--display);
