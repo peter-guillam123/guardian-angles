@@ -22,9 +22,11 @@ const state = {
   totals: [],
   stacks: [],         // [{id, label, color, counts[], visible}]
   otherCounts: [],
+  otherVisible: true,
   mode: 'absolute',   // 'absolute' | 'normalised'
   hoveredMonth: null,
   selectedMonth: null,
+  activeSoloId: null,  // section id when solo'd, null otherwise
 };
 
 const chartEl = document.getElementById('nr-chart');
@@ -66,6 +68,7 @@ async function init() {
     counts: e.counts,
     visible: true,
   }));
+  state.otherVisible = true;
 
   // Merge the rest into "Other"
   const n = state.months.length;
@@ -111,16 +114,22 @@ function buildLegend() {
         // Shift+click = toggle this one on/off (power user)
         s.visible = !s.visible;
       } else {
-        // Click = solo (show only this section)
-        const isAlreadySolo = state.stacks.every(st => st.id === s.id ? st.visible : !st.visible);
+        // Click = solo (show only this section, hide Other too)
+        const isAlreadySolo = !state.otherVisible &&
+          state.stacks.every(st => st.id === s.id ? st.visible : !st.visible);
         if (isAlreadySolo) {
           // Click the solo'd item again → show all
           state.stacks.forEach(st => { st.visible = true; });
+          state.otherVisible = true;
         } else {
-          // Solo: hide everything except this one
+          // Solo: hide everything including Other
           state.stacks.forEach(st => { st.visible = (st.id === s.id); });
+          state.otherVisible = false;
         }
       }
+      state.activeSoloId = state.stacks.filter(st => st.visible).length === 1
+        ? state.stacks.find(st => st.visible)?.id
+        : null;
       refreshLegendState();
       draw();
     });
@@ -132,7 +141,10 @@ function refreshLegendState() {
   const items = legendEl.querySelectorAll('.nr-legend-item');
   items.forEach(btn => {
     const id = btn.dataset.id;
-    if (id === '_other') return;
+    if (id === '_other') {
+      btn.classList.toggle('active', state.otherVisible);
+      return;
+    }
     const stack = state.stacks.find(s => s.id === id);
     if (stack) btn.classList.toggle('active', stack.visible);
   });
@@ -162,7 +174,9 @@ function computeStacked() {
     if (!s.visible) continue;
     layers.push({ id: s.id, label: s.label, color: s.color, counts: s.counts });
   }
-  layers.push({ id: '_other', label: 'Other', color: '#ccc', counts: state.otherCounts });
+  if (state.otherVisible) {
+    layers.push({ id: '_other', label: 'Other', color: '#ccc', counts: state.otherCounts });
+  }
 
   // Compute cumulative sums per month
   const cumulative = []; // cumulative[layerIdx][monthIdx] = top-of-band value
@@ -301,16 +315,17 @@ function drawHover(p, n, layers, cumulative, yMax) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // Month pill
+  // Month pill — inside the chart area, pinned to top
   ctx.fillStyle = '#121212';
   ctx.font = "600 11px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
   ctx.textAlign = 'center';
   const label = formatMonthShort(state.months[mi]);
   const tw = ctx.measureText(label).width + 14;
   const lx = Math.max(p.x, Math.min(p.x + p.w - tw, x - tw / 2));
-  ctx.fillRect(lx, p.y - 8 - 18, tw, 22);
+  const ly = p.y + 6;
+  ctx.fillRect(lx, ly, tw, 22);
   ctx.fillStyle = '#F4EFE6';
-  ctx.fillText(label, lx + tw / 2, p.y - 8 - 3);
+  ctx.fillText(label, lx + tw / 2, ly + 15);
 }
 
 // ----- Mouse events -----
@@ -350,33 +365,52 @@ async function openDrilldown(month) {
   drilldownEl.hidden = false;
   const [y, m] = month.split('-').map(Number);
   const formatted = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const total = state.totals[state.months.indexOf(month)] || 0;
+  const mi = state.months.indexOf(month);
+
+  // If a section is solo'd, scope the drill-down to that section only
+  const soloSection = state.activeSoloId || null;
+  const total = soloSection
+    ? (state.sections.sections[soloSection]?.[mi] || 0)
+    : (state.totals[mi] || 0);
+  const scopeLabel = soloSection ? ` in ${sectionLabel(soloSection)}` : '';
+
   drillTitleEl.textContent = formatted;
-  drillMetaEl.textContent = `${total.toLocaleString('en-GB')} articles published`;
+  drillMetaEl.textContent = `${total.toLocaleString('en-GB')} articles published${scopeLabel}`;
   drilldownEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Section bars — use the same colours as the stacked chart bands
   const stackColorMap = new Map(state.stacks.map(s => [s.id, s.color]));
   const drillColor = (id) => stackColorMap.get(id) || '#ccc';
 
-  const sectionCounts = {};
-  for (const [id, counts] of Object.entries(state.sections.sections)) {
-    const mi = state.months.indexOf(month);
-    if (mi >= 0 && counts[mi] > 0) sectionCounts[id] = counts[mi];
-  }
-  const sectionRows = Object.entries(sectionCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-  const maxSec = sectionRows[0]?.[1] || 1;
-  drillSectionsBarsEl.innerHTML = sectionRows.map(([id, n]) => {
-    const pct = (n / total) * 100;
-    const fillW = (n / maxSec) * 100;
-    return `<div class="breakdown-row">
-      <div class="name">${escHtml(sectionLabel(id))}</div>
-      <div class="bar-track"><div class="bar-fill" style="background:${drillColor(id)}; width:${fillW.toFixed(1)}%"></div></div>
-      <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
+  if (soloSection) {
+    // Solo'd: show a single bar for the solo'd section
+    const count = state.sections.sections[soloSection]?.[mi] || 0;
+    const grandTotal = state.totals[mi] || 1;
+    const pct = (count / grandTotal) * 100;
+    drillSectionsBarsEl.innerHTML = `<div class="breakdown-row">
+      <div class="name">${escHtml(sectionLabel(soloSection))}</div>
+      <div class="bar-track"><div class="bar-fill" style="background:${drillColor(soloSection)}; width:100%"></div></div>
+      <div class="num">${pct.toFixed(1)}% of all output <span class="count">· ${count.toLocaleString('en-GB')}</span></div>
     </div>`;
-  }).join('');
+  } else {
+    const sectionCounts = {};
+    for (const [id, counts] of Object.entries(state.sections.sections)) {
+      if (mi >= 0 && counts[mi] > 0) sectionCounts[id] = counts[mi];
+    }
+    const sectionRows = Object.entries(sectionCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    const maxSec = sectionRows[0]?.[1] || 1;
+    drillSectionsBarsEl.innerHTML = sectionRows.map(([id, n]) => {
+      const pct = (n / total) * 100;
+      const fillW = (n / maxSec) * 100;
+      return `<div class="breakdown-row">
+        <div class="name">${escHtml(sectionLabel(id))}</div>
+        <div class="bar-track"><div class="bar-fill" style="background:${drillColor(id)}; width:${fillW.toFixed(1)}%"></div></div>
+        <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
+      </div>`;
+    }).join('');
+  }
 
   // Top tags from the shard
   drillTagsListEl.innerHTML = '<li class="rising-loading">Loading tags…</li>';
@@ -390,6 +424,8 @@ async function openDrilldown(month) {
     const shard = await loadShard(month);
     const tagCounts = {};
     for (const h of shard.headlines) {
+      // If solo'd, only count articles from that section
+      if (soloSection && h.s !== soloSection) continue;
       for (const t of (h.g || [])) tagCounts[t] = (tagCounts[t] || 0) + 1;
     }
 
