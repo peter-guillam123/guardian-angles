@@ -297,7 +297,7 @@ function renderRow(r, inRange) {
         <span class="subject-slug">${escHtml(r.id)}</span>
       </td>
       <td class="col-section">${escHtml(sectionLabel(r.section))}</td>
-      <td class="col-count">${r.count.toLocaleString('en-GB')}</td>
+      <td class="col-count">${fmtCompact(r.count)}</td>
       <td class="col-trend">${sparklineSVG(r.counts, inRange, rowMax)}</td>
     </tr>
   `;
@@ -359,6 +359,11 @@ function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
   return String(n);
+}
+function fmtCompact(n) {
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toLocaleString('en-GB');
 }
 function escHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
