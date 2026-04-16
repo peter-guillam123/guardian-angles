@@ -86,10 +86,11 @@
     "2025-08"
   ],
   "total_headlines": 589550,
-  "built_at": "2026-04-16T09:17:15Z",
+  "built_at": "2026-04-16T10:58:40Z",
   "granularities": [
     "monthly",
-    "weekly"
+    "weekly",
+    "daily"
   ],
   "top_terms_count": 5000
 }
