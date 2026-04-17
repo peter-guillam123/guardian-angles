@@ -342,6 +342,59 @@ main {
 .controls .examples a.lucky:hover {
   border-bottom-style: solid;
 }
+
+/* Prominent "I feel lucky" card above the search inputs */
+.lucky-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  background: var(--guardian-blue);
+  color: var(--paper);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 100ms, box-shadow 120ms;
+  font-family: var(--ui);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+}
+.lucky-card:hover {
+  background: var(--ink);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
+}
+.lucky-card:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+}
+.lucky-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.lucky-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.lucky-main {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.lucky-sub {
+  font-family: var(--ui);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--guardian-yellow);
+  opacity: 0.9;
+}
 .controls .examples em { color: var(--ink-mute); font-style: italic; }
 
 /* Middle: chart */
@@ -1615,6 +1668,10 @@ main.tw {
 }
 .tw-nav-btn:hover { background: var(--guardian-blue); color: var(--paper); border-color: var(--guardian-blue); }
 .tw-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background: var(--paper-deep); color: var(--ink-mute); border-color: var(--paper-rule); }
+.tw-nav-btn.tw-random { margin-left: auto; background: var(--guardian-blue); color: var(--paper); border-color: var(--guardian-blue); }
+.tw-nav-btn.tw-random:hover { background: var(--ink); border-color: var(--ink); }
+.tw-history-card { cursor: pointer; }
+.tw-history-card[data-week]:hover { border-left-color: var(--news-red); }
 .tw-kicker {
   font-family: var(--ui);
   font-weight: 700;

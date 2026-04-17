@@ -46,6 +46,13 @@
         <button type="button" class="mode-btn active" data-mode="tags">Tags</button>
       </div>
       <p class="label" id="search-label">Search tags</p>
+      <button type="button" id="lucky-btn" class="lucky-card">
+        <span class="lucky-icon">🎲</span>
+        <span class="lucky-text">
+          <span class="lucky-main">I feel lucky</span>
+          <span class="lucky-sub">surprise me with a comparison</span>
+        </span>
+      </button>
       <form id="search-form" autocomplete="off">
         <input type="text" id="q1" placeholder="e.g. donald trump, climate…" />
         <input type="text" id="q2" placeholder="add another tag…" />
@@ -72,7 +79,6 @@
           <li><a data-query="trump,johnson,sunak,badenoch">Four leaders</a></li>
           <li><a data-query="russia,china">Russia <em>vs.</em> China</a></li>
           <li><a data-query="ai,crypto">AI <em>vs.</em> crypto</a></li>
-          <li><a id="lucky-words-btn" class="lucky">I feel lucky</a></li>
         </ul>
       </div>
 
@@ -84,7 +90,6 @@
           <li><a data-tag-query="world/ukraine,world/israel-hamas-war,world/gaza">Three conflicts</a></li>
           <li><a data-tag-query="technology/artificialintelligenceai,technology/cryptocurrencies">AI <em>vs.</em> crypto</a></li>
           <li><a data-tag-query="politics/conservatives,politics/labour,politics/reformuk">Three parties</a></li>
-          <li><a id="lucky-btn" class="lucky">I feel lucky</a></li>
         </ul>
       </div>
     </aside>
