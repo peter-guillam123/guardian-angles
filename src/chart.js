@@ -13,7 +13,12 @@ const AXIS_FONT = "11px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif"
 const YEAR_FONT = "600 12px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
 const PILL_FONT = "600 11px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
 
-const PADDING = { top: 28, right: 20, bottom: 38, left: 52 };
+// Padding varies by viewport width — mobile needs more right space so the
+// last axis label ("Apr 2026") doesn't clip at the edge.
+function paddingForWidth(w) {
+  if (w < 500) return { top: 28, right: 36, bottom: 38, left: 40 };
+  return { top: 28, right: 20, bottom: 38, left: 52 };
+}
 
 function niceMax(v) {
   if (v <= 0) return 1;
@@ -133,11 +138,12 @@ export class TrendChart extends EventTarget {
   }
 
   _plot() {
+    const P = paddingForWidth(this.width);
     return {
-      x: PADDING.left,
-      y: PADDING.top,
-      w: this.width - PADDING.left - PADDING.right,
-      h: this.height - PADDING.top - PADDING.bottom,
+      x: P.left,
+      y: P.top,
+      w: this.width - P.left - P.right,
+      h: this.height - P.top - P.bottom,
     };
   }
 
