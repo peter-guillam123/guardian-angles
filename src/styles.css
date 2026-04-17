@@ -1352,7 +1352,10 @@ main.subjects {
   .subjects-table .col-name { min-width: 0; }
   .subjects-table .col-name .subject-name { font-size: 14px; }
   .subjects-table .col-name .subject-slug { display: none; }
-  .subjects-table .col-count { font-size: 12px; padding-right: 8px; min-width: 55px; }
+  .subjects-table .col-count { font-size: 12px; padding-right: 14px; min-width: 58px; white-space: nowrap; }
+  .subjects-table tbody td { padding-left: 6px; padding-right: 6px; }
+  .subjects-table thead th { padding-left: 6px; padding-right: 6px; }
+  .subjects-table .col-check { padding-left: 10px; }
   .subjects-table .col-check { width: 24px; }
   .section-chips { max-height: 54px; }
   .section-chips .chip { font-size: 10px; padding: 5px 8px; }
@@ -1375,7 +1378,8 @@ main.subjects {
   .masthead .stat .big { font-size: 28px; }
   .masthead .stat { font-size: 9px; }
 
-  /* Subnav: horizontal scroll, no wrap */
+  /* Subnav: horizontal scroll, no wrap, with fade-out right edge
+     so users can see there's more to scroll */
   .subnav {
     padding: 0 16px;
     gap: 18px;
@@ -1383,6 +1387,9 @@ main.subjects {
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
     scrollbar-width: none;
+    position: relative;
+    mask-image: linear-gradient(to right, black 0%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 0%, black 85%, transparent 100%);
   }
   .subnav::-webkit-scrollbar { display: none; }
   .subnav a { white-space: nowrap; font-size: 10px; padding: 12px 2px 10px; }
@@ -1396,7 +1403,15 @@ main.subjects {
 
   /* Chart area */
   .chart-stage .chart-head { flex-direction: column; gap: 8px; align-items: flex-start; }
-  .chart-stage h2 { font-size: 16px; line-height: 1.2; }
+  .chart-stage h2 {
+    font-size: 16px; line-height: 1.2;
+    /* Don't let a 4-tag title wrap forever and then clip off-screen */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    width: 100%;
+  }
   .chart-toggles { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
   .granularity, .view-toggle { flex-shrink: 0; }
   .gran-btn, .view-btn { padding: 7px 10px; font-size: 9px; }
@@ -1406,11 +1421,16 @@ main.subjects {
   .chart-hint { font-size: 11px; }
   .chart-hint strong { font-size: 11px; }
 
+  /* Share as image — full-width on mobile so the label never truncates */
+  .chart-actions { justify-content: stretch; }
+  .share-btn { width: 100%; font-size: 10px; padding: 10px; }
+
   /* Reading panel on mobile */
   .reading-panel { padding-left: 0; border-left: none; border-top: 1px solid var(--paper-rule); padding-top: 16px; }
   .reading-panel .month-label { font-size: 22px; }
   .reading-panel .value-row .term { font-size: 15px; }
   .reading-panel .value-row .num { font-size: 15px; }
+  .reading-panel .cta { font-size: 11px; }
 
   /* Section filter */
   .section-filter { margin-top: 10px; padding-top: 8px; }

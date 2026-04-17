@@ -288,15 +288,28 @@ function drawXAxis(p, n) {
   ctx.fillStyle = '#3d3a35';
   ctx.font = "600 12px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
   ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+
+  // First pass: collect year-start indices
+  const yearStarts = [];
   let lastYear = null;
   for (let i = 0; i < n; i++) {
     const y = state.months[i].slice(0, 4);
-    if (y === lastYear) continue;
-    lastYear = y;
+    if (y !== lastYear) { yearStarts.push({ i, y }); lastYear = y; }
+  }
+
+  // Decide how many labels to skip based on available px per year.
+  // Labels need at least ~34px apart to be readable (4-digit year + gap).
+  const pxPerYear = p.w / yearStarts.length;
+  const step = pxPerYear < 34 ? 2 : 1;
+  const useShortYear = pxPerYear < 28;  // very narrow — use '17 instead of 2017
+
+  for (let idx = 0; idx < yearStarts.length; idx++) {
+    if (idx % step !== 0 && idx !== yearStarts.length - 1) continue;
+    const { i, y } = yearStarts[idx];
     const x = p.x + (i / Math.max(1, n - 1)) * p.w;
-    if (x - p.x < 20 || (p.x + p.w) - x < 30) continue;
-    ctx.textAlign = 'center';
-    ctx.fillText(y, x, p.y + p.h + 10);
+    if (x - p.x < 16 || (p.x + p.w) - x < 20) continue;
+    ctx.fillText(useShortYear ? `'${y.slice(2)}` : y, x, p.y + p.h + 10);
   }
 }
 
