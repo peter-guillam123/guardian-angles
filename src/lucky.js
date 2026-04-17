@@ -1,182 +1,300 @@
 // Curated "I feel lucky" recipes — pre-cooked comparisons that tell a story,
-// make you laugh, or just reveal something unexpected. Each recipe is an
-// array of 2-4 items; the lucky button picks one at random and fills the
-// search boxes.
+// make you laugh, or reveal something unexpected. Each recipe is an array
+// of 2-4 items; the lucky button picks one at random and fills the search
+// boxes.
 //
-// Two flavours: WORD_RECIPES (plain headline-word search) and
-// TAG_RECIPES (use canonical Guardian tag IDs). Mix of earnest editorial
-// comparisons AND the "one intentional odd one out" pattern.
+// Two flavours: WORD_RECIPES (plain headline-word search) and TAG_RECIPES
+// (canonical Guardian tag IDs). The magic comes from mixing earnest
+// editorial comparisons with nostalgic rivalries and the occasional
+// "one intentional interloper" gag.
 
-// ─────────────── WORDS ───────────────
+// ─────────────── WORD RECIPES ───────────────
 
 export const WORD_RECIPES = [
-  // --- Emotions / mood ---
+  // ── EMOTIONS + MOOD ──
   ['happy', 'sad', 'joy', 'misery'],
   ['hope', 'fear', 'anger', 'love'],
   ['lonely', 'together', 'friends', 'family'],
   ['tired', 'excited', 'bored', 'stressed'],
+  ['calm', 'panic', 'chill', 'doom'],
+  ['laughter', 'tears', 'silence', 'applause'],
 
-  // --- Sport: the classics and the jokes ---
+  // ── SPORT: classics + jokes ──
   ['win', 'lose', 'draw', 'extra time'],
   ['gold', 'silver', 'bronze', 'wooden spoon'],
   ['champion', 'hero', 'legend', 'goat'],
   ['arsenal', 'liverpool', 'chelsea', 'spurs'],
   ['wimbledon', 'wembley', 'lords', 'twickenham'],
+  ['messi', 'ronaldo', 'mbappé', 'haaland'],
+  ['federer', 'nadal', 'djokovic', 'murray'],
+  ['hamilton', 'verstappen', 'alonso', 'button'],
+  ['tyson', 'ali', 'mayweather', 'rocky'],
+  ['cricket', 'rugby', 'tennis', 'darts'],
+  ['olympics', 'paralympics', 'commonwealth', 'worldcup'],
   ['strictly', 'gladiators', 'mastermind', 'bake off'],
 
-  // --- Weather ---
-  ['sun', 'rain', 'snow', 'wind'],
-  ['spring', 'summer', 'autumn', 'winter'],
-  ['storm', 'heatwave', 'drought', 'flood'],
+  // ── US + GLOBAL POLITICS ──
+  ['trump', 'biden', 'obama', 'clinton'],
+  ['reagan', 'bush', 'clinton', 'kennedy'],
+  ['harris', 'vance', 'pence', 'rubio'],
+  ['democrat', 'republican', 'maga', 'socialist'],
+  ['texas', 'california', 'florida', 'new york'],
+  ['corbyn', 'starmer', 'johnson', 'badenoch'],
+  ['remain', 'leave', 'brexit', 'rejoin'],
+  ['labour', 'conservatives', 'libdems', 'reform'],
+  ['putin', 'zelensky', 'xi', 'modi'],
+  ['netanyahu', 'abbas', 'erdogan', 'saudi'],
+  ['macron', 'merkel', 'scholz', 'meloni'],
 
-  // --- Food (with one intruder) ---
-  ['bread', 'butter', 'cheese', 'crumpet'],
-  ['coffee', 'tea', 'wine', 'water'],
-  ['pizza', 'pasta', 'burger', 'rhubarb'],
-  ['breakfast', 'lunch', 'dinner', 'tea'],
-  ['vegan', 'vegetarian', 'carnivore', 'flexitarian'],
+  // ── WORLD CITIES ──
+  ['london', 'paris', 'berlin', 'madrid'],
+  ['new york', 'los angeles', 'chicago', 'miami'],
+  ['tokyo', 'beijing', 'seoul', 'mumbai'],
+  ['dublin', 'edinburgh', 'cardiff', 'belfast'],
+  ['athens', 'rome', 'istanbul', 'jerusalem'],
 
-  // --- Tech / dead tech ---
+  // ── WORLD COUNTRIES ──
+  ['france', 'germany', 'italy', 'spain'],
+  ['china', 'japan', 'korea', 'vietnam'],
+  ['brazil', 'argentina', 'mexico', 'chile'],
+  ['egypt', 'kenya', 'nigeria', 'ethiopia'],
+  ['russia', 'ukraine', 'belarus', 'moldova'],
+  ['india', 'pakistan', 'bangladesh', 'nepal'],
+  ['canada', 'australia', 'new zealand', 'greenland'],
+
+  // ── TECH: live + dead ──
   ['apple', 'google', 'microsoft', 'blockbuster'],
   ['myspace', 'bebo', 'facebook', 'geocities'],
   ['iphone', 'android', 'blackberry', 'nokia'],
   ['chatgpt', 'claude', 'gemini', 'clippy'],
   ['ai', 'crypto', 'web3', 'metaverse'],
   ['netflix', 'spotify', 'tiktok', 'mspaint'],
+  ['yahoo', 'aol', 'msn', 'altavista'],
+  ['musk', 'bezos', 'zuckerberg', 'gates'],
+  ['twitter', 'bluesky', 'threads', 'mastodon'],
 
-  // --- Music / culture ---
-  ['beatles', 'stones', 'oasis', 'blur'],
-  ['pop', 'rock', 'jazz', 'techno'],
+  // ── FILM + TV ──
   ['oscar', 'bafta', 'grammy', 'razzie'],
-  ['cinema', 'netflix', 'streaming', 'blockbuster'],
+  ['hollywood', 'bollywood', 'netflix', 'bbc'],
+  ['scorsese', 'tarantino', 'spielberg', 'nolan'],
+  ['cruise', 'pitt', 'clooney', 'dicaprio'],
+  ['streep', 'blanchett', 'winslet', 'dench'],
+  ['barbie', 'oppenheimer', 'batman', 'barbenheimer'],
+  ['marvel', 'dc', 'disney', 'pixar'],
+  ['starwars', 'bond', 'potter', 'hobbit'],
+  ['succession', 'sopranos', 'wire', 'breaking bad'],
+  ['friends', 'seinfeld', 'cheers', 'frasier'],
+  ['sherlock', 'fleabag', 'doctor who', 'bridgerton'],
+  ['hitchcock', 'kubrick', 'lynch', 'tarantino'],
 
-  // --- Animals (with a dragon) ---
-  ['dog', 'cat', 'horse', 'dragon'],
+  // ── MUSIC ──
+  ['beatles', 'stones', 'who', 'kinks'],
+  ['oasis', 'blur', 'pulp', 'suede'],
+  ['taylor swift', 'beyoncé', 'adele', 'rihanna'],
+  ['drake', 'kanye', 'kendrick', 'jay-z'],
+  ['bowie', 'dylan', 'lennon', 'prince'],
+  ['madonna', 'cher', 'mariah', 'whitney'],
+  ['pop', 'rock', 'hiphop', 'classical'],
+  ['punk', 'metal', 'indie', 'emo'],
+  ['techno', 'house', 'garage', 'drum and bass'],
+  ['glastonbury', 'coachella', 'reading', 'eurovision'],
+
+  // ── LITERATURE + ART ──
+  ['rowling', 'king', 'pullman', 'ishiguro'],
+  ['orwell', 'woolf', 'joyce', 'austen'],
+  ['booker', 'nobel', 'costa', 'pulitzer'],
+  ['banksy', 'hirst', 'emin', 'warhol'],
+  ['picasso', 'monet', 'rembrandt', 'turner'],
+  ['shakespeare', 'dickens', 'chaucer', 'marlowe'],
+
+  // ── WEATHER + NATURE ──
+  ['sun', 'rain', 'snow', 'wind'],
+  ['spring', 'summer', 'autumn', 'winter'],
+  ['storm', 'heatwave', 'drought', 'flood'],
+  ['forest', 'ocean', 'glacier', 'desert'],
+  ['whale', 'shark', 'dolphin', 'goldfish'],
   ['tiger', 'lion', 'bear', 'koala'],
-  ['elephant', 'whale', 'dolphin', 'hamster'],
+  ['dog', 'cat', 'horse', 'dragon'],
 
-  // --- Life events ---
+  // ── FOOD + DRINK ──
+  ['bread', 'butter', 'cheese', 'crumpet'],
+  ['coffee', 'tea', 'wine', 'water'],
+  ['pizza', 'pasta', 'burger', 'rhubarb'],
+  ['sushi', 'ramen', 'curry', 'beans on toast'],
+  ['vegan', 'vegetarian', 'carnivore', 'flexitarian'],
+  ['gin', 'whisky', 'vodka', 'rum'],
+  ['michelin', 'pub', 'chippy', 'drive-thru'],
+  ['breakfast', 'brunch', 'lunch', 'elevenses'],
+
+  // ── LIFE STAGES ──
   ['birth', 'death', 'marriage', 'divorce'],
   ['school', 'university', 'job', 'retirement'],
+  ['baby', 'toddler', 'teenager', 'pensioner'],
+  ['boomer', 'millennial', 'genz', 'avocado'],
+  ['rent', 'mortgage', 'deposit', 'inheritance'],
 
-  // --- Crisis words ---
+  // ── CRISIS WORDS ──
   ['pandemic', 'outbreak', 'epidemic', 'manflu'],
   ['doom', 'apocalypse', 'disaster', 'monday'],
   ['zombie', 'ghost', 'vampire', 'politician'],
+  ['recession', 'inflation', 'crash', 'austerity'],
 
-  // --- Colours ---
+  // ── COLOURS ──
   ['red', 'blue', 'green', 'orange'],
   ['black', 'white', 'grey', 'rainbow'],
+  ['crimson', 'scarlet', 'burgundy', 'pink'],
 
-  // --- Monarchy / royalty ---
+  // ── MONARCHY + ROYALTY ──
   ['queen', 'king', 'prince', 'princess'],
+  ['harry', 'william', 'meghan', 'kate'],
+  ['charles', 'diana', 'philip', 'margaret'],
   ['buckingham', 'windsor', 'balmoral', 'sandringham'],
 
-  // --- Politics ---
-  ['corbyn', 'starmer', 'johnson', 'badenoch'],
-  ['remain', 'leave', 'brexit', 'rejoin'],
-  ['labour', 'conservatives', 'libdems', 'reform'],
-  ['trump', 'biden', 'obama', 'clinton'],
-  ['putin', 'zelensky', 'xi', 'modi'],
-
-  // --- Zeitgeist ---
+  // ── ZEITGEIST ──
   ['brexit', 'covid', 'ukraine', 'gaza'],
   ['climate', 'inflation', 'strikes', 'cost'],
   ['nhs', 'hospital', 'gp', 'waiting'],
 
-  // --- Economy ---
+  // ── ECONOMY ──
   ['money', 'tax', 'debt', 'jackpot'],
   ['millionaire', 'billionaire', 'trillionaire', 'pound'],
   ['inflation', 'recession', 'growth', 'stagflation'],
+  ['bitcoin', 'ethereum', 'dogecoin', 'monopoly money'],
 
-  // --- Nostalgia ---
+  // ── NOSTALGIA ──
   ['vhs', 'dvd', 'blu-ray', 'vinyl'],
   ['walkman', 'ipod', 'spotify', 'cassette'],
-  ['blackberry', 'palm', 'nokia', 'sidekick'],
+  ['typewriter', 'laptop', 'tablet', 'clay tablet'],
 
-  // --- Classic rivalries ---
-  ['batman', 'superman', 'spiderman', 'manchester'],
-  ['messi', 'ronaldo', 'mbappé', 'kane'],
-
-  // --- Workplace / daily life ---
+  // ── WORKPLACE ──
   ['commute', 'remote', 'hybrid', 'office'],
   ['monday', 'friday', 'weekend', 'holiday'],
+  ['boss', 'colleague', 'intern', 'freelancer'],
 
-  // --- Generational ---
-  ['boomer', 'millennial', 'genz', 'avocado'],
-  ['rent', 'mortgage', 'deposit', 'inheritance'],
+  // ── BRITISH CULTURE ──
+  ['queue', 'weather', 'tea', 'disappointment'],
+  ['fish', 'chips', 'curry', 'roast'],
+  ['marmite', 'marmalade', 'crumpet', 'yorkshire pudding'],
+  ['pub', 'club', 'cafe', 'greggs'],
 
-  // --- Random joy ---
+  // ── GLOBAL EVENTS ──
+  ['olympics', 'worldcup', 'eurovision', 'glastonbury'],
+  ['wedding', 'funeral', 'coronation', 'inauguration'],
+
+  // ── RANDOM JOY ──
   ['sunshine', 'rainbow', 'unicorn', 'sparkle'],
   ['chaos', 'order', 'mayhem', 'admin'],
+  ['simple', 'complex', 'chaotic', 'tuesday'],
 ];
 
-// ─────────────── TAGS ───────────────
-// Uses canonical Guardian tag IDs. If a tag isn't in the top-3000 catalog,
-// the lucky button will fall back to another recipe.
+// ─────────────── TAG RECIPES ───────────────
+// Uses canonical Guardian tag IDs. If fewer than 3 tags in a recipe exist
+// in the catalog, it's filtered out.
 
+// All tag IDs below verified against the actual catalog. Recipes with
+// fewer than 3 valid tags are automatically filtered out at runtime.
 export const TAG_RECIPES = [
-  // Politics — UK
-  ['politics/keir-starmer', 'us-news/donaldtrump', 'politics/kemibadenoch', 'politics/nigel-farage'],
-  ['politics/labour', 'politics/conservatives', 'politics/liberaldemocrats', 'politics/reformuk'],
-  ['politics/borisjohnson', 'politics/theresamay', 'politics/lizztruss', 'politics/rishisunak'],
-  ['politics/keir-starmer', 'politics/jeremycorbyn', 'politics/edmiliband', 'politics/gordon-brown'],
+  // ── UK POLITICS ──
+  ['politics/keir-starmer', 'us-news/donaldtrump', 'politics/kemi-badenoch', 'politics/nigel-farage'],
+  ['politics/labour', 'politics/conservatives', 'politics/liberaldemocrats', 'politics/greenparty'],
+  ['politics/boris-johnson', 'politics/theresa-may', 'politics/liz-truss', 'politics/rishi-sunak'],
+  ['politics/keir-starmer', 'politics/jeremy-corbyn', 'politics/edmiliband', 'politics/gordon-brown'],
+  ['politics/tonyblair', 'politics/gordon-brown', 'politics/david-cameron', 'politics/theresa-may'],
 
-  // Politics — US
-  ['us-news/donaldtrump', 'us-news/joebiden', 'us-news/barack-obama', 'us-news/kamalaharris'],
-  ['us-news/us-supreme-court', 'us-news/republicans', 'us-news/democrats', 'us-news/maga'],
+  // ── US POLITICS ──
+  ['us-news/donaldtrump', 'us-news/joebiden', 'us-news/barack-obama', 'us-news/kamala-harris'],
+  ['us-news/republicans', 'us-news/democrats', 'us-news/us-supreme-court', 'us-news/us-congress'],
+  ['us-news/texas', 'us-news/california', 'us-news/florida', 'us-news/new-york'],
+  ['us-news/hillary-clinton', 'us-news/bernie-sanders', 'us-news/elizabeth-warren', 'us-news/joebiden'],
 
-  // World leaders
-  ['world/vladimir-putin', 'world/volodymyrzelenskiy', 'world/netanyahu', 'world/xijinping'],
+  // ── WORLD LEADERS ──
+  ['world/vladimir-putin', 'world/volodymyr-zelenskiy', 'world/benjamin-netanyahu', 'world/xi-jinping'],
+  ['world/emmanuel-macron', 'world/olaf-scholz', 'world/angela-merkel', 'world/narendra-modi'],
+  ['world/xi-jinping', 'world/kim-jong-un', 'world/mohammed-bin-salman', 'world/narendra-modi'],
 
-  // Football
+  // ── FOOTBALL ──
   ['football/arsenal', 'football/liverpool', 'football/chelsea', 'football/tottenham-hotspur'],
-  ['football/manchester-city', 'football/manunited', 'football/newcastleunited', 'football/astonvilla'],
-  ['football/premierleague', 'football/championship', 'football/championsleague', 'football/europaleague'],
-  ['football/euro2024', 'football/worldcup2022', 'football/worldcup2026', 'football/womenseuros'],
+  ['football/manchester-united', 'football/manchestercity', 'football/arsenal', 'football/liverpool'],
+  ['football/premierleague', 'football/championsleague', 'football/fa-cup', 'football/efl-cup'],
+  ['football/world-cup-football', 'football/world-cup-2018', 'football/world-cup-2022', 'football/womens-world-cup'],
+  ['football/ronaldo', 'football/lionel-messi', 'football/erling-haaland', 'football/harry-kane'],
 
-  // Sport beyond football
-  ['sport/cricket', 'sport/rugbyunion', 'sport/tennis', 'sport/golf'],
-  ['sport/wimbledon', 'sport/us-open-tennis', 'sport/frenchopen', 'sport/australianopen'],
-  ['sport/olympicgames', 'sport/paralympics', 'sport/commonwealthgames', 'sport/superbowl'],
-  ['sport/formulaone', 'sport/motorsports', 'sport/cycling', 'sport/nfl'],
+  // ── SPORT ──
+  ['sport/cricket', 'sport/rugby-union', 'sport/tennis', 'sport/golf'],
+  ['sport/wimbledon', 'sport/us-open-tennis', 'sport/french-open', 'sport/australian-open'],
+  ['sport/olympic-games', 'sport/paralympics', 'sport/commonwealth-games', 'sport/super-bowl'],
+  ['sport/formula-one', 'sport/nfl', 'sport/nba', 'sport/cycling'],
+  ['sport/novak-djokovic', 'sport/roger-federer', 'sport/rafaelnadal', 'sport/andymurray'],
+  ['sport/lewis-hamilton', 'sport/max-verstappen', 'sport/jensonbutton', 'sport/nicorosberg'],
 
-  // Climate + environment
-  ['environment/climate-crisis', 'business/oilandgascompanies', 'environment/fossilfuels', 'environment/renewableenergy'],
-  ['environment/wildlife', 'environment/biodiversity', 'environment/pollution', 'environment/plastic'],
+  // ── ENVIRONMENT ──
+  ['environment/climate-crisis', 'business/oilandgascompanies', 'environment/renewableenergy', 'environment/greenhouse-gas-emissions'],
+  ['environment/wildlife', 'environment/conservation', 'environment/pollution', 'environment/plastic'],
+  ['environment/greta-thunberg', 'environment/extinction-rebellion', 'environment/greenpeace', 'environment/cop26'],
 
-  // Tech
-  ['technology/artificialintelligenceai', 'technology/chatgpt', 'technology/cryptocurrencies', 'technology/quantum-computing'],
-  ['technology/apple', 'technology/google', 'technology/meta', 'technology/microsoft'],
-  ['technology/elonmusk', 'technology/markzuckerberg', 'technology/sundarpichai', 'technology/samaltman'],
-  ['technology/tesla', 'technology/spacex', 'technology/tiktok', 'technology/twitter'],
+  // ── TECH ──
+  ['technology/artificialintelligenceai', 'technology/chatgpt', 'technology/cryptocurrencies', 'technology/openai'],
+  ['technology/apple', 'technology/google', 'technology/microsoft', 'technology/meta'],
+  ['technology/elon-musk', 'technology/mark-zuckerberg', 'technology/jeff-bezos', 'technology/billgates'],
+  ['technology/tesla', 'science/spacex', 'technology/twitter', 'technology/tiktok'],
 
-  // Culture
-  ['culture/television', 'culture/music', 'film/film', 'books/books'],
+  // ── CULTURE + MUSIC ──
   ['music/taylor-swift', 'music/beyonce', 'music/adele', 'music/harry-styles'],
-  ['tv-and-radio/bbc', 'tv-and-radio/itv', 'tv-and-radio/channel4', 'media/netflix'],
+  ['music/thebeatles', 'music/therollingstones', 'music/davidbowie', 'music/davidbowie'],
+  ['music/drake', 'music/kanye-west', 'music/jayz', 'music/kendrick-lamar'],
+  ['music/ed-sheeran', 'music/dua-lipa', 'music/billieeilish', 'music/taylor-swift'],
 
-  // Entertainment events
-  ['film/oscars', 'film/baftas', 'film/cannes', 'music/grammys'],
+  // ── FILM ──
+  ['film/oscars', 'film/baftas', 'film/cannesfilmfestival', 'music/grammys'],
+  ['film/martinscorsese', 'film/quentintarantino', 'film/christophernolan', 'film/stevenspielberg'],
+  ['film/leonardodicaprio', 'film/tomcruise', 'film/bradpitt', 'film/georgeclooney'],
+  ['film/barbie', 'film/jamesbond', 'film/harrypotter', 'film/star-wars-episode-vii'],
+  ['culture/marvel', 'film/harrypotter', 'film/jamesbond', 'film/star-wars-episode-vii'],
 
-  // Royalty
-  ['uk-news/king-charles-iii', 'uk-news/prince-harry', 'uk-news/meghan', 'uk-news/queen-elizabeth-ii'],
+  // ── TELEVISION ──
+  ['tv-and-radio/succession', 'tv-and-radio/the-crown', 'tv-and-radio/game-of-thrones', 'tv-and-radio/strictly-come-dancing'],
+  ['tv-and-radio/strictly-come-dancing', 'tv-and-radio/the-great-british-bake-off', 'tv-and-radio/love-island', 'tv-and-radio/doctor-who'],
+  ['tv-and-radio/doctor-who', 'tv-and-radio/bbc', 'media/bbc', 'media/bbc1'],
 
-  // Conflict
+  // ── WRITERS + BOOKS ──
+  ['books/jkrowling', 'books/stephenking', 'books/margaretatwood', 'books/booker-prize'],
+  ['books/booker-prize', 'books/fiction', 'books/non-fiction', 'books/biography'],
+  ['books/harrypotter', 'film/harrypotter', 'books/jkrowling', 'film/oscars'],
+
+  // ── ROYALTY ──
+  ['uk/prince-harry', 'uk-news/meghan-duchess-of-sussex', 'uk/prince-charles', 'uk/prince-andrew'],
+  ['uk-news/king-charles-coronation', 'uk/the-queen', 'uk/prince-philip', 'uk-news/queen-elizabeth-ii-death'],
+
+  // ── CONFLICT ──
   ['world/ukraine', 'world/israel-hamas-war', 'world/gaza', 'world/syria'],
-  ['world/russia', 'world/china', 'world/iran', 'world/northkorea'],
+  ['world/russia', 'world/china', 'world/iran', 'world/north-korea'],
+  ['world/hamas', 'world/hezbollah', 'world/taliban', 'world/isis-islamic-state'],
 
-  // Economy
+  // ── ECONOMY ──
   ['business/inflation', 'business/interest-rates', 'business/cost-of-living-crisis', 'business/recession'],
+  ['business/bankofenglandgovernor', 'business/federal-reserve', 'business/imf', 'business/world-bank'],
 
-  // Food
+  // ── FOOD + LIFESTYLE ──
   ['food/food', 'lifeandstyle/food-and-drink', 'food/recipes', 'food/restaurants'],
+  ['food/jamie-oliver', 'food/nigella-lawson', 'food/gordon-ramsay', 'food/yotam-ottolenghi'],
 
-  // Health
-  ['society/health', 'society/mentalhealth', 'world/coronavirus-outbreak', 'society/nhs'],
+  // ── HEALTH ──
+  ['society/health', 'society/mental-health', 'world/coronavirus-outbreak', 'society/nhs'],
+  ['society/nhs', 'society/health', 'society/cancer', 'society/obesity'],
+
+  // ── WORLD ──
+  ['world/china', 'world/russia', 'world/iran', 'world/north-korea'],
+  ['world/hong-kong', 'world/taiwan', 'world/japan', 'world/south-korea'],
+
+  // ── ACTIVISTS + NOTABLE FIGURES ──
+  ['environment/greta-thunberg', 'technology/elon-musk', 'technology/mark-zuckerberg', 'technology/jeff-bezos'],
+
+  // ── JOURNALISM / MEDIA ──
+  ['media/bbc', 'media/itv', 'media/channel-4', 'media/sky'],
+  ['media/rupert-murdoch', 'media/bbc', 'media/guardian-news-media', 'media/dailymail'],
 ];
 
-// ─────────────── PICK ───────────────
+// ─────────────── PICKERS ───────────────
 
 export function pickWordRecipe() {
   return WORD_RECIPES[Math.floor(Math.random() * WORD_RECIPES.length)];

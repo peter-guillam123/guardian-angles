@@ -343,57 +343,35 @@ main {
   border-bottom-style: solid;
 }
 
-/* Prominent "I feel lucky" card above the search inputs */
+/* "I feel lucky" button — same family as Compare, yellow sub-text for zing */
 .lucky-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   width: 100%;
   margin: 4px 0 14px;
-  padding: 12px 14px;
+  padding: 9px 14px;
   background: var(--guardian-blue);
   color: var(--paper);
   border: none;
   cursor: pointer;
   text-align: left;
-  transition: transform 100ms, box-shadow 120ms;
   font-family: var(--ui);
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+  transition: background 120ms;
 }
-.lucky-card:hover {
-  background: var(--ink);
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
-}
-.lucky-card:active {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 rgba(0,0,0,0.08);
-}
-.lucky-icon {
-  font-size: 22px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.lucky-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
-}
+.lucky-card:hover { background: var(--ink); }
 .lucky-main {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  font: 700 12px/1 var(--ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 .lucky-sub {
-  font-family: var(--ui);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 400 11px/1.2 var(--body);
+  font-style: italic;
   color: var(--guardian-yellow);
-  opacity: 0.9;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .controls .examples em { color: var(--ink-mute); font-style: italic; }
 
@@ -1668,8 +1646,14 @@ main.tw {
 }
 .tw-nav-btn:hover { background: var(--guardian-blue); color: var(--paper); border-color: var(--guardian-blue); }
 .tw-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background: var(--paper-deep); color: var(--ink-mute); border-color: var(--paper-rule); }
-.tw-nav-btn.tw-random { margin-left: auto; background: var(--guardian-blue); color: var(--paper); border-color: var(--guardian-blue); }
-.tw-nav-btn.tw-random:hover { background: var(--ink); border-color: var(--ink); }
+.tw-nav-btn.tw-random {
+  width: auto;
+  padding: 0 12px;
+  font: 700 10px/1 var(--ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
 .tw-history-card { cursor: pointer; }
 .tw-history-card[data-week]:hover { border-left-color: var(--news-red); }
 .tw-kicker {
