@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About — Guardian Angles</title>
+  <meta name="description" content="What Guardian Angles is, how it was built, and a running log of changes." />
+  <meta property="og:image" content="https://peter-guillam123.github.io/guardian-angles/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://peter-guillam123.github.io/guardian-angles/og-image.png" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      A look at how this was built — and a running log of everything that's changed along the way.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big">845k</span>
+      headlines indexed
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html">Subjects</a>
+    <a href="./newsroom.html">Newsroom</a>
+    <a href="./thisweek.html">This Week</a>
+    <a href="./about.html" class="active" aria-current="page">About</a>
+  </nav>
+
+  <main class="about">
+
+    <section class="about-section">
+      <h2>The idea</h2>
+      <p>
+        Guardian Angles grew out of a thread by the US journalist <a href="https://x.com/TedAlcorn/status/1911810812594716860" target="_blank" rel="noopener">Ted Alcorn</a> about a tool he'd built called <a href="https://tedalcorn.github.io/nyt/" target="_blank" rel="noopener">Below the Fold</a>. It charted 25 years of New York Times coverage — reporters, subjects, sections, states, headlines — all searchable and browsable. Most of the internet passed through it without stopping. I didn't. I thought: <em>we should have one of these for the Guardian.</em>
+      </p>
+      <p>
+        What you're looking at is my attempt. Built over a handful of evenings using the Guardian's free <a href="https://open-platform.theguardian.com/" target="_blank" rel="noopener">Open Platform API</a>, some vanilla JavaScript, and a lot of time talking to a coding assistant called Claude. No framework. No database. No server. Just a set of static files and about a million Guardian headlines, pre-aggregated into a shape that makes this kind of browsing fast and free to host.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>The differences from Below the Fold</h2>
+      <p>
+        Two deliberate departures. First, Ted's tool surfaces individual <strong>reporters</strong> prominently — you can look up any NYT journalist by name and see their beats, headlines, byline frequency. That's a lot of editorial visibility for individuals and I didn't want that shape for the Guardian, so you won't find it here. Every aggregation in Guardian Angles is at the tag, section, or whole-newsroom level. No reporter profiles anywhere.
+      </p>
+      <p>
+        Second, rather than a one-page dashboard it's split into four tabs, each answering a different question:
+      </p>
+      <ul class="about-list">
+        <li><strong>Trends</strong> — how has coverage of a topic risen and fallen? Type a word or pick a Guardian tag, compare up to four. Year-on-year overlay shows the same term across every year at once.</li>
+        <li><strong>Subjects</strong> — the full tag index. 3,000 subjects, ranked by volume, filterable by section or name, with a sparkline beside each one. Tick up to four and launch them straight onto the Trends chart.</li>
+        <li><strong>Newsroom</strong> — the Guardian's editorial output over a decade as a stacked area chart. Absolute or proportional. Strip sections out to see the news-only core. Click any month to drill into tags.</li>
+        <li><strong>This Week</strong> — auto-generated dashboard of the story of the week, fastest risers, fallers, and what was dominating Guardian coverage the same week in every year back to 2016.</li>
+      </ul>
+    </section>
+
+    <section class="about-section">
+      <h2>How it was built</h2>
+      <p>
+        A daily-ish <a href="https://github.com/peter-guillam123/guardian-angles/actions" target="_blank" rel="noopener">GitHub Action</a> fetches headlines from the Guardian API and writes them as compact gzipped JSON shards, one per month. A second step aggregates those shards into search-ready indexes at monthly, weekly and daily granularity, plus a 3,000-entry tag catalog. The frontend is a single-page-application-style set of vanilla JS modules, with canvas-based charts, occasional <a href="https://github.com/chenglou/pretext" target="_blank" rel="noopener">Pretext</a> typography effects, and Guardian colours throughout. The whole thing is a few megabytes of static files served from GitHub Pages, which is free and shockingly fast.
+      </p>
+      <p>
+        It's <a href="https://github.com/peter-guillam123/guardian-angles" target="_blank" rel="noopener">open source</a>. Everything that isn't an API key is in the repo.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>How it developed</h2>
+      <p class="about-sub">A rough chronological log of what went in when. The newest changes are at the top.</p>
+
+      <ol class="changelog">
+
+        <li>
+          <h3>About page + masthead polish</h3>
+          <p>This page. Cleaner favicon, OG share card redesigned to look like the real masthead rather than a dark blue block. Extra breathing room between the title and the blue/yellow rule on desktop.</p>
+        </li>
+
+        <li>
+          <h3>Every headline becomes a link</h3>
+          <p>Final API refetch across the decade captured each article's canonical URL. Clicking any headline anywhere in the site now opens the original Guardian article. Also shipped: the "I feel lucky" button redesigned to match the Compare button's editorial style; "Time machine" button replaces the random-week emoji.</p>
+        </li>
+
+        <li>
+          <h3>The full decade lands</h3>
+          <p>After a rate-limit saga lasting several days — the Guardian free tier was tighter than documented — a one-off quota bump from an engineer at the Guardian let us backfill the whole 124-month range from January 2016 to April 2026 in a single 25-minute burst.</p>
+        </li>
+
+        <li>
+          <h3>Pre-baked lucky recipes</h3>
+          <p>The "I feel lucky" button became curated. 131 word-based comparisons (from "happy, sad, joy, misery" to "bread, butter, cheese, crumpet") and 69 tag-based ones. Clicking it produces an instantly charted story rather than four random tags.</p>
+        </li>
+
+        <li>
+          <h3>PNG export</h3>
+          <p>Every Trends chart has a Share-as-image button that composites the current view into a branded PNG with the masthead, title, legend, and chart baked in — ready for Slack or social.</p>
+        </li>
+
+        <li>
+          <h3>Year-on-year overlay</h3>
+          <p>New toggle on the Trends chart: Timeline or Year-on-year. The latter overlays each year of a term's data on a shared January-to-December axis, making seasonal patterns and year-on-year shifts immediately visible. The "inflation" YoY view shows 2022 towering above every other year.</p>
+        </li>
+
+        <li>
+          <h3>This Week</h3>
+          <p>A fourth tab with an auto-generated dashboard: biggest Guardian tag this week, all-time peak, sample headline, weekly-sparkline, fastest risers and fallers, and "On this week in …" — the biggest tag in the same week of every year back to 2016. Later additions: arrow buttons to step through history; clickable year cards; a "Time machine" button that jumps to a random week.</p>
+        </li>
+
+        <li>
+          <h3>Newsroom</h3>
+          <p>A third tab: a stacked area chart of the Guardian's publishing output, broken down by section across the whole decade. Toggle sections on and off, switch to proportional view to see share-of-output, click any month to drill into tags. Reveals that Guardian output dropped from ~10k articles/month in 2016 to ~5-6k by 2024, and that World news holds a remarkably stable ~25–30% of output regardless of the news cycle.</p>
+        </li>
+
+        <li>
+          <h3>Subjects</h3>
+          <p>NYT-inspired table of every tag we index, ranked by volume, searchable and filterable. Tick up to four to launch them onto the Trends chart. Uses a dual-thumb year-range slider and section chips for filtering.</p>
+        </li>
+
+        <li>
+          <h3>Word-boundary search</h3>
+          <p>Fixed a subtle bug where the chart and the headline list disagreed. Searching "AI" used to return headlines containing "rain", "again", "Spain" in the explorer even though the chart only counted real "AI" mentions. Both now agree on word-boundary matching.</p>
+        </li>
+
+        <li>
+          <h3>Section filter, rising panel, trending</h3>
+          <p>Added a section filter so you can see "Starmer in Opinion only". The idle reading panel started showing "rising fastest" tags and words based on a 4-week vs 12-week baseline — a newsroom lens for what's spiking.</p>
+        </li>
+
+        <li>
+          <h3>Tags mode</h3>
+          <p>Words were never going to be enough. Switched the default search mode from free-text to Guardian's canonical editorial tags. Donald Trump, climate crisis, cost of living — all resolve to tag IDs that catch every article regardless of headline phrasing. 3,000 top tags indexed with autocomplete.</p>
+        </li>
+
+        <li>
+          <h3>The first shape</h3>
+          <p>Three views: masthead, search box, line chart, reading panel, headline explorer. Word search only. Monthly granularity. 2022–2024 data. Deployed to GitHub Pages. The whole thing was a single HTML file with three JS modules.</p>
+        </li>
+
+      </ol>
+    </section>
+
+    <section class="about-section about-footer-section">
+      <h2>Thank you</h2>
+      <p>
+        To Ted Alcorn for the original idea. To the Guardian Open Platform team for making a decade of coverage freely available. To the engineer at the Guardian who quietly bumped my API quota and unstuck the whole project. And to everyone who's clicked a peak and read a headline.
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media.
+  </footer>
+
+</body>
+</html>
