@@ -47,7 +47,7 @@
         Guardian Angles grew out of a thread by the US journalist <a href="https://x.com/TedAlcorn/status/1911810812594716860" target="_blank" rel="noopener">Ted Alcorn</a> about a tool he'd built called <a href="https://tedalcorn.github.io/nyt/" target="_blank" rel="noopener">Below the Fold</a>. It charted 25 years of New York Times coverage — reporters, subjects, sections, states, headlines — all searchable and browsable, and it struck a chord widely. When I saw it, I thought: <em>we should have one of these for the Guardian.</em>
       </p>
       <p>
-        What you're looking at is my attempt. Built over a handful of evenings using the Guardian's free <a href="https://open-platform.theguardian.com/" target="_blank" rel="noopener">Open Platform API</a>, some vanilla JavaScript, and a lot of time talking to a coding assistant called Claude. No framework. No database. No server. Just a set of static files and about a million Guardian headlines, pre-aggregated into a shape that makes this kind of browsing fast and free to host.
+        What you're looking at is my attempt. Built across <span id="build-duration">a few days</span> and <span id="build-commits">a lot</span> of commits using the Guardian's free <a href="https://open-platform.theguardian.com/" target="_blank" rel="noopener">Open Platform API</a>, some vanilla JavaScript, and a lot of iteration with a coding assistant called Claude. No framework. No database. No server. Just a set of static files and about a million Guardian headlines, pre-aggregated into a shape that makes this kind of browsing fast and free to host.
       </p>
     </section>
 
@@ -166,5 +166,57 @@
     Headlines © Guardian News &amp; Media.
   </footer>
 
+  <script>
+    // Self-updating stats: pull real commit count + first-commit date
+    // from GitHub's public API. Falls back to sensible defaults if it
+    // fails (rate limit, offline, etc.).
+    (async function () {
+      const repo = 'peter-guillam123/guardian-angles';
+      const durationEl = document.getElementById('build-duration');
+      const commitsEl = document.getElementById('build-commits');
+      try {
+        // Commit count: ask for 1 per page, read the Link header's "last" page
+        const headRes = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1`);
+        const linkHeader = headRes.headers.get('Link') || '';
+        const lastMatch = linkHeader.match(/page=(\d+)>;\s*rel="last"/);
+        const commitCount = lastMatch ? parseInt(lastMatch[1]) : null;
+
+        // First commit date: last page of the paginated list
+        let firstDate = null;
+        if (commitCount) {
+          const firstRes = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1&page=${commitCount}`);
+          const firstArr = await firstRes.json();
+          if (Array.isArray(firstArr) && firstArr[0]) {
+            firstDate = new Date(firstArr[0].commit.author.date);
+          }
+        }
+
+        // Duration in calendar days
+        if (firstDate) {
+          const now = new Date();
+          const diffDays = Math.max(1, Math.round((now - firstDate) / 86400000));
+          let durText;
+          if (diffDays <= 1) durText = 'a single day';
+          else if (diffDays <= 4) durText = `${spellNumber(diffDays)} days`;
+          else if (diffDays <= 14) durText = `${spellNumber(diffDays)} days`;
+          else if (diffDays <= 31) durText = `${spellNumber(Math.round(diffDays / 7))} weeks`;
+          else durText = `${spellNumber(Math.round(diffDays / 30))} months`;
+          durationEl.textContent = durText;
+        }
+        if (commitCount) {
+          commitsEl.textContent = spellNumber(commitCount);
+        }
+      } catch (e) {
+        // Leave fallback text in place
+      }
+    })();
+
+    function spellNumber(n) {
+      const small = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+                     'eight', 'nine', 'ten', 'eleven', 'twelve'];
+      if (n <= 12) return small[n];
+      return n.toString();
+    }
+  </script>
 </body>
 </html>
