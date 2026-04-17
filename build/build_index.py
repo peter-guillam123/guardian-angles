@@ -24,6 +24,7 @@ import gzip
 import json
 import re
 import sys
+import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -47,11 +48,41 @@ STOPWORDS = frozenset(
     """.split()
 )
 
-TOKEN_RE = re.compile(r"[a-z][a-z'-]{1,}", re.IGNORECASE)
+# Word-start: any letter (incl. accented). Extend: letters, digits inside
+# names (e.g. "covid-19"), apostrophes, hyphens. Unicode-aware so names like
+# "Orbán", "Jürgen", "Sánchez" tokenise as single words rather than losing
+# their leading letter at the accent boundary.
+TOKEN_RE = re.compile(r"[^\W\d_][\w'\-\u2019]*", re.UNICODE)
+
+
+def _strip_accents(s: str) -> str:
+    """Decompose accented characters, drop combining marks. 'Orbán' -> 'Orban'."""
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", s)
+        if not unicodedata.combining(c)
+    )
+
+
+def _clean_token(t: str) -> str:
+    """Strip trailing possessive 's (or curly 's) and stray apostrophes."""
+    # Normalise curly apostrophe to straight for consistent stripping
+    t = t.replace("\u2019", "'")
+    if t.endswith("'s"):
+        t = t[:-2]
+    while t.endswith("'") or t.endswith("-"):
+        t = t[:-1]
+    return t
 
 
 def tokenize(text: str) -> list[str]:
-    return [t.lower() for t in TOKEN_RE.findall(text) if len(t) > 1]
+    text = _strip_accents(text)
+    raw = TOKEN_RE.findall(text.lower())
+    out = []
+    for t in raw:
+        t = _clean_token(t)
+        if len(t) > 1:
+            out.append(t)
+    return out
 
 
 def load_shards() -> list[dict]:

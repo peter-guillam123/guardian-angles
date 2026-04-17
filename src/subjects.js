@@ -61,7 +61,8 @@ async function init() {
       updateYearDisplay();
     }
 
-    statBig.textContent = formatCount(catalog.length);
+    // Full-precision here — it's the page's headline stat, not a chart axis
+    statBig.textContent = catalog.length.toLocaleString('en-GB');
     buildSectionChips();
     wireControls();
     wireTableSort();

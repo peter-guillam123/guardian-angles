@@ -2028,6 +2028,30 @@ main.about {
   margin-top: 40px;
 }
 
+/* Quoted first prompt in the changelog */
+.changelog-quote {
+  margin: 10px 0 12px;
+  padding: 14px 18px;
+  background: var(--paper-deep);
+  border-left: 3px solid var(--guardian-blue);
+  font-family: var(--body);
+  font-style: italic;
+}
+.changelog-quote p {
+  margin: 0 !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+  color: var(--ink-soft) !important;
+  font-style: italic !important;
+}
+.changelog-quote .quote-link {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--guardian-blue);
+  font-style: normal;
+  padding: 0 2px;
+}
+
 @media (max-width: 640px) {
   main.about { padding: 20px 20px 48px; }
   .about-section { margin-bottom: 32px; }
