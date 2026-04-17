@@ -212,6 +212,21 @@ NAME_OVERRIDES = {
     "football/erling-haaland": "Erling Haaland",
     "football/lionel-messi": "Lionel Messi",
     "football/ronaldo": "Cristiano Ronaldo",
+    "theguardian/series/correctionsandclarifications": "Corrections & clarifications",
+    "theguardian/series/corrections-and-clarifications": "Corrections & clarifications",
+    "business/theairlineindustry": "The airline industry",
+    "lifeandstyle/parents-and-parenting": "Parents and parenting",
+    "sport/horse-racing-tips": "Horse racing tips",
+    "sport/england-rugby-union-team": "England rugby union team",
+    "world/birds": "Birds",
+    "lifeandstyle/book-of-the-day": "Book of the day",
+    "books/book-of-the-day": "Book of the day",
+    "australia-news/australia-media": "Australia media",
+    "music/classical-music-and-opera": "Classical music and opera",
+    "us-news/far-right": "Far right",
+    "us-news/trump-administration": "Trump administration",
+    "society/social-care": "Social care",
+    "world/race": "Race",
 }
 
 # Suppress display names for structural tags that aren't useful to search
@@ -319,6 +334,10 @@ def build() -> int:
         parts = tag.split("/")
         return len(parts) == 2 and parts[0] == parts[1]
 
+    # tone/* and type/* are structural, not editorial — always drop
+    def is_structural(tag: str) -> bool:
+        return tag.startswith("tone/") or tag.startswith("type/") or tag.startswith("publication/")
+
     global_counts: Counter[str] = Counter()
     for shard in shards:
         for h in shard["headlines"]:
@@ -326,6 +345,8 @@ def build() -> int:
                 if tag in SKIP_TAGS:
                     continue
                 if is_section_megatag(tag):
+                    continue
+                if is_structural(tag):
                     continue
                 global_counts[tag] += 1
 

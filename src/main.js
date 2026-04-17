@@ -101,23 +101,49 @@ async function init() {
     });
   });
 
-  // "I feel lucky" — unified: uses a curated recipe for the current mode
+  // "I feel lucky" — 80% pure random (always 4 fresh items from the top
+  // index), 20% curated easter-egg recipe. Either way, always fills all
+  // four input slots.
   document.getElementById('lucky-btn')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    const useRecipe = Math.random() < 0.2;
 
     if (currentMode === 'words') {
-      const recipe = pickWordRecipe();
+      const idx = await loadIndex('monthly');
+      const allTerms = Object.keys(idx.terms).filter(t => t.length >= 4);
+      let picks;
+      if (useRecipe) {
+        picks = pickWordRecipe();
+        // Pad with random terms if the recipe has <4 items
+        while (picks.length < 4) {
+          const r = allTerms[Math.floor(Math.random() * Math.min(500, allTerms.length))];
+          if (!picks.includes(r)) picks.push(r);
+        }
+      } else {
+        picks = pickRandomN(allTerms.slice(0, 500), 4);
+      }
       inputs().forEach((inp, i) => {
-        inp.value = recipe[i] || '';
+        inp.value = picks[i] || '';
         delete inp.dataset.tagId;
       });
     } else {
       if (!tagCatalog) tagCatalog = await loadTagCatalog();
-      const recipe = pickTagRecipe(tagCatalog);
-      if (!recipe) return;
       const byId = new Map(tagCatalog.map(t => [t.id, t]));
+      let pickedTags;
+      if (useRecipe) {
+        const recipe = pickTagRecipe(tagCatalog);
+        pickedTags = (recipe || []).map(id => byId.get(id)).filter(Boolean);
+        // Pad with random tags until we have 4
+        const pool = tagCatalog.slice(0, 200);
+        while (pickedTags.length < 4) {
+          const t = pool[Math.floor(Math.random() * pool.length)];
+          if (!pickedTags.includes(t)) pickedTags.push(t);
+        }
+      } else {
+        pickedTags = pickRandomN(tagCatalog.slice(0, 200), 4);
+      }
       inputs().forEach((inp, i) => {
-        const tag = byId.get(recipe[i]);
+        const tag = pickedTags[i];
         if (tag) {
           inp.value = tag.name;
           inp.dataset.tagId = tag.id;
@@ -129,6 +155,16 @@ async function init() {
     }
     runSearch();
   });
+
+  function pickRandomN(pool, n) {
+    const copy = [...pool];
+    const picks = [];
+    while (picks.length < n && copy.length) {
+      const i = Math.floor(Math.random() * copy.length);
+      picks.push(copy.splice(i, 1)[0]);
+    }
+    return picks;
+  }
 
   // Granularity buttons
   document.querySelectorAll('.gran-btn').forEach(btn => {
