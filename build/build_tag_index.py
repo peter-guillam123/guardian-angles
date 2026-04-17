@@ -166,6 +166,23 @@ NAME_OVERRIDES = {
     "football/chelseafc": "Chelsea FC",
     "football/liverpoolfc": "Liverpool FC",
     "football/manunitedfc": "Manchester United",
+    # Smooshed slugs spotted on Subjects
+    "media/pressandpublishing": "Press & publishing",
+    "lifeandstyle/foodanddrinks": "Food & drinks",
+    "food/fooddrinks": "Food & drinks",
+    "theguardian/correctionsandclarifications": "Corrections & clarifications",
+    "business/theairlineindustry": "The airline industry",
+    "business/airline-industry": "The airline industry",
+    "environment/renewableenergy": "Renewable energy",
+    "business/bankofenglandgovernor": "Bank of England governor",
+    "books/booksforchildrenandteenagers": "Books for children and teenagers",
+    "science/scienceofclimatechange": "Science of climate change",
+    "politics/edmiliband": "Ed Miliband",
+    "politics/ed-miliband": "Ed Miliband",
+    "politics/davidmiliband": "David Miliband",
+    "us-news/maga": "MAGA",
+    "politics/nigel-farage": "Nigel Farage",
+    "politics/nigelfarage": "Nigel Farage",
 }
 
 # Suppress display names for structural tags that aren't useful to search

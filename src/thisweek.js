@@ -71,6 +71,21 @@ async function init() {
 
   prevBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx - 1); });
   nextBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx + 1); });
+  document.getElementById('tw-random')?.addEventListener('click', () => {
+    // Time machine: jump to a random week between 0 and n-2 (skip latest partial)
+    const max = _idx.buckets.length - 2;
+    const rand = Math.floor(Math.random() * max);
+    goToWeek(rand);
+  });
+
+  // Delegated click handler on history grid — click a year card to jump to it
+  historyGrid.addEventListener('click', (e) => {
+    const card = e.target.closest('.tw-history-card[data-week]');
+    if (!card) return;
+    const weekKey = card.dataset.week;
+    const wi = _idx.buckets.indexOf(weekKey);
+    if (wi >= 0) goToWeek(wi);
+  });
 
   renderWeek(_currentWeekIdx);
 }
@@ -241,7 +256,7 @@ function renderWeek(weekIdx) {
     const total = totals[wi];
     const pct = total > 0 ? ((bestCount / total) * 100).toFixed(1) : '0';
     return `
-      <div class="tw-history-card">
+      <div class="tw-history-card" data-week="${esc(buckets[wi])}" title="Jump to this week">
         <span class="tw-history-year">${year}</span>
         <span class="tw-history-name">${esc(name)}</span>
         <span class="tw-history-stat">${bestCount} articles · ${pct}%</span>
