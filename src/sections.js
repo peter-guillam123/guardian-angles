@@ -6,7 +6,9 @@
 
 const NAME_OVERRIDES = {
   commentisfree: 'Opinion',
+  'uk': 'UK',
   'uk-news': 'UK news',
+  'us': 'US',
   'us-news': 'US news',
   'australia-news': 'Australia news',
   world: 'World news',

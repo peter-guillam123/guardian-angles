@@ -18,16 +18,29 @@ const _shardCache = new Map();
 // This mirrors the build-time tokenizer's view of headlines, so the chart
 // counts and the headline-explorer list agree on what "matches" the query.
 // Importantly: "AI" no longer matches "rain", "Spain", "again", and so on.
+// Strip accents so "Orbán" matches a search for "orban", and vice versa.
+// Then strip any trailing 's or apostrophes — "America's" shouldn't hide
+// when someone searches for "America".
+function normaliseForSearch(s) {
+  return s
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')   // combining marks
+    .replace(/\u2019/g, "'")            // curly apostrophe → straight
+    .toLowerCase();
+}
+
 export function makeWordMatcher(q) {
   const trimmed = (q || '').trim();
   if (!trimmed) return () => true;
-  const lower = trimmed.toLowerCase();
+  const lower = normaliseForSearch(trimmed);
   if (/\s/.test(lower)) {
-    return (text) => text.toLowerCase().includes(lower);
+    return (text) => normaliseForSearch(text).includes(lower);
   }
   const escaped = lower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`\\b${escaped}\\b`, 'i');
-  return (text) => re.test(text);
+  // Match the word, optionally followed by 's (possessive) — so "America"
+  // also finds "America's" in headlines.
+  const re = new RegExp(`\\b${escaped}(?:'s)?\\b`, 'i');
+  return (text) => re.test(normaliseForSearch(text));
 }
 
 async function fetchJsonMaybeGz(url) {

@@ -205,7 +205,10 @@ function computeStacked() {
     for (let mi = 0; mi < n; mi++) maxes[mi] = bases[mi];
   }
 
-  const yMax = state.mode === 'normalised' ? 1 : Math.max(...bases, 1);
+  // Round yMax up to a clean value so tick labels land on whole numbers
+  // (0, 2.5k, 5k, 7.5k, 10k rather than 0, 2.5k, 5.1k, 7.6k, 10.2k).
+  const rawMax = state.mode === 'normalised' ? 1 : Math.max(...bases, 1);
+  const yMax = state.mode === 'normalised' ? 1 : niceAxisMax(rawMax);
 
   return { layers, cumulative, yMax };
 }
@@ -472,6 +475,21 @@ function formatCount(n) {
 function formatCountShort(n) {
   if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k';
   return String(Math.round(n));
+}
+
+// Round a raw axis maximum up to the next "clean" step so 4 equal ticks
+// land on round numbers. E.g. 10200 → 12000 (ticks 0/3k/6k/9k/12k).
+function niceAxisMax(max) {
+  if (max <= 0) return 1;
+  // Find a power of 10 scale
+  const pow = Math.pow(10, Math.floor(Math.log10(max)));
+  const mantissa = max / pow;
+  // Snap to 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10
+  const steps = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  for (const s of steps) {
+    if (mantissa <= s) return s * pow;
+  }
+  return 10 * pow;
 }
 function formatMonthShort(m) {
   const [y, mo] = m.split('-').map(Number);
