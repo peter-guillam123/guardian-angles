@@ -271,14 +271,14 @@ export class TrendChart extends EventTarget {
       if (y !== lastYear) { yearStarts.push({ i, y }); lastYear = y; }
     }
 
-    // Reserve space on both edges for the first/last bucket labels
-    // (left-aligned and right-aligned respectively)
-    const lastLabel = formatAxisEnd(buckets[buckets.length - 1]);
-    const lastLabelWidth = ctx.measureText(lastLabel).width;
+    // Reserve space on the LEFT edge only for the first bucket label.
+    // The right edge no longer has an end-point label so year ticks can
+    // run all the way to the final year (e.g. "2026" sits at the rightmost
+    // boundary with normal reserve room).
     const firstLabelWidth = ctx.measureText(buckets[0].slice(0, 4)).width;
     const GAP = 12;
     const leftReserved = p.x + firstLabelWidth + GAP;        // x must be > this
-    const rightReserved = (p.x + p.w) - lastLabelWidth - GAP; // x must be < this
+    const rightReserved = (p.x + p.w) - GAP;                  // x must be < this
 
     for (const { i, y } of yearStarts) {
       const x = this._xForIdx(i, buckets.length, p);
@@ -303,15 +303,15 @@ export class TrendChart extends EventTarget {
     ctx.textAlign = 'left';
     ctx.fillText(buckets[0].slice(0, 4), firstX, p.y + p.h + 10);
 
-    // Last bucket: right-aligned, clean month-year regardless of granularity
+    // Last bucket: small tick mark only. The "updated Xm ago" line in the
+    // masthead already signals how fresh the right edge is, so a labelled
+    // end-point ("Apr 2026") just clutters the axis.
     const lastIdx = buckets.length - 1;
     const lastX = this._xForIdx(lastIdx, buckets.length, p);
     ctx.beginPath();
     ctx.moveTo(lastX, p.y + p.h);
     ctx.lineTo(lastX, p.y + p.h + 5);
     ctx.stroke();
-    ctx.textAlign = 'right';
-    ctx.fillText(formatAxisEnd(buckets[lastIdx]), lastX, p.y + p.h + 10);
   }
 
   _drawLines(p, buckets, yMax) {
