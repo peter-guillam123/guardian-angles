@@ -51,7 +51,7 @@ def existing_shards() -> set[str]:
     return {p.stem.replace(".json", "") for p in SHARD_DIR.glob("*.json.gz")}
 
 
-def find_missing_months(start: str = "2016-01") -> list[str]:
+def find_missing_months(start: str = "2012-01") -> list[str]:
     want = list(month_range(start, current_month()))
     have = existing_shards()
     return [m for m in want if m not in have]
