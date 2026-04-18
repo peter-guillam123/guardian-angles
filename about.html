@@ -100,6 +100,31 @@
       <ol class="changelog">
 
         <li>
+          <h3>Extending back to 2012</h3>
+          <p>I'd been looking at the Newsroom chart and wondering what happens if we could see further back. Specifically, I remembered the Guardian went through a content-reduction moment around 2015 and I wanted it visible. Extended the backfill start date from 2016 to 2012 — covers the start of modern digital Guardian, the 2012 Olympics, Leveson, the Scottish referendum, Gamergate, and that 2015 editorial step-change. 48 extra months. The hourly CI job started chipping away.</p>
+        </li>
+
+        <li>
+          <h3>"Last updated" indicator</h3>
+          <p>A small pulsing green dot and italic "updated 17m ago" under the stat counter on every page. Tells you at a glance how fresh the data is. Hover for the exact timestamp. The relative format walks from minutes → hours → yesterday → days.</p>
+        </li>
+
+        <li>
+          <h3>Mobile polish pass</h3>
+          <p>I was worried the whole thing might not hold up on a phone, so we did a proper sweep. Eight specific fixes: chart axis labels no longer clip at the right edge; four-tag chart titles line-clamp to three lines instead of overflowing; the "Share as image" button goes full-width so the label doesn't truncate; Newsroom year labels switch to short format ('18, '20, '22) when cramped; Subjects article counts no longer lose their "k"; subnav now has a fade-out cue so you can tell there's more to scroll to; the hint copy says "hover or tap" instead of hover-only; the reading panel's CTA shrinks on narrow screens. The chart itself remains readable at 10+ years of monthly data on a phone — dense but not broken.</p>
+        </li>
+
+        <li>
+          <h3>"I feel lucky", proper randomness</h3>
+          <p>The curated recipe list had been firing too often, so I asked for it to feel more like an easter egg. Now 80% of picks are pure random from the top of the index, 20% are pre-baked combinations (including some deliberate odd-one-out comedy — "bread, butter, cheese, crumpet" / "pandemic, outbreak, epidemic, manflu"). The button itself moved to be the first thing you see in the sidebar, in the same styling family as the Compare button rather than a separate novelty card.</p>
+        </li>
+
+        <li>
+          <h3>Name fixes, accent fixes, grammar fixes</h3>
+          <p>A whole category of small embarrassments got fixed: words like "orb", "rgen", "nchez" were appearing in the random pool because the old tokenizer couldn't cross an accent boundary — rebuilt the index so "Orbán" indexes cleanly as "orban" (and a search for "orban" still finds "Orbán" in headlines). Possessives now fold together — "America" and "America's" count as one thing. UK and US section labels finally capitalise correctly. The Newsroom y-axis snaps to round values instead of the slightly awkward 5.1k / 7.6k / 10.2k steps it had before.</p>
+        </li>
+
+        <li>
           <h3>About page + masthead polish</h3>
           <p>This page. Cleaner favicon, OG share card redesigned to look like the real masthead rather than a dark blue block. Extra breathing room between the title and the blue/yellow rule on desktop.</p>
         </li>
