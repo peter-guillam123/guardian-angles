@@ -16,13 +16,13 @@
 
     let label;
     if (minsAgo < 2) label = 'just now';
-    else if (minsAgo < 60) label = `${minsAgo} minutes ago`;
+    else if (minsAgo < 60) label = `${minsAgo}m ago`;
     else if (minsAgo < 60 * 24) {
       const h = Math.floor(minsAgo / 60);
-      label = h === 1 ? 'an hour ago' : `${h} hours ago`;
+      label = `${h}hr ago`;
     } else {
       const d = Math.floor(minsAgo / (60 * 24));
-      label = d === 1 ? 'yesterday' : `${d} days ago`;
+      label = d === 1 ? 'yesterday' : `${d}d ago`;
     }
 
     const exact = built.toLocaleString('en-GB', {
@@ -32,7 +32,7 @@
 
     el.innerHTML =
       `<span class="freshness-dot" aria-hidden="true"></span>` +
-      `Last updated <time datetime="${meta.built_at}" title="${exact}">${label}</time>`;
+      `updated <time datetime="${meta.built_at}" title="${exact}">${label}</time>`;
   } catch (e) {
     // Silent — just leave the element empty
   }
