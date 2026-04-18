@@ -156,6 +156,34 @@ body {
   text-transform: none;
 }
 
+/* Freshness line under the stat counter */
+.masthead .stat .stat-fresh {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--body);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-mute);
+}
+.masthead .stat .stat-fresh:empty { display: none; }
+.masthead .stat .stat-fresh .freshness-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--eco-green);
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: freshnessPulse 2.4s ease-in-out infinite;
+}
+@keyframes freshnessPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
 /* Yellow hairline band — Guardian-ish but asymmetric */
 .rule-band {
   max-width: 1480px;

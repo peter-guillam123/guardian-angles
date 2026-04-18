@@ -1,0 +1,39 @@
+// Freshness indicator: reads data/meta.json and shows when the dataset was
+// last rebuilt. Injected into any element with id="freshness" on page load.
+// Reloads silently — no user-facing errors if the fetch fails.
+
+(async function () {
+  const el = document.getElementById('freshness');
+  if (!el) return;
+  try {
+    const res = await fetch('./data/meta.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const meta = await res.json();
+    if (!meta.built_at) return;
+    const built = new Date(meta.built_at);
+    const now = new Date();
+    const minsAgo = Math.floor((now - built) / 60000);
+
+    let label;
+    if (minsAgo < 2) label = 'just now';
+    else if (minsAgo < 60) label = `${minsAgo} minutes ago`;
+    else if (minsAgo < 60 * 24) {
+      const h = Math.floor(minsAgo / 60);
+      label = h === 1 ? 'an hour ago' : `${h} hours ago`;
+    } else {
+      const d = Math.floor(minsAgo / (60 * 24));
+      label = d === 1 ? 'yesterday' : `${d} days ago`;
+    }
+
+    const exact = built.toLocaleString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+
+    el.innerHTML =
+      `<span class="freshness-dot" aria-hidden="true"></span>` +
+      `Last updated <time datetime="${meta.built_at}" title="${exact}">${label}</time>`;
+  } catch (e) {
+    // Silent — just leave the element empty
+  }
+})();
