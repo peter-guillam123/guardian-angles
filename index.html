@@ -21,7 +21,7 @@
       <a href="./" aria-label="Guardian Angles — reset the view">Guardian<br/>Angles</a>
     </h1>
     <p class="dek">
-      How often has the Guardian written about <em>your</em> topic — and from which angle? Pick a <strong>tag</strong> or type any <strong>word</strong> and watch a decade of coverage unfold. Compare up to four. Click a peak to read the headlines and see which sections they ran in. Or browse the <a href="./subjects.html"><strong>Subjects</strong></a> index — 3,000 topics, ranked.
+      How often has the Guardian written about <em>your</em> topic — and from which angle? Pick a <strong>tag</strong> or type any <strong>word</strong> and watch <span id="dek-years">a decade</span> of coverage unfold across <span id="dek-headlines">hundreds of thousands of</span> headlines. Compare up to four. Click a peak to read the headlines and see which sections they ran in. Or browse the <a href="./subjects.html"><strong>Subjects</strong></a> index — <span id="dek-tags">3,000</span> topics, ranked.
     </p>
     <div class="stat" id="stat-counter">
       <span class="big" id="stat-big">—</span>
@@ -106,6 +106,19 @@
             <button type="button" data-view="timeline" class="view-btn active">Timeline</button>
             <button type="button" data-view="yoy" class="view-btn">Year‑on‑year</button>
           </div>
+        </div>
+      </div>
+      <div class="chart-year-range" id="chart-year-range" hidden>
+        <label class="ctrl-label">Limit years</label>
+        <div class="range-wrapper">
+          <div class="range-track"></div>
+          <div class="range-fill" id="trends-range-fill"></div>
+          <input type="range" id="trends-year-from" min="2012" max="2026" value="2012" step="1" aria-label="From year" />
+          <input type="range" id="trends-year-to"   min="2012" max="2026" value="2026" step="1" aria-label="To year" />
+        </div>
+        <div class="range-values">
+          <span id="trends-year-from-display">2012</span>
+          <span id="trends-year-to-display">2026</span>
         </div>
       </div>
       <div class="legend" id="legend"></div>

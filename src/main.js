@@ -36,6 +36,14 @@ const periodStatsEl = document.getElementById('period-stats');
 const statBig = document.getElementById('stat-big');
 const chartActionsEl = document.getElementById('chart-actions');
 const shareBtnEl = document.getElementById('share-btn');
+const yearRangeEl = document.getElementById('chart-year-range');
+const yearFromInput = document.getElementById('trends-year-from');
+const yearToInput = document.getElementById('trends-year-to');
+const yearFromDisplay = document.getElementById('trends-year-from-display');
+const yearToDisplay = document.getElementById('trends-year-to-display');
+const yearRangeFill = document.getElementById('trends-range-fill');
+
+let yearFilter = null; // { from: year, to: year } or null for full range
 const breakdownEl = document.getElementById('breakdown');
 const breakdownBarsEl = document.getElementById('breakdown-bars');
 const searchLabelEl = document.getElementById('search-label');
@@ -68,6 +76,8 @@ async function init() {
     const [sections, meta] = await Promise.all([loadSections(), loadMeta()]);
     if (statBig) statBig.textContent = formatCount(meta.total_headlines);
     populateSectionFilter(sections);
+    fillDekStats(sections, meta);
+    initYearRange(sections);
   } catch (e) {
     setReadingIdle('Could not load data. Has the build run yet?');
     console.error(e);
@@ -305,6 +315,7 @@ clearBtn.addEventListener('click', () => {
   chart.setSeries([]);
   legendEl.innerHTML = '';
   chartActionsEl.hidden = true;
+  if (yearRangeEl) yearRangeEl.hidden = true;
   const placeholder = currentMode === 'tags'
     ? 'Pick up to four Guardian tags to compare their coverage.'
     : 'Type a word — or four — to plot a decade of Guardian coverage.';
@@ -363,6 +374,15 @@ async function runSearch() {
 
   renderChart();
   chartActionsEl.hidden = false;
+  if (yearRangeEl) yearRangeEl.hidden = false;
+
+  // Scroll the chart into view so the user can see their comparison happen.
+  // Only nudge into view — if it's already visible we don't want a jarring jump.
+  const rect = chartEl.getBoundingClientRect();
+  const onScreen = rect.top >= 0 && rect.bottom <= window.innerHeight;
+  if (!onScreen) {
+    chartEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   const p = new URLSearchParams();
   if (currentMode === 'tags') p.set('tags', queries.join(','));
@@ -381,11 +401,13 @@ const YOY_PALETTE = [
 function renderChart() {
   if (!currentSeries.length) return;
 
+  const viewSeries = applyYearFilter(currentSeries);
+
   if (currentView === 'yoy') {
     renderYearOnYear();
   } else {
     chart.setGranularity(currentGranularity);
-    chart.setSeries(currentSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
+    chart.setSeries(viewSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
     renderLegend(currentSeries);
     renderChartTitle(currentSeries);
     resetReadingPanel();
@@ -393,8 +415,10 @@ function renderChart() {
 }
 
 function renderYearOnYear() {
-  // Take the first series only — YoY with multiple terms is too noisy
-  const s = currentSeries[0];
+  // Take the first series only — YoY with multiple terms is too noisy.
+  // The year-range filter clamps which years appear.
+  const filteredSeries = applyYearFilter(currentSeries);
+  const s = filteredSeries[0];
   if (!s) return;
 
   // Group buckets by year → within-year index
@@ -706,6 +730,100 @@ function attachRisingClickHandler() {
   risingWordsListEl.addEventListener('click', onClick);
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+// Year-range slider: clamps the chart's visible date range after a search.
+function initYearRange(sections) {
+  if (!yearFromInput || !sections.months?.length) return;
+  const years = sections.months.map(m => parseInt(m.slice(0, 4)));
+  const minY = Math.min(...years);
+  const maxY = Math.max(...years);
+  [yearFromInput, yearToInput].forEach(el => { el.min = minY; el.max = maxY; });
+  yearFromInput.value = minY;
+  yearToInput.value = maxY;
+  updateYearRangeDisplay();
+
+  const onRange = () => {
+    let from = parseInt(yearFromInput.value);
+    let to = parseInt(yearToInput.value);
+    if (from > to) {
+      if (document.activeElement === yearFromInput) to = from;
+      else from = to;
+      yearFromInput.value = from;
+      yearToInput.value = to;
+    }
+    yearFilter = (from === minY && to === maxY) ? null : { from, to };
+    updateYearRangeDisplay();
+    if (currentSeries.length) renderChart();
+  };
+  yearFromInput.addEventListener('input', onRange);
+  yearToInput.addEventListener('input', onRange);
+}
+
+function updateYearRangeDisplay() {
+  if (!yearFromDisplay) return;
+  const from = parseInt(yearFromInput.value);
+  const to = parseInt(yearToInput.value);
+  yearFromDisplay.textContent = from;
+  yearToDisplay.textContent = to;
+  const min = parseInt(yearFromInput.min);
+  const max = parseInt(yearFromInput.max);
+  const span = Math.max(1, max - min);
+  yearRangeFill.style.left = (((from - min) / span) * 100) + '%';
+  yearRangeFill.style.right = ((1 - (to - min) / span) * 100) + '%';
+}
+
+// Returns currentSeries with buckets clipped to the selected year range.
+function applyYearFilter(series) {
+  if (!yearFilter) return series;
+  const { from, to } = yearFilter;
+  return series.map(s => {
+    const keep = [];
+    const bks = [];
+    const vals = [];
+    const cts = [];
+    for (let i = 0; i < s.buckets.length; i++) {
+      const y = parseInt(s.buckets[i].slice(0, 4));
+      if (y >= from && y <= to) {
+        keep.push(i);
+        bks.push(s.buckets[i]);
+        vals.push(s.values[i]);
+        cts.push(s.counts[i]);
+      }
+    }
+    return { ...s, buckets: bks, values: vals, counts: cts, _keep: keep };
+  });
+}
+
+async function fillDekStats(sections, meta) {
+  const yearsEl = document.getElementById('dek-years');
+  const headlinesEl = document.getElementById('dek-headlines');
+  const tagsEl = document.getElementById('dek-tags');
+  if (!yearsEl && !headlinesEl && !tagsEl) return;
+
+  // Year span: first and last bucket in months
+  if (sections.months && sections.months.length) {
+    const firstYear = parseInt(sections.months[0].slice(0, 4));
+    const lastYear = parseInt(sections.months[sections.months.length - 1].slice(0, 4));
+    const span = lastYear - firstYear + 1;
+    if (yearsEl) yearsEl.textContent = span < 1 ? 'this year' : `${span} years`;
+  }
+  // Headlines: round to nearest 10k for a cleaner read
+  if (headlinesEl && meta.total_headlines) {
+    const n = meta.total_headlines;
+    let label;
+    if (n >= 1_000_000) label = (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' million';
+    else if (n >= 10_000) label = Math.round(n / 10_000) * 10 + ',000';
+    else label = n.toLocaleString('en-GB');
+    headlinesEl.textContent = label;
+  }
+  // Tags: load catalog lazily just for the count (small JSON already cached)
+  if (tagsEl) {
+    try {
+      const cat = await loadTagCatalog();
+      tagsEl.textContent = cat.length.toLocaleString('en-GB');
+    } catch (_) {}
+  }
+}
 
 function populateSectionFilter(sections) {
   // Sort by total volume desc; show pretty section names

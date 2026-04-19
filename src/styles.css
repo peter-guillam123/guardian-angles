@@ -457,6 +457,40 @@ main {
   letter-spacing: -0.01em;
 }
 
+/* In-chart year-range slider (Trends + Newsroom). Same look as the
+   Subjects slider but more compact. */
+.chart-year-range {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin: 6px 0 10px;
+  padding: 4px 0;
+}
+.chart-year-range .ctrl-label {
+  font: 700 10px/1 var(--ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.chart-year-range .range-wrapper {
+  position: relative;
+  height: 26px;
+}
+.chart-year-range .range-values {
+  display: flex;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.chart-year-range .range-values > span:first-child::after {
+  content: '–';
+  margin-left: 10px;
+  color: var(--ink-mute);
+}
+
 .yaxis-label {
   font: 10px/1.2 var(--ui);
   font-weight: 700;
@@ -1426,7 +1460,9 @@ main.subjects {
   .headlines-section { padding: 20px 16px 40px; }
 
   /* Sidebar controls: tighter */
-  .controls .examples { margin-top: 16px; padding-top: 12px; }
+  /* Hide the "Try" suggestion list on mobile — "I feel lucky" covers
+     the same need and the list otherwise pushes the chart below the fold */
+  .controls .examples { display: none; }
   .controls .examples li { font-size: 13px; }
 
   /* Chart area */

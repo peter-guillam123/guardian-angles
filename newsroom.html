@@ -47,6 +47,20 @@
       </div>
     </section>
 
+    <div class="chart-year-range" id="nr-year-range">
+      <label class="ctrl-label">Limit years</label>
+      <div class="range-wrapper">
+        <div class="range-track"></div>
+        <div class="range-fill" id="nr-range-fill"></div>
+        <input type="range" id="nr-year-from" min="2012" max="2026" value="2012" step="1" aria-label="From year" />
+        <input type="range" id="nr-year-to"   min="2012" max="2026" value="2026" step="1" aria-label="To year" />
+      </div>
+      <div class="range-values">
+        <span id="nr-year-from-display">2012</span>
+        <span id="nr-year-to-display">2026</span>
+      </div>
+    </div>
+
     <div class="nr-chart-wrap">
       <canvas id="nr-chart"></canvas>
       <div class="nr-pill" id="nr-pill" hidden></div>
