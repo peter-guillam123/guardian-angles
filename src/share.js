@@ -96,7 +96,7 @@ export function exportChartAsPNG({ chartCanvas, title, legendItems, url }) {
   ctx.fillStyle = INK_MUTE;
   ctx.font = `400 ${9 * s}px 'Helvetica Neue', Arial, sans-serif`;
   ctx.textBaseline = 'middle';
-  ctx.fillText(url || 'Guardian Angles — peter-guillam123.github.io/guardian-angles', pad, footerY + H_footer / 2);
+  ctx.fillText(url || 'Guardian Angles — guardian-angles.com', pad, footerY + H_footer / 2);
 
   // Trigger download
   c.toBlob((blob) => {
