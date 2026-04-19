@@ -18,7 +18,7 @@ const STACK_PALETTE = [
 
 const state = {
   sections: null,     // raw sections.json
-  months: [],
+  months: [],         // ALL months — unfiltered
   totals: [],
   stacks: [],         // [{id, label, color, counts[], visible}]
   otherCounts: [],
@@ -26,8 +26,27 @@ const state = {
   mode: 'absolute',   // 'absolute' | 'normalised'
   hoveredMonth: null,
   selectedMonth: null,
-  activeSoloId: null,  // section id when solo'd, null otherwise
+  activeSoloId: null,
+  yearFilter: null,   // { from, to } or null
 };
+
+// Return the slice of months to draw — applies the year filter if set.
+function visibleMonths() {
+  if (!state.yearFilter) {
+    return { start: 0, end: state.months.length };
+  }
+  const { from, to } = state.yearFilter;
+  let start = 0, end = state.months.length;
+  for (let i = 0; i < state.months.length; i++) {
+    const y = parseInt(state.months[i].slice(0, 4));
+    if (y >= from) { start = i; break; }
+  }
+  for (let i = state.months.length - 1; i >= 0; i--) {
+    const y = parseInt(state.months[i].slice(0, 4));
+    if (y <= to) { end = i + 1; break; }
+  }
+  return { start, end };
+}
 
 const chartEl = document.getElementById('nr-chart');
 const ctx = chartEl.getContext('2d');
@@ -80,6 +99,7 @@ async function init() {
 
   buildLegend();
   wireControls();
+  initYearRange();
   resize();
 
   const ro = new ResizeObserver(() => resize());
@@ -166,21 +186,76 @@ function wireControls() {
   chartEl.addEventListener('click', onClick);
 }
 
+// ----- Year range slider -----
+function initYearRange() {
+  const fromInput = document.getElementById('nr-year-from');
+  const toInput = document.getElementById('nr-year-to');
+  const fromDisplay = document.getElementById('nr-year-from-display');
+  const toDisplay = document.getElementById('nr-year-to-display');
+  const fillEl = document.getElementById('nr-range-fill');
+  if (!fromInput || !toInput) return;
+
+  // Infer year bounds from the data
+  const firstYear = parseInt(state.months[0].slice(0, 4));
+  const lastYear = parseInt(state.months[state.months.length - 1].slice(0, 4));
+  fromInput.min = String(firstYear);
+  fromInput.max = String(lastYear);
+  fromInput.value = String(firstYear);
+  toInput.min = String(firstYear);
+  toInput.max = String(lastYear);
+  toInput.value = String(lastYear);
+  fromDisplay.textContent = String(firstYear);
+  toDisplay.textContent = String(lastYear);
+
+  function updateFill() {
+    const min = parseInt(fromInput.min);
+    const max = parseInt(fromInput.max);
+    const span = Math.max(1, max - min);
+    const fromPct = ((parseInt(fromInput.value) - min) / span) * 100;
+    const toPct = ((parseInt(toInput.value) - min) / span) * 100;
+    if (fillEl) {
+      fillEl.style.left = fromPct + '%';
+      fillEl.style.right = (100 - toPct) + '%';
+    }
+  }
+
+  function apply() {
+    let from = parseInt(fromInput.value);
+    let to = parseInt(toInput.value);
+    if (from > to) { [from, to] = [to, from]; }
+    fromDisplay.textContent = String(from);
+    toDisplay.textContent = String(to);
+    // Only store a filter if range is narrower than full span
+    if (from === firstYear && to === lastYear) {
+      state.yearFilter = null;
+    } else {
+      state.yearFilter = { from, to };
+    }
+    updateFill();
+    draw();
+  }
+
+  fromInput.addEventListener('input', apply);
+  toInput.addEventListener('input', apply);
+  updateFill();
+}
+
 // ----- Stacked area drawing -----
 function computeStacked() {
-  const n = state.months.length;
+  const { start, end } = visibleMonths();
+  const n = end - start;
   // Visible stacks + Other
   const layers = [];
   for (const s of state.stacks) {
     if (!s.visible) continue;
-    layers.push({ id: s.id, label: s.label, color: s.color, counts: s.counts });
+    layers.push({ id: s.id, label: s.label, color: s.color, counts: s.counts.slice(start, end) });
   }
   if (state.otherVisible) {
-    layers.push({ id: '_other', label: 'Other', color: '#ccc', counts: state.otherCounts });
+    layers.push({ id: '_other', label: 'Other', color: '#ccc', counts: state.otherCounts.slice(start, end) });
   }
 
-  // Compute cumulative sums per month
-  const cumulative = []; // cumulative[layerIdx][monthIdx] = top-of-band value
+  // Compute cumulative sums per month within the visible window
+  const cumulative = [];
   const bases = new Array(n).fill(0);
   for (let li = 0; li < layers.length; li++) {
     const top = new Array(n);
@@ -191,26 +266,19 @@ function computeStacked() {
     cumulative.push(top);
   }
 
-  // In normalised mode, scale everything to [0, 1]
-  const maxes = new Array(n);
   if (state.mode === 'normalised') {
     for (let mi = 0; mi < n; mi++) {
       const total = bases[mi] || 1;
-      maxes[mi] = 1;
       for (let li = 0; li < cumulative.length; li++) {
         cumulative[li][mi] /= total;
       }
     }
-  } else {
-    for (let mi = 0; mi < n; mi++) maxes[mi] = bases[mi];
   }
 
-  // Round yMax up to a clean value so tick labels land on whole numbers
-  // (0, 2.5k, 5k, 7.5k, 10k rather than 0, 2.5k, 5.1k, 7.6k, 10.2k).
   const rawMax = state.mode === 'normalised' ? 1 : Math.max(...bases, 1);
   const yMax = state.mode === 'normalised' ? 1 : niceAxisMax(rawMax);
 
-  return { layers, cumulative, yMax };
+  return { layers, cumulative, yMax, start, end };
 }
 
 function draw() {
@@ -218,8 +286,8 @@ function draw() {
   const p = { x: PADDING.left, y: PADDING.top, w: W - PADDING.left - PADDING.right, h: H - PADDING.top - PADDING.bottom };
   if (p.w <= 0 || p.h <= 0) return;
 
-  const n = state.months.length;
-  const { layers, cumulative, yMax } = computeStacked();
+  const { layers, cumulative, yMax, start, end } = computeStacked();
+  const n = end - start;
 
   const xForIdx = (i) => p.x + (i / Math.max(1, n - 1)) * p.w;
   const yForVal = (v) => p.y + p.h - (v / yMax) * p.h;
@@ -249,9 +317,9 @@ function draw() {
   // Y-axis ticks
   drawYAxis(p, yMax);
   // X-axis years
-  drawXAxis(p, n);
+  drawXAxis(p, n, start);
   // Hover crosshair
-  drawHover(p, n, layers, cumulative, yMax);
+  drawHover(p, n, layers, cumulative, yMax, start);
 }
 
 function drawYAxis(p, yMax) {
@@ -287,17 +355,17 @@ function drawYAxis(p, yMax) {
   ctx.stroke();
 }
 
-function drawXAxis(p, n) {
+function drawXAxis(p, n, start = 0) {
   ctx.fillStyle = '#3d3a35';
   ctx.font = "600 12px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
 
-  // First pass: collect year-start indices
+  // First pass: collect year-start indices (indices are relative to visible window)
   const yearStarts = [];
   let lastYear = null;
   for (let i = 0; i < n; i++) {
-    const y = state.months[i].slice(0, 4);
+    const y = state.months[start + i].slice(0, 4);
     if (y !== lastYear) { yearStarts.push({ i, y }); lastYear = y; }
   }
 
@@ -316,9 +384,9 @@ function drawXAxis(p, n) {
   }
 }
 
-function drawHover(p, n, layers, cumulative, yMax) {
+function drawHover(p, n, layers, cumulative, yMax, start = 0) {
   if (state.hoveredMonth == null) { pillEl.hidden = true; return; }
-  const mi = state.hoveredMonth.monthIdx;
+  const mi = state.hoveredMonth.monthIdx; // visible-window index
   const x = p.x + (mi / Math.max(1, n - 1)) * p.w;
 
   ctx.strokeStyle = '#121212';
@@ -333,7 +401,7 @@ function drawHover(p, n, layers, cumulative, yMax) {
   ctx.globalAlpha = 1;
 
   // Month pill — DOM element positioned above the crosshair
-  pillEl.textContent = formatMonthShort(state.months[mi]);
+  pillEl.textContent = formatMonthShort(state.months[start + mi]);
   pillEl.hidden = false;
   pillEl.style.left = x + 'px';
   pillEl.style.top = (p.y - 2) + 'px';
@@ -347,7 +415,8 @@ function onMove(e) {
   const p = { x: PADDING.left, y: PADDING.top, w: W - PADDING.left - PADDING.right, h: H - PADDING.top - PADDING.bottom };
   if (mx < p.x || mx > p.x + p.w) { state.hoveredMonth = null; draw(); return; }
 
-  const n = state.months.length;
+  const { start, end } = visibleMonths();
+  const n = end - start;
   const mi = Math.round((mx - p.x) / p.w * (n - 1));
   const clamped = Math.max(0, Math.min(n - 1, mi));
 
@@ -367,8 +436,10 @@ function onMove(e) {
 
 function onClick() {
   if (!state.hoveredMonth) return;
-  state.selectedMonth = state.hoveredMonth.monthIdx;
-  openDrilldown(state.months[state.selectedMonth]);
+  const { start } = visibleMonths();
+  const absoluteIdx = start + state.hoveredMonth.monthIdx;
+  state.selectedMonth = absoluteIdx;
+  openDrilldown(state.months[absoluteIdx]);
 }
 
 // ----- Drill-down -----
