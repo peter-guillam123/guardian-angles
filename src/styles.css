@@ -1587,14 +1587,18 @@ main.newsroom {
   margin-bottom: 16px;
   overflow: visible;
 }
+/* Crosshair label above the hovered month. Re-tuned from 11px tracked
+   caps on black (chart-tooltip vernacular) to sentence-case serif on
+   paper (editorial vernacular) to match the drilldown below. */
 .nr-pill {
   position: absolute;
   top: 0;
   left: 0;
-  background: var(--ink);
-  color: var(--paper);
-  font: 600 11px/1 var(--ui);
-  letter-spacing: 0.06em;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-rule);
+  font: 500 13px/1 var(--display);
+  letter-spacing: -0.005em;
   padding: 6px 10px;
   white-space: nowrap;
   pointer-events: none;
@@ -1603,6 +1607,12 @@ main.newsroom {
   margin-top: -6px;
 }
 .nr-pill[hidden] { display: none; }
+/* On touch devices the pill appears under the finger and dismisses the
+   moment the tap releases — the drilldown below already reads the tap,
+   so the pill is dead weight. Hide it. */
+@media (pointer: coarse) {
+  .nr-pill { display: none !important; }
+}
 #nr-chart {
   width: 100%;
   height: 480px;
@@ -1610,12 +1620,16 @@ main.newsroom {
   cursor: crosshair;
 }
 
-/* Legend */
+/* Legend.
+   On Newsroom the legend is the main control, not a caption — users
+   click items to solo/hide series. Previously styled as a 12px UI
+   caption in a thin strip; now given real weight (14px, more padding,
+   bigger swatch, a clearer hover ring) so it reads as interactive. */
 .nr-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  padding: 10px 0;
+  gap: 6px 12px;
+  padding: 18px 0;
   border-top: 1px solid var(--paper-rule);
   border-bottom: 1px solid var(--paper-rule);
   margin-bottom: 24px;
@@ -1623,23 +1637,27 @@ main.newsroom {
 .nr-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font: 400 12px/1.2 var(--ui);
+  gap: 8px;
+  font: 400 14px/1.2 var(--ui);
   color: var(--ink-mute);
   background: none;
-  border: none;
-  padding: 5px 8px;
+  border: 1px solid transparent;
+  padding: 8px 12px;
   cursor: pointer;
-  transition: color 120ms, opacity 120ms;
+  transition: color 120ms, background 120ms, border-color 120ms, opacity 120ms;
   border-radius: 2px;
 }
-.nr-legend-item:hover { color: var(--ink); background: var(--paper-deep); }
-.nr-legend-item.active { color: var(--ink); }
+.nr-legend-item:hover {
+  color: var(--ink);
+  background: var(--paper-deep);
+  border-color: var(--paper-rule);
+}
+.nr-legend-item.active { color: var(--ink); font-weight: 700; }
 .nr-legend-item:not(.active) { opacity: 0.45; text-decoration: line-through; }
 .nr-swatch {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 2px;
   flex-shrink: 0;
 }
@@ -1721,9 +1739,9 @@ main.newsroom {
 @media (max-width: 640px) {
   main.newsroom { padding: 16px 16px 48px; }
   #nr-chart { height: 320px; }
-  .nr-legend { gap: 2px 6px; }
-  .nr-legend-item { font-size: 10px; padding: 4px 5px; }
-  .nr-swatch { width: 8px; height: 8px; }
+  .nr-legend { gap: 4px 8px; padding: 12px 0; }
+  .nr-legend-item { font-size: 12px; padding: 6px 8px; gap: 6px; }
+  .nr-swatch { width: 10px; height: 10px; }
   .nr-drill-head h2 { font-size: 24px; }
 }
 
