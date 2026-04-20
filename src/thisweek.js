@@ -308,7 +308,6 @@ async function loadHeadlineForTag(tagId, weekBucket, container) {
     const section = sectionLabel(pick.s);
 
     container.innerHTML = `
-      <p class="tw-headline-label">From this week's coverage</p>
       ${url
         ? `<a class="tw-headline-text" href="${esc(url)}" target="_blank" rel="noopener">${esc(pick.t)}</a>`
         : `<p class="tw-headline-text">${esc(pick.t)}</p>`
