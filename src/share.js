@@ -16,7 +16,7 @@ const BLUE = '#052962';
 const YELLOW = '#FFE500';
 const PAPER = '#F4EFE6';
 const INK = '#121212';
-const INK_MUTE = '#7a766e';
+const INK_MUTE = '#5f5c55';
 
 export function exportChartAsPNG({ chartCanvas, title, legendItems, url }) {
   const chartW = chartCanvas.width;
