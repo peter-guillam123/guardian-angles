@@ -77,10 +77,13 @@ body {
   background: var(--paper);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* subtle newsprint texture — barely visible grain */
-  background-image:
-    radial-gradient(rgba(18, 18, 18, 0.025) 1px, transparent 1px);
-  background-size: 3px 3px;
+  /* Newsprint grain via seamless SVG noise tile. The previous 3px dot
+     lattice at 0.025 opacity rasterised into solid paper on 2x/3x
+     displays — all cost, no texture. A fractal-noise SVG gives a real
+     paper tooth that stays visible at any pixel density. */
+  background-image: url("../paper-grain.svg");
+  background-size: 200px 200px;
+  background-repeat: repeat;
   background-position: 0 0;
 }
 
