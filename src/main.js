@@ -25,7 +25,27 @@ const headlinesSection = document.getElementById('headlines-section');
 const headlinesTitle = document.getElementById('headlines-title');
 const headlinesMeta = document.getElementById('headlines-meta');
 const legendEl = document.getElementById('legend');
-const chartTitleEl = document.getElementById('chart-title');
+const chartPromptEl = document.getElementById('chart-prompt');
+const chartHeadlineEl = document.getElementById('chart-headline');
+
+// Swap between the empty-state prompt (UI sans, muted, tracked) and the proper
+// serif headline that appears once a search has run. Only one is visible at a
+// time. Returns the active element's text for downstream use (e.g. share image).
+function setChartTitle(kind, text) {
+  if (kind === 'prompt') {
+    chartPromptEl.textContent = text;
+    chartPromptEl.hidden = false;
+    chartHeadlineEl.hidden = true;
+    chartHeadlineEl.textContent = '';
+  } else {
+    chartHeadlineEl.textContent = text;
+    chartHeadlineEl.hidden = false;
+    chartPromptEl.hidden = true;
+  }
+}
+function currentChartTitle() {
+  return chartHeadlineEl.hidden ? chartPromptEl.textContent : chartHeadlineEl.textContent;
+}
 const form = document.getElementById('search-form');
 const clearBtn = document.getElementById('clear-btn');
 const readingMonth = document.getElementById('reading-month');
@@ -200,7 +220,7 @@ async function init() {
     }));
     exportChartAsPNG({
       chartCanvas: chartEl,
-      title: chartTitleEl.textContent,
+      title: currentChartTitle(),
       legendItems,
       url: location.href,
     });
@@ -289,7 +309,7 @@ async function setMode(mode) {
 
   if (mode === 'tags') {
     searchLabelEl.textContent = 'Search tags';
-    chartTitleEl.textContent = 'Pick up to four Guardian tags to compare their coverage.';
+    setChartTitle('prompt', 'Pick up to four Guardian tags to compare their coverage.');
     inputs().forEach((inp, i) => {
       inp.placeholder = i === 0 ? 'e.g. donald trump, climate…' : 'add another tag…';
     });
@@ -297,7 +317,7 @@ async function setMode(mode) {
     inputs().forEach(inp => attachAutocomplete(inp, tagCatalog));
   } else {
     searchLabelEl.textContent = 'Search headlines';
-    chartTitleEl.textContent = 'Type a word — or four — to plot a decade of Guardian coverage.';
+    setChartTitle('prompt', 'Type a word — or four — to plot a decade of Guardian coverage.');
     inputs().forEach((inp, i) => {
       inp.placeholder = [ 'e.g. starmer', 'add another…', 'and another…', 'and one more' ][i];
       detachAutocomplete(inp);
@@ -319,7 +339,7 @@ clearBtn.addEventListener('click', () => {
   const placeholder = currentMode === 'tags'
     ? 'Pick up to four Guardian tags to compare their coverage.'
     : 'Type a word — or four — to plot a decade of Guardian coverage.';
-  chartTitleEl.textContent = placeholder;
+  setChartTitle('prompt', placeholder);
   headlinesSection.hidden = true;
   currentQueries = []; currentLabels = []; currentSeries = [];
   resetReadingPanel();
@@ -504,7 +524,7 @@ function renderYearOnYear() {
     legendEl.appendChild(item);
   });
 
-  chartTitleEl.textContent = `"${s.label}" year on year — ${granularityAdverb()}`;
+  setChartTitle('headline', `"${s.label}" year on year — ${granularityAdverb()}`);
   resetReadingPanel();
 }
 
@@ -533,7 +553,7 @@ function renderChartTitle(series) {
   } else {
     str = `${phrases.slice(0, -1).join(', ')} and ${phrases.slice(-1)} — ${unit}, ${tail}`;
   }
-  chartTitleEl.textContent = str;
+  setChartTitle('headline', str);
 }
 
 function granularityAdverb() {
