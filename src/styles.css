@@ -415,7 +415,8 @@ main {
   margin-bottom: 14px;
   gap: 20px;
 }
-.chart-stage h2 {
+.chart-stage h2,
+.chart-stage .chart-headline {
   margin: 0;
   font-family: var(--display);
   font-weight: 500;
@@ -423,6 +424,18 @@ main {
   line-height: 1.15;
   color: var(--ink);
   letter-spacing: -0.01em;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.chart-stage .chart-prompt {
+  margin: 0;
+  font-family: var(--ui);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1467,13 +1480,18 @@ main.subjects {
 
   /* Chart area */
   .chart-stage .chart-head { flex-direction: column; gap: 8px; align-items: flex-start; }
-  .chart-stage h2 {
+  .chart-stage h2,
+  .chart-stage .chart-headline {
     font-size: 16px; line-height: 1.2;
     /* Don't let a 4-tag title wrap forever and then clip off-screen */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    width: 100%;
+  }
+  .chart-stage .chart-prompt {
+    font-size: 11px;
     width: 100%;
   }
   .chart-toggles { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
