@@ -143,12 +143,17 @@ function denseRange(buckets, granularity) {
 function densifyIndex(idx, granularity) {
   if (!idx || !Array.isArray(idx.buckets) || idx.buckets.length < 2) return idx;
   const dense = denseRange(idx.buckets, granularity);
-  if (dense.length === idx.buckets.length) return idx;  // already contiguous
+  if (dense.length === idx.buckets.length) {
+    idx._gapMask = new Array(dense.length).fill(false);
+    return idx;
+  }
 
   const newIdx = new Map(dense.map((b, i) => [b, i]));
-  // reindex[oldI] → newI
   const reindex = idx.buckets.map(b => newIdx.get(b));
   const n = dense.length;
+  // gapMask[i] = true when bucket i wasn't in the original (i.e. no shards).
+  const gapMask = new Array(n).fill(true);
+  for (const ni of reindex) gapMask[ni] = false;
 
   const reshape = (arr) => {
     const out = new Array(n).fill(0);
@@ -156,7 +161,7 @@ function densifyIndex(idx, granularity) {
     return out;
   };
 
-  const out = { ...idx, buckets: dense };
+  const out = { ...idx, buckets: dense, _gapMask: gapMask };
   if (Array.isArray(idx.totals)) out.totals = reshape(idx.totals);
   if (idx.terms) {
     out.terms = {};
@@ -167,6 +172,10 @@ function densifyIndex(idx, granularity) {
     for (const k in idx.tags) out.tags[k] = reshape(idx.tags[k]);
   }
   return out;
+}
+
+function gapMaskFor(idx) {
+  return idx._gapMask || new Array(idx.buckets.length).fill(false);
 }
 
 export function loadTagCatalog() {
@@ -257,7 +266,7 @@ export async function queryTerm(term, granularity = 'monthly') {
   const idx = await loadIndex(granularity);
 
   if (!isPhrase && idx.terms[q]) {
-    return { term: q, buckets: idx.buckets, counts: idx.terms[q], totals: idx.totals, source: 'index' };
+    return { term: q, buckets: idx.buckets, counts: idx.terms[q], totals: idx.totals, gapMask: gapMaskFor(idx), source: 'index' };
   }
 
   // Fallback: scan every shard and re-bucket client-side.
@@ -279,7 +288,7 @@ export async function queryTerm(term, granularity = 'monthly') {
       if (bi != null) counts[bi]++;
     }
   }
-  return { term: q, buckets, counts, totals: idx.totals, source: 'scan' };
+  return { term: q, buckets, counts, totals: idx.totals, gapMask: gapMaskFor(idx), source: 'scan' };
 }
 
 // Headlines for a term in a given bucket (month/week/day). Uses the same
@@ -304,7 +313,7 @@ export async function queryTag(tagId, granularity = 'monthly') {
   const idx = await loadTagIndex(granularity);
   const counts = idx.tags[tagId];
   if (!counts) return null;
-  return { tag: tagId, buckets: idx.buckets, counts, totals: idx.totals, source: 'tag-index' };
+  return { tag: tagId, buckets: idx.buckets, counts, totals: idx.totals, gapMask: gapMaskFor(idx), source: 'tag-index' };
 }
 
 // Headlines in a bucket whose tag array includes this tag id.

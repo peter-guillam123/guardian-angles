@@ -370,6 +370,7 @@ async function runSearch() {
     buckets: r.buckets,
     values: normalisePerMille(r.counts, r.totals),
     counts: r.counts,
+    gapMask: r.gapMask,
   }));
 
   renderChart();
@@ -407,7 +408,7 @@ function renderChart() {
     renderYearOnYear();
   } else {
     chart.setGranularity(currentGranularity);
-    chart.setSeries(viewSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values })));
+    chart.setSeries(viewSeries.map(s => ({ term: s.label, buckets: s.buckets, values: s.values, gapMask: s.gapMask })));
     renderLegend(currentSeries);
     renderChartTitle(currentSeries);
     resetReadingPanel();
@@ -781,6 +782,7 @@ function applyYearFilter(series) {
     const bks = [];
     const vals = [];
     const cts = [];
+    const gm = [];
     for (let i = 0; i < s.buckets.length; i++) {
       const y = parseInt(s.buckets[i].slice(0, 4));
       if (y >= from && y <= to) {
@@ -788,9 +790,10 @@ function applyYearFilter(series) {
         bks.push(s.buckets[i]);
         vals.push(s.values[i]);
         cts.push(s.counts[i]);
+        gm.push(s.gapMask ? s.gapMask[i] : false);
       }
     }
-    return { ...s, buckets: bks, values: vals, counts: cts, _keep: keep };
+    return { ...s, buckets: bks, values: vals, counts: cts, gapMask: gm, _keep: keep };
   });
 }
 
