@@ -829,9 +829,13 @@ main {
   overflow: hidden;
 }
 .reading-panel .value-row .sub .meta { color: var(--ink-mute); }
+/* Delta is a magnitude, not a value judgement. A rise in "trump" coverage
+   isn't good or bad — it's just news. Both directions share neutral ink;
+   the arrow glyph carries the direction. Red is reserved for genuinely
+   news-hot signals (the Rising kickers below). */
 .reading-panel .value-row .sub .delta { color: var(--ink-soft); font-weight: 700; }
-.reading-panel .value-row .sub .delta.up { color: var(--news-red); }
-.reading-panel .value-row .sub .delta.down { color: var(--eco-green); }
+.reading-panel .value-row .sub .delta.up,
+.reading-panel .value-row .sub .delta.down { color: var(--ink-soft); }
 .reading-panel .value-row.dim { opacity: 0.55; }
 
 .reading-panel .period-stats {
