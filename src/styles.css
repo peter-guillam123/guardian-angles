@@ -2030,7 +2030,11 @@ a.tw-headline-text:hover {
 }
 .tw-history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  /* 2 columns is the right density for this card on phones — cards
+     read as a set, not a responsive trickle. Lock to 2-up down to the
+     narrowest real iPhone so the layout feels deliberate. The auto-fill
+     still kicks in on wider screens. */
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 14px;
 }
 .tw-history-card {
