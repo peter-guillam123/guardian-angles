@@ -62,7 +62,7 @@ export function loadIndex(granularity = 'monthly') {
   if (!_indexPromises[granularity]) {
     _indexPromises[granularity] = fetchJsonMaybeGz(
       `${DATA_BASE}/term-index-${granularity}.json`,
-    );
+    ).then(idx => densifyIndex(idx, granularity));
   }
   return _indexPromises[granularity];
 }
@@ -71,9 +71,102 @@ export function loadTagIndex(granularity = 'monthly') {
   if (!_tagIndexPromises[granularity]) {
     _tagIndexPromises[granularity] = fetchJsonMaybeGz(
       `${DATA_BASE}/tag-index-${granularity}.json`,
-    );
+    ).then(idx => densifyIndex(idx, granularity));
   }
   return _tagIndexPromises[granularity];
+}
+
+// ─── Dense bucket helpers ───
+// The build pipeline emits only buckets that have shards. During a backfill
+// that produces gaps (e.g. 2014-10 → 2015-12 absent while 2014 is rebuilt).
+// The chart positions points by index, so a gap gets visually compressed and
+// the year labels drift out of alignment with the data. To fix that, we pad
+// the bucket array client-side so every period between min and max exists,
+// filled with zeros for missing months/weeks/days.
+
+function* monthRange(startYm, endYm) {
+  let [y, m] = startYm.split('-').map(Number);
+  const [ey, em] = endYm.split('-').map(Number);
+  while (y < ey || (y === ey && m <= em)) {
+    yield `${y}-${String(m).padStart(2, '0')}`;
+    m++; if (m > 12) { m = 1; y++; }
+  }
+}
+function* dayRange(startDate, endDate) {
+  const d = new Date(startDate + 'T00:00:00Z');
+  const e = new Date(endDate + 'T00:00:00Z');
+  while (d.getTime() <= e.getTime()) {
+    yield d.toISOString().slice(0, 10);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+}
+function isoWeekToMonday(iso) {
+  const [y, w] = iso.split('-W').map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday1 = new Date(jan4);
+  monday1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const result = new Date(monday1);
+  result.setUTCDate(monday1.getUTCDate() + (w - 1) * 7);
+  return result;
+}
+function mondayToIsoWeek(d) {
+  const t = new Date(d);
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + (4 - day));
+  const year = t.getUTCFullYear();
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday1 = new Date(jan4);
+  monday1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const week = Math.round((t.getTime() - monday1.getTime()) / (7 * 86400000)) + 1;
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+function* weekRange(startW, endW) {
+  let d = isoWeekToMonday(startW);
+  const e = isoWeekToMonday(endW);
+  while (d.getTime() <= e.getTime()) {
+    yield mondayToIsoWeek(d);
+    d = new Date(d.getTime() + 7 * 86400000);
+  }
+}
+
+function denseRange(buckets, granularity) {
+  if (!buckets.length) return buckets;
+  const first = buckets[0], last = buckets[buckets.length - 1];
+  const gen = granularity === 'weekly' ? weekRange(first, last)
+            : granularity === 'daily'  ? dayRange(first, last)
+            :                            monthRange(first, last);
+  return Array.from(gen);
+}
+
+function densifyIndex(idx, granularity) {
+  if (!idx || !Array.isArray(idx.buckets) || idx.buckets.length < 2) return idx;
+  const dense = denseRange(idx.buckets, granularity);
+  if (dense.length === idx.buckets.length) return idx;  // already contiguous
+
+  const newIdx = new Map(dense.map((b, i) => [b, i]));
+  // reindex[oldI] → newI
+  const reindex = idx.buckets.map(b => newIdx.get(b));
+  const n = dense.length;
+
+  const reshape = (arr) => {
+    const out = new Array(n).fill(0);
+    for (let oi = 0; oi < arr.length; oi++) out[reindex[oi]] = arr[oi];
+    return out;
+  };
+
+  const out = { ...idx, buckets: dense };
+  if (Array.isArray(idx.totals)) out.totals = reshape(idx.totals);
+  if (idx.terms) {
+    out.terms = {};
+    for (const k in idx.terms) out.terms[k] = reshape(idx.terms[k]);
+  }
+  if (idx.tags) {
+    out.tags = {};
+    for (const k in idx.tags) out.tags[k] = reshape(idx.tags[k]);
+  }
+  return out;
 }
 
 export function loadTagCatalog() {
