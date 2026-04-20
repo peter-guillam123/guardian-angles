@@ -48,6 +48,7 @@ function currentChartTitle() {
 }
 const form = document.getElementById('search-form');
 const clearBtn = document.getElementById('clear-btn');
+const readingPanelEl = document.getElementById('reading-panel');
 const readingMonth = document.getElementById('reading-month');
 const readingValues = document.getElementById('reading-values');
 const readingEyebrow = document.getElementById('reading-eyebrow');
@@ -247,8 +248,20 @@ async function init() {
   // Chart events
   chart.addEventListener('pointclick', (e) => openHeadlines(e.detail));
   chart.addEventListener('hover', (e) => {
-    if (e.detail) updateReadingPanel(e.detail.idx);
-    else resetReadingPanel();
+    if (e.detail) {
+      updateReadingPanel(e.detail.idx);
+      // On mobile the reading panel sits below the chart, so a tap on a
+      // peak produces no visible feedback. Nudge the panel into view.
+      // Use coarse-pointer detection instead of a width breakpoint so it
+      // also catches touch-mode on hybrid devices.
+      if (e.detail.fromTouch || window.matchMedia('(pointer: coarse)').matches) {
+        const rect = readingPanelEl.getBoundingClientRect();
+        const onScreen = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!onScreen) readingPanelEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      resetReadingPanel();
+    }
   });
 
   // URL params: ?q=... (words) or ?tags=... (tags)
