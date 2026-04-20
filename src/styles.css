@@ -1151,12 +1151,17 @@ main.subjects {
 }
 
 /* Section chips row */
+/* Bottom rule matches the name-filter input's underline so all three
+   controls in the row share the same baseline — the eye scans them as
+   one row of filters rather than three visually different things. */
 .section-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   max-height: 72px;
   overflow-y: auto;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--paper-rule);
 }
 .section-chips .chip {
   font: 700 11px/1 var(--ui);
@@ -1314,6 +1319,9 @@ main.subjects {
   font-size: 14px;
   color: var(--ink-soft);
   white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .col-count {
   font-family: var(--mono);
@@ -1323,10 +1331,13 @@ main.subjects {
   text-align: right;
   white-space: nowrap;
 }
-.col-trend { width: 100px; }
+/* Sparkline column doubled from 100 → 200px so peaks actually read as
+   peaks. On a site whose whole premise is "what shape does coverage
+   take?", the chart needs room to show shape. */
+.col-trend { width: 200px; }
 .col-trend .spark {
   display: block;
-  width: 80px;
+  width: 180px;
   height: 18px;
   color: var(--guardian-blue);
 }

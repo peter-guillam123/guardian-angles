@@ -237,7 +237,9 @@ function computeFilteredRows() {
 // ---------- Sparkline ----------
 // Returns an inline <svg> fragment as a string. Sized 80×18.
 function sparklineSVG(counts, inRange, maxValue) {
-  const W = 80, H = 18, PAD_Y = 2;
+  // Viewport matches the rendered CSS width so the polyline has enough
+  // resolution to show real peaks rather than a stretched squiggle.
+  const W = 180, H = 18, PAD_Y = 2;
   if (!counts.length || !maxValue) return `<svg class="spark" viewBox="0 0 ${W} ${H}"></svg>`;
   const filtered = counts.map((c, i) => (inRange[i] ? c : null));
   const firstIdx = filtered.findIndex(v => v !== null);
