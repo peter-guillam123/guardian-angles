@@ -87,6 +87,20 @@ body {
   background-position: 0 0;
 }
 
+/* Universal focus ring. Keyboard users got browser default rings —
+   inconsistent, sometimes invisible on paper, sometimes clashing
+   with our brand colours. A single offset outline in ink with a 2px
+   gap gives a legible, consistent affordance across every interactive
+   element. :focus-visible means mouse clicks still don't show a ring. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+/* The masthead title uses a Guardian-yellow ring on a dark band, and
+   the Compare button's own yellow-on-blue ring reads fine — keep them. */
+.masthead .title a:focus-visible { outline-color: var(--guardian-yellow); }
+
 /* ----- Masthead ----- */
 .masthead {
   padding: 32px 48px 24px;
