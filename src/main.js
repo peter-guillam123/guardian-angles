@@ -567,6 +567,9 @@ function renderChartTitle(series) {
     str = `${phrases.slice(0, -1).join(', ')} and ${phrases.slice(-1)} — ${unit}, ${tail}`;
   }
   setChartTitle('headline', str);
+  // Also update the canvas's aria-label so screen readers hear what
+  // the chart is currently showing, not just the static boilerplate.
+  chartEl.setAttribute('aria-label', `Line chart: ${str}. Use the reading panel for period-by-period values.`);
 }
 
 function granularityAdverb() {
