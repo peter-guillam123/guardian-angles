@@ -239,7 +239,7 @@ main {
 .mode-btn:last-child { border-right: none; }
 .mode-btn:hover { color: var(--ink); }
 .mode-btn.active {
-  background: var(--guardian-blue);
+  background: var(--ink);
   color: var(--paper);
 }
 .controls .label {
