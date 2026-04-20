@@ -1091,6 +1091,23 @@ main { animation: inkFade 500ms 120ms ease-out both; }
   }
 }
 
+/* Phone-in-landscape has ~370px vertical minus browser chrome. The full
+   masthead + subnav would eat the entire viewport before the chart even
+   renders. Squeeze the masthead into a single compact row, drop the
+   dek, and let the content show. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .masthead {
+    padding: 8px 24px;
+    gap: 12px;
+    align-items: center;
+  }
+  .masthead .title { font-size: 28px; line-height: 1; }
+  .masthead .dek { display: none; }
+  .masthead .stat .big { font-size: 20px; }
+  .masthead .stat { font-size: 9px; }
+  .subnav a { padding: 8px 2px; }
+}
+
 /* ---------- Subnav (shared by Trends + Subjects) ---------- */
 .subnav {
   max-width: 1480px;
@@ -1272,6 +1289,11 @@ main.subjects {
 /* ---------- The table ---------- */
 .subjects-table-wrap {
   overflow-x: auto;
+  /* Fade the right edge when the table scrolls horizontally (same cue
+     as the subnav). On desktop nothing overflows so the mask has no
+     visible effect. */
+  mask-image: linear-gradient(to right, black 0%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 0%, black 92%, transparent 100%);
 }
 .subjects-table {
   width: 100%;
@@ -1773,6 +1795,13 @@ main.newsroom {
   .nr-legend-item { font-size: 12px; padding: 6px 8px; gap: 6px; }
   .nr-swatch { width: 10px; height: 10px; }
   .nr-drill-head h2 { font-size: 24px; }
+  /* The Absolute/Proportional toggle is the single most meaningful
+     interaction on this page; on phones the default sizing made it
+     look like a caption. Make it a full-width pair so tapping either
+     mode is easy and the toggle reads as a genuine control. */
+  .nr-controls { width: 100%; }
+  .nr-mode { display: flex; width: 100%; }
+  .nr-mode .mode-btn { flex: 1; }
 }
 
 /* ========== This Week page ========== */
