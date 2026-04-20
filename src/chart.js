@@ -340,10 +340,14 @@ export class TrendChart extends EventTarget {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
+      const gm = s.gapMask;
+      let penDown = false;
       for (let i = 0; i <= drawUpTo && i < buckets.length; i++) {
+        if (gm && gm[i]) { penDown = false; continue; }
         const x = this._xForIdx(i, buckets.length, p);
         const y = this._yForVal(s.values[i], yMax, p);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        if (!penDown) { ctx.moveTo(x, y); penDown = true; }
+        else ctx.lineTo(x, y);
       }
       if (drawUpTo < buckets.length - 1 && lastPartial > 0) {
         const a = drawUpTo, b = drawUpTo + 1;
