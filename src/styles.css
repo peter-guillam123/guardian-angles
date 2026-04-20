@@ -1737,15 +1737,15 @@ main.tw {
   margin: 0 0 8px;
 }
 .tw-nav-btn {
-  font: 700 16px/1 var(--ui);
-  width: 32px;
-  height: 32px;
+  font: 400 22px/1 var(--display);
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--paper-deep);
   border: 1px solid var(--paper-rule);
-  color: var(--ink-soft);
+  color: var(--ink);
   cursor: pointer;
   transition: all 120ms;
   flex-shrink: 0;
@@ -1774,8 +1774,8 @@ main.tw {
 .tw-hero-title {
   font-family: var(--display);
   font-weight: 700;
-  font-size: clamp(40px, 6vw, 72px);
-  line-height: 0.95;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 0.98;
   letter-spacing: -0.025em;
   color: var(--ink);
   margin: 0 0 10px;
@@ -1831,7 +1831,7 @@ main.tw {
   margin: 0 0 6px;
 }
 .tw-headline-text {
-  font: 500 20px/1.3 var(--display);
+  font: 500 24px/1.25 var(--display);
   color: var(--ink);
   margin: 0 0 4px;
   display: block;
@@ -2150,11 +2150,11 @@ main.about {
 
 @media (max-width: 640px) {
   main.tw { padding: 16px 16px 48px; }
-  .tw-hero-title { font-size: clamp(32px, 8vw, 48px); }
+  .tw-hero-title { font-size: clamp(28px, 7vw, 40px); }
   .tw-hero-stats { flex-direction: column; gap: 14px; }
   .tw-hero-body { grid-template-columns: 1fr; gap: 20px; }
   .tw-stat-big { font-size: 22px; }
-  .tw-headline-text { font-size: 17px; }
+  .tw-headline-text { font-size: 20px; }
   .tw-columns { grid-template-columns: 1fr; gap: 24px; }
   .tw-history-grid { grid-template-columns: 1fr 1fr; }
   .tw-history-name { font-size: 15px; }
