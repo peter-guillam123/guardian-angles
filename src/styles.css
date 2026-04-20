@@ -2164,9 +2164,15 @@ main.about {
   counter-reset: logitem;
   position: relative;
 }
+/* Changelog.
+   Entries have a two-tier hierarchy now: .milestone marks major arcs
+   (new views, scope changes, origin) at display-serif size with a
+   solid blue dot; everything else is an increment — smaller type,
+   hollow dot. Reading top-down you feel the shape of the project
+   rather than a flat list of every tweak. */
 .changelog li {
   position: relative;
-  padding: 16px 0 20px 28px;
+  padding: 14px 0 16px 28px;
   border-top: 1px solid var(--paper-rule);
 }
 .changelog li:last-child { border-bottom: 1px solid var(--paper-rule); }
@@ -2174,31 +2180,48 @@ main.about {
   content: '';
   position: absolute;
   left: 0;
-  top: 24px;
-  width: 12px;
-  height: 12px;
+  top: 22px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--paper);
-  border: 2px solid var(--guardian-blue);
-}
-.changelog li:first-child::before {
-  background: var(--guardian-blue);
+  border: 1.5px solid var(--guardian-blue);
 }
 .changelog h3 {
   font-family: var(--display);
   font-weight: 500;
-  font-size: 19px;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   color: var(--ink);
-  margin: 0 0 6px;
+  margin: 0 0 4px;
 }
 .changelog p {
   font-family: var(--body);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--ink-soft);
   margin: 0;
+}
+/* Milestone entries — major arcs stand out in scale. */
+.changelog li.milestone {
+  padding: 22px 0 24px 32px;
+}
+.changelog li.milestone::before {
+  top: 28px;
+  width: 14px;
+  height: 14px;
+  background: var(--guardian-blue);
+  border: none;
+}
+.changelog li.milestone h3 {
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+}
+.changelog li.milestone p {
+  font-size: 15.5px;
 }
 .about-footer-section {
   padding-top: 24px;
