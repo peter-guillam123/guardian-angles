@@ -63,7 +63,18 @@ jobs:
             echo "No data changes to commit."
           else
             git commit -m "data: batch fetch + rebuild"
-            git push
+            # Retry with rebase — a design push can land between our fetch
+            # and our push, and vanilla `git push` would fail, dropping all
+            # the new 2015 shards we just fetched. Rebase each try so the
+            # data commit re-lands on top of whatever's new.
+            for attempt in 1 2 3 4 5; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                break
+              fi
+              echo "Push rejected (attempt $attempt) — pulling --rebase and retrying"
+              git pull --rebase --strategy-option=theirs
+            done
           fi
 
   deploy:
