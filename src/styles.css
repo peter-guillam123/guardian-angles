@@ -597,7 +597,10 @@ main {
   margin: 0;
   padding: 4px 0;
   font-family: var(--ui);
-  max-height: 340px;
+  /* On a phone with the keyboard open the visible viewport is often
+     <260px, so a flat 340px dropdown gets clipped or scrolls under the
+     keyboard. 50vh keeps it always fitting whatever's visible. */
+  max-height: min(340px, 50vh);
   overflow-y: auto;
   box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
 }
@@ -1022,7 +1025,7 @@ main {
 
 .hl-meta {
   margin: 0 0 4px;
-  font: 700 10px/1.3 var(--ui);
+  font: 700 11px/1.3 var(--ui);
   letter-spacing: 0.08em;
   color: var(--ink-mute);
 }
@@ -1072,6 +1075,21 @@ a.hl-text:hover {
 .masthead { animation: inkFade 400ms ease-out both; }
 .rule-band { animation: inkFade 400ms 60ms ease-out both; }
 main { animation: inkFade 500ms 120ms ease-out both; }
+
+/* Respect the Reduce Motion accessibility setting. Users who enable it
+   in their OS expect to not see entrance animations or slide-ups — we
+   set animation-duration to 0.01ms (not 0 so forwards/both states still
+   apply) and drop the reveal keyframes to their final appearance. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ---------- Subnav (shared by Trends + Subjects) ---------- */
 .subnav {
@@ -1363,7 +1381,10 @@ main.subjects {
 .compare-inner {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 14px 48px;
+  /* max() respects the iOS home-indicator safe area so the compare bar
+     doesn't get clipped on notched iPhones. On non-iOS it collapses to
+     14px. */
+  padding: 14px 48px max(14px, env(safe-area-inset-bottom)) 48px;
   display: flex;
   gap: 20px;
   align-items: center;
@@ -1447,8 +1468,10 @@ main.subjects {
   .subjects-table thead th { padding-left: 6px; padding-right: 6px; }
   .subjects-table .col-check { padding-left: 10px; }
   .subjects-table .col-check { width: 24px; }
-  .section-chips { max-height: 54px; }
-  .section-chips .chip { font-size: 10px; padding: 5px 8px; }
+  .section-chips { max-height: 88px; }
+  /* 44px tap target for section chips — tracked caps stay small, padding
+     does the work. */
+  .section-chips .chip { font-size: 10px; padding: 12px 12px; min-height: 40px; }
 }
 
 @media (max-width: 1100px) {
@@ -1466,7 +1489,7 @@ main.subjects {
   .masthead .title { font-size: 32px; }
   .masthead .dek { font-size: 13px; line-height: 1.4; }
   .masthead .stat .big { font-size: 28px; }
-  .masthead .stat { font-size: 9px; }
+  .masthead .stat { font-size: 10px; }
 
   /* Subnav: horizontal scroll, no wrap, with fade-out right edge
      so users can see there's more to scroll */
@@ -1511,12 +1534,19 @@ main.subjects {
   }
   .chart-toggles { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
   .granularity, .view-toggle { flex-shrink: 0; }
-  .gran-btn, .view-btn { padding: 7px 10px; font-size: 9px; }
+  /* Tap targets: Apple HIG + WCAG 2.5.5 ask for 44px minimum. Font stays
+     small (these are tracked caps, readable at 10px) but the hitbox is
+     expanded vertically so fingers don't miss. Same story on mode/chip. */
+  .gran-btn, .view-btn, .mode-btn, .nr-mode .mode-btn {
+    padding: 12px 12px; font-size: 10px; min-height: 40px;
+  }
 
   #chart { height: 300px; }
-  .yaxis-label { font-size: 8px; }
-  .chart-hint { font-size: 11px; }
-  .chart-hint strong { font-size: 11px; }
+  .yaxis-label { font-size: 9px; letter-spacing: 0.08em; }
+  /* 11px body text in outdoor sun fails — bump non-caps to 12px. Tracked
+     caps can stay at 11px because spaced letterforms are more legible. */
+  .chart-hint { font-size: 12px; }
+  .chart-hint strong { font-size: 12px; }
 
   /* Share as image — full-width on mobile so the label never truncates */
   .chart-actions { justify-content: stretch; }
@@ -1957,7 +1987,7 @@ a.tw-headline-text:hover {
   font: 400 16px/1.25 var(--body);
 }
 .tw-item-meta {
-  font: 11px var(--ui);
+  font: 12px var(--ui);
   color: var(--ink-mute);
 }
 .tw-badge {
