@@ -99,7 +99,7 @@
 
       <ol class="changelog">
 
-        <li>
+        <li class="milestone">
           <h3>Extending back to 2012</h3>
           <p>I'd been looking at the Newsroom chart and wondering what happens if we could see further back. Specifically, I remembered the Guardian went through a content-reduction moment around 2015 and I wanted it visible. Extended the backfill start date from 2016 to 2012 — covers the start of modern digital Guardian, the 2012 Olympics, Leveson, the Scottish referendum, Gamergate, and that 2015 editorial step-change. 48 extra months. The hourly CI job started chipping away.</p>
         </li>
@@ -134,7 +134,7 @@
           <p>Final API refetch across the decade captured each article's canonical URL. Clicking any headline anywhere in the site now opens the original Guardian article. Also shipped: the "I feel lucky" button redesigned to match the Compare button's editorial style; "Time machine" button replaces the random-week emoji.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>The full decade lands</h3>
           <p>After a rate-limit saga lasting several days — the Guardian free tier was tighter than documented — a one-off quota bump from an engineer at the Guardian let us backfill the whole 124-month range from January 2016 to April 2026 in a single 25-minute burst.</p>
         </li>
@@ -154,17 +154,17 @@
           <p>New toggle on the Trends chart: Timeline or Year-on-year. The latter overlays each year of a term's data on a shared January-to-December axis, making seasonal patterns and year-on-year shifts immediately visible. The "inflation" YoY view shows 2022 towering above every other year.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>This Week</h3>
           <p>A fourth tab with an auto-generated dashboard: biggest Guardian tag this week, all-time peak, sample headline, weekly-sparkline, fastest risers and fallers, and "On this week in …" — the biggest tag in the same week of every year back to 2016. Later additions: arrow buttons to step through history; clickable year cards; a "Time machine" button that jumps to a random week.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>Newsroom</h3>
           <p>A third tab: a stacked area chart of the Guardian's publishing output, broken down by section across the whole decade. Toggle sections on and off, switch to proportional view to see share-of-output, click any month to drill into tags. Reveals that Guardian output dropped from ~10k articles/month in 2016 to ~5-6k by 2024, and that World news holds a remarkably stable ~25–30% of output regardless of the news cycle.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>Subjects</h3>
           <p>NYT-inspired table of every tag we index, ranked by volume, searchable and filterable. Tick up to four to launch them onto the Trends chart. Uses a dual-thumb year-range slider and section chips for filtering.</p>
         </li>
@@ -179,17 +179,17 @@
           <p>Added a section filter so you can see "Starmer in Opinion only". The idle reading panel started showing "rising fastest" tags and words based on a 4-week vs 12-week baseline — a newsroom lens for what's spiking.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>Tags mode</h3>
           <p>Words were never going to be enough. Switched the default search mode from free-text to Guardian's canonical editorial tags. Donald Trump, climate crisis, cost of living — all resolve to tag IDs that catch every article regardless of headline phrasing. 3,000 top tags indexed with autocomplete.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>The first shape</h3>
           <p>Three views: masthead, search box, line chart, reading panel, headline explorer. Word search only. Monthly granularity. 2022–2024 data. Deployed to GitHub Pages. The whole thing was a single HTML file with three JS modules.</p>
         </li>
 
-        <li>
+        <li class="milestone">
           <h3>The first prompt</h3>
           <p>Before any of that, there was just a question, typed into Claude Code:</p>
           <blockquote class="changelog-quote">
