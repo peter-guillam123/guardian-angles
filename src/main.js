@@ -615,7 +615,7 @@ function resetReadingPanel() {
   }
   // Active search — hide the rising panel
   risingPanelEl.hidden = true;
-  readingEyebrow.textContent = 'Overview · hover for a period';
+  readingEyebrow.textContent = 'Overview';
   readingMonth.classList.remove('idle');
   readingMonth.textContent = currentSeries.length === 1 ? currentSeries[0].label : 'Compare';
 
@@ -862,7 +862,10 @@ function populateSectionFilter(sections) {
 }
 
 function granularityEyebrow() {
-  return { monthly: 'This month', weekly: 'This week', daily: 'This day' }[currentGranularity];
+  // Hover state: clearly names the panel as a selection, not a description of
+  // "now". Pairs with the idle eyebrow ("Reading panel" / "Overview") so the
+  // switch reads as a deliberate mode change, not a random relabel.
+  return { monthly: 'Selected month', weekly: 'Selected week', daily: 'Selected day' }[currentGranularity];
 }
 function periodWord() {
   return { monthly: 'this month', weekly: 'this week', daily: 'this day' }[currentGranularity];
