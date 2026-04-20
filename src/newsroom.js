@@ -323,7 +323,7 @@ function draw() {
 }
 
 function drawYAxis(p, yMax) {
-  ctx.fillStyle = '#7a766e';
+  ctx.fillStyle = '#5f5c55';
   ctx.strokeStyle = '#D0C4AE';
   ctx.lineWidth = 0.5;
   ctx.setLineDash([2, 3]);

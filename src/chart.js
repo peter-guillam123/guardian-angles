@@ -7,7 +7,7 @@ const PAPER = '#F4EFE6';
 const PAPER_RULE = '#D0C4AE';
 const INK = '#121212';
 const INK_SOFT = '#3d3a35';
-const INK_MUTE = '#7a766e';
+const INK_MUTE = '#5f5c55';
 
 const AXIS_FONT = "11px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
 const YEAR_FONT = "600 12px 'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
