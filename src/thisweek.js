@@ -60,21 +60,28 @@ async function init() {
 
   const n = idx.buckets.length;
 
-  // Check URL param for a specific week, otherwise use second-to-last
+  // Pick the default week to show. We want the most recent *complete* week.
+  // If the last bucket is still the current (in-progress) week, skip it → n-2.
+  // If the last bucket is already in the past (Sunday has gone by), show it → n-1.
+  const lastBucket = idx.buckets[n - 1];
+  const defaultIdx = isBucketComplete(lastBucket) ? n - 1 : n - 2;
+
+  // Check URL param for a specific week, otherwise use the default
   const params = new URLSearchParams(location.search);
   const weekParam = params.get('week');
   if (weekParam && idx.buckets.includes(weekParam)) {
     _currentWeekIdx = idx.buckets.indexOf(weekParam);
   } else {
-    _currentWeekIdx = n - 2;
+    _currentWeekIdx = defaultIdx;
   }
 
   prevBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx - 1); });
   nextBtn.addEventListener('click', () => { goToWeek(_currentWeekIdx + 1); });
   document.getElementById('tw-random')?.addEventListener('click', () => {
-    // Time machine: jump to a random week between 0 and n-2 (skip latest partial)
-    const max = _idx.buckets.length - 2;
-    const rand = Math.floor(Math.random() * max);
+    // Time machine: jump to a random complete week.
+    const n = _idx.buckets.length;
+    const maxInclusive = isBucketComplete(_idx.buckets[n - 1]) ? n - 1 : n - 2;
+    const rand = Math.floor(Math.random() * (maxInclusive + 1));
     goToWeek(rand);
   });
 
@@ -92,7 +99,9 @@ async function init() {
 
 function goToWeek(newIdx) {
   const n = _idx.buckets.length;
-  if (newIdx < 0 || newIdx >= n - 1) return; // -1 because last bucket may be partial
+  // Upper bound is n-1 if that bucket is complete, otherwise n-2 (skip partial).
+  const maxIdx = isBucketComplete(_idx.buckets[n - 1]) ? n - 1 : n - 2;
+  if (newIdx < 0 || newIdx > maxIdx) return;
   _currentWeekIdx = newIdx;
   _isFirstRender = false; // skip typewriter on navigation
   renderWeek(newIdx);
@@ -115,8 +124,9 @@ function renderWeek(weekIdx) {
   const thisWeekTotal = totals[thisWeekIdx];
 
   // Update nav button states
+  const maxIdx = isBucketComplete(buckets[n - 1]) ? n - 1 : n - 2;
   prevBtn.disabled = thisWeekIdx <= 0;
-  nextBtn.disabled = thisWeekIdx >= n - 2;
+  nextBtn.disabled = thisWeekIdx >= maxIdx;
 
   statBig.textContent = thisWeekTotal.toLocaleString('en-GB');
   heroKicker.textContent = `Story of the week · ${formatWeek(thisWeek)}`;
@@ -368,6 +378,18 @@ function isoWeekMonday(y, w) {
   const monday = new Date(mondayW1);
   monday.setUTCDate(mondayW1.getUTCDate() + (w - 1) * 7);
   return monday;
+}
+
+// Returns true if the given "YYYY-Www" bucket has fully ended — i.e. its
+// Sunday is in the past. Used to decide whether the last bucket in the
+// index is a just-finished week (show it) or the in-progress one (skip it).
+function isBucketComplete(bucket) {
+  const m = (bucket || '').match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return false;
+  const monday = isoWeekMonday(parseInt(m[1]), parseInt(m[2]));
+  const endOfSunday = new Date(monday);
+  endOfSunday.setUTCDate(endOfSunday.getUTCDate() + 7); // next Monday 00:00
+  return Date.now() >= endOfSunday.getTime();
 }
 
 function formatWeek(bucket) {
