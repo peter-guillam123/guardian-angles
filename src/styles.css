@@ -1585,6 +1585,13 @@ main.subjects {
     position: relative;
     mask-image: linear-gradient(to right, black 0%, black 85%, transparent 100%);
     -webkit-mask-image: linear-gradient(to right, black 0%, black 85%, transparent 100%);
+    /* Lock touch pans to the horizontal axis — without this, iOS
+       treats a diagonal thumb swipe as "pan both ways" and you get
+       the subnav wobbling vertically as well as scrolling sideways.
+       overscroll-behavior-x: contain stops the horizontal rubber-band
+       from chaining out to the page scroll. */
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
   .subnav::-webkit-scrollbar { display: none; }
   .subnav a { white-space: nowrap; font-size: 10px; padding: 12px 2px 10px; }
