@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="3" fill="#052962"/>
+  <!-- Guardian Angles favicon · F3 from the Claude Design brand explorations.
+       A tiny chart peak ("an angle") on paper with the Guardian yellow
+       baseline. Four strokes survive at 16px tab size; the metaphor
+       shows what the site does rather than generic initials. -->
+  <rect width="32" height="32" rx="3" fill="#F4EFE6"/>
   <rect x="0" y="27" width="32" height="2" fill="#FFE500"/>
-  <text x="16" y="22" text-anchor="middle"
-        font-family="Georgia, 'Times New Roman', serif"
-        font-weight="700" font-size="20" fill="#F4EFE6"
-        letter-spacing="-1.5">GA</text>
+  <polyline points="4,22 11,14 17,19 22,9 28,13"
+            fill="none" stroke="#052962" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
