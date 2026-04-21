@@ -44,49 +44,27 @@
     <section class="about-section">
       <h2>The idea</h2>
       <p>
-        Guardian Angles grew out of a thread by the US journalist <a href="https://x.com/TedAlcorn/status/1911810812594716860" target="_blank" rel="noopener">Ted Alcorn</a> about a tool he'd built called <a href="https://tedalcorn.github.io/nyt/" target="_blank" rel="noopener">Below the Fold</a>. It charted 25 years of New York Times coverage — reporters, subjects, sections, states, headlines — all searchable and browsable, and it struck a chord widely. When I saw it, I thought: <em>we should have one of these for the Guardian.</em>
+        Earlier this year someone sent me a thread by Ted Alcorn, a US journalist who'd built a tool called <a href="https://tedalcorn.github.io/nyt/" target="_blank" rel="noopener">Below the Fold</a>. It lets you rummage through 25 years of New York Times coverage — reporters, topics, sections, headlines — and watch different strands of the paper's journalism rise and fall over time. It's the kind of tool that sharpens what you instinctively feel about a publication into something you can actually look at, and it spread fairly quickly.
       </p>
       <p>
-        What you're looking at is my attempt. Built across <span id="build-duration">a few days</span> and <span id="build-commits">many</span> commits using the Guardian's free <a href="https://open-platform.theguardian.com/" target="_blank" rel="noopener">Open Platform API</a>, some vanilla JavaScript, and a lot of iteration with a coding assistant called Claude. No framework. No database. No server. Just a set of static files and about a million Guardian headlines, pre-aggregated into a shape that makes this kind of browsing fast and free to host.
-      </p>
-    </section>
-
-    <section class="about-section">
-      <h2>How I actually built this</h2>
-      <p>
-        A note that might matter: <strong>I'm not a programmer</strong>. I've never written a Python script from scratch, I don't use the command line day-to-day, and I couldn't tell you off the top of my head what a gzipped JSON shard actually is.
-      </p>
-      <p>
-        Every piece of this was built through the <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> desktop app — not by me typing code, but by me describing what I wanted to happen in plain English and letting Claude figure out how. <em>"Can we add a view that shows what was dominating Guardian coverage the same week in every year?"</em> <em>"The month pill is getting clipped on desktop — can we fix that?"</em> <em>"Let's add a Time Machine button that jumps to a random week."</em>
-      </p>
-      <p>
-        Sometimes that's a one-line change. Sometimes it's three new files, a rebuild of the index, and a commit-and-push I don't have to write. Claude writes the code, handles the git, explains what it's doing, flags when I'm wrong. I steer, it drives.
-      </p>
-      <p>
-        This is also why the <em>How it developed</em> section below reads like a journal. The whole thing <strong>is</strong> a conversation — every item there started as something I said out loud and Claude translated into code, then we iterated until it felt right. A useful thing to know, because the shape of the tool tells you what kind of back-and-forth made it.
+        I've been playing with more expansive vibe coding recently and wanted specifically to play with the Guardian's API, so decided to scratch that itch by putting a spin on Ted's fantastic work. The version of this I had in my head was a bit different — no bylines, more weight given to tags and sections, probably a bit slower-paced. Guardian Angles is the result.
       </p>
     </section>
 
     <section class="about-section">
-      <h2>The differences from Below the Fold</h2>
+      <h2>How it's made</h2>
       <p>
-        Two deliberate departures. First, Ted's tool surfaces individual <strong>reporters</strong> prominently — you can look up any NYT journalist by name and see their beats, headlines, byline frequency. That's a lot of editorial visibility for individuals and I didn't want that shape for the Guardian, so you won't find it here. Every aggregation in Guardian Angles is at the tag, section, or whole-newsroom level.
+        A note that probably matters: I'm not a programmer. I haven't written a Python script from scratch, I find the command line weirdly intimidating and although I can now just about explain what a gzipped JSON shard is, I couldn't have a month ago.
       </p>
       <p>
-        Second, rather than a one-page dashboard it's split into four tabs, each answering a different question:
+        Everything here was built through the <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> desktop app with me describing what I wanted and letting Claude do the rest. Conversations that went roughly: "could we show what the Guardian was publishing about this exact week, in every other year?" or "the month pill at the top of the chart is getting clipped on desktop — can we look at that?"
       </p>
-      <ul class="about-list">
-        <li><strong>Trends</strong> — how has coverage of a topic risen and fallen? Type a word or pick a Guardian tag, compare up to four. Year-on-year overlay shows the same term across every year at once.</li>
-        <li><strong>Subjects</strong> — the full tag index. 3,000 subjects, ranked by volume, filterable by section or name, with a sparkline beside each one. Tick up to four and launch them straight onto the Trends chart.</li>
-        <li><strong>Newsroom</strong> — the Guardian's editorial output over a decade as a stacked area chart. Absolute or proportional. Strip sections out to see the news-only core. Click any month to drill into tags.</li>
-        <li><strong>This Week</strong> — auto-generated dashboard of the story of the week, fastest risers, fallers, and what was dominating Guardian coverage the same week in every year back to 2016.</li>
-      </ul>
     </section>
 
     <section class="about-section">
-      <h2>How it was built</h2>
+      <h2>How it was built, more technically</h2>
       <p>
-        A daily-ish <a href="https://github.com/peter-guillam123/guardian-angles/actions" target="_blank" rel="noopener">GitHub Action</a> fetches headlines from the Guardian API and writes them as compact gzipped JSON shards, one per month. A second step aggregates those shards into search-ready indexes at monthly, weekly and daily granularity, plus a 3,000-entry tag catalog. The frontend is a single-page-application-style set of vanilla JS modules, with canvas-based charts, occasional <a href="https://github.com/chenglou/pretext" target="_blank" rel="noopener">Pretext</a> typography effects, and Guardian colours throughout. The whole thing is a few megabytes of static files served from GitHub Pages, which is free and shockingly fast.
+        An hourly <a href="https://github.com/peter-guillam123/guardian-angles/actions" target="_blank" rel="noopener">GitHub Action</a> fetches headlines from the Guardian's Open Platform API into compact gzipped JSON shards, one per month. A second step aggregates those into search-ready indexes at monthly, weekly and daily granularity, plus a 3,000-entry tag catalogue. The frontend is a set of vanilla JS modules — no framework, no database, no server — with canvas-rendered charts, the occasional <a href="https://github.com/chenglou/pretext" target="_blank" rel="noopener">Pretext</a> typography effect, and the Guardian's colour palette throughout. The whole thing is a few megabytes of static files served from GitHub Pages.
       </p>
       <p>
         It's <a href="https://github.com/peter-guillam123/guardian-angles" target="_blank" rel="noopener">open source</a>. Everything that isn't an API key is in the repo.
@@ -98,6 +76,26 @@
       <p class="about-sub">A rough chronological log of what went in when. The newest changes are at the top.</p>
 
       <ol class="changelog">
+
+        <li class="milestone">
+          <h3>The design audit</h3>
+          <p>I'd been staring at this thing long enough that I couldn't see it properly any more, so I asked <a href="https://claude.com/claude-design" target="_blank" rel="noopener">Claude Design</a> to go through the whole site and come back with things that weren't working — not functionality, but proportion, rhythm, contrast, the sins you can't see once you've built something. It returned a prioritised audit of thirteen fixes, which we then worked through with Claude Code one at a time. The masthead dek slimmed to a single sentence. The chart title split into a muted empty-state prompt and a proper serif headline, which are genuinely different jobs. Toggle controls unified on ink instead of drifting between ink and blue. Real paper grain via an SVG noise tile, replacing the dot lattice I'd been shipping that turned out to be effectively invisible on retina displays. Focus rings, ARIA labels on the chart canvases, a global respect for prefers-reduced-motion. Most usefully a proper mobile pass, which caught a horizontal-overflow bug I'd never noticed on desktop and a tap-target problem on almost every segmented control. While we were in there I noticed the About page read more like product marketing than anything I'd actually write, so rewrote it. What you're reading now is the result.</p>
+        </li>
+
+        <li>
+          <h3>guardian-angles.com</h3>
+          <p>Bought the domain, pointed the DNS at GitHub Pages, rewrote the OG image URLs on every page. The old github.io URL now redirects, so anything already shared still works.</p>
+        </li>
+
+        <li>
+          <h3>"I feel lucky", expanded</h3>
+          <p>The curated recipe list had come out quite heavily UK-weighted, which felt odd for a button partly meant to surface unexpected comparisons. Expanded to 250 word recipes and 225 tag recipes — more US politicians, more Latin American leaders, more of Asia, plus world cities, tourist wonders, rivers, cars, pop stars, actors, directors, and a couple of personal easter eggs I won't spoil here.</p>
+        </li>
+
+        <li>
+          <h3>Data ingestion, now resilient to me</h3>
+          <p>Twice on the same day the hourly backfill job fetched a batch of old 2015 shards, rebuilt the indexes, committed them, and then failed to push because I'd landed a design commit during its three-minute build window. Each failure threw away what it had fetched. Added a rebase-and-retry loop in the workflow so the data commit rebases on top of whatever else has landed and tries again. Also fixed This Week, which had been showing the previous week's "story of the week" one step behind on Mondays because the default-week logic assumed the last bucket in the index was always the partial one in progress.</p>
+        </li>
 
         <li class="milestone">
           <h3>Extending back to 2012</h3>
@@ -216,58 +214,6 @@
     Headlines © Guardian News &amp; Media. Not affiliated with or endorsed by the Guardian.
   </footer>
 
-  <script>
-    // Self-updating stats: pull real commit count + first-commit date
-    // from GitHub's public API. Falls back to sensible defaults if it
-    // fails (rate limit, offline, etc.).
-    (async function () {
-      const repo = 'peter-guillam123/guardian-angles';
-      const durationEl = document.getElementById('build-duration');
-      const commitsEl = document.getElementById('build-commits');
-      try {
-        // Commit count: ask for 1 per page, read the Link header's "last" page
-        const headRes = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1`);
-        const linkHeader = headRes.headers.get('Link') || '';
-        const lastMatch = linkHeader.match(/page=(\d+)>;\s*rel="last"/);
-        const commitCount = lastMatch ? parseInt(lastMatch[1]) : null;
-
-        // First commit date: last page of the paginated list
-        let firstDate = null;
-        if (commitCount) {
-          const firstRes = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1&page=${commitCount}`);
-          const firstArr = await firstRes.json();
-          if (Array.isArray(firstArr) && firstArr[0]) {
-            firstDate = new Date(firstArr[0].commit.author.date);
-          }
-        }
-
-        // Duration in calendar days
-        if (firstDate) {
-          const now = new Date();
-          const diffDays = Math.max(1, Math.round((now - firstDate) / 86400000));
-          let durText;
-          if (diffDays <= 1) durText = 'a single day';
-          else if (diffDays <= 4) durText = `${spellNumber(diffDays)} days`;
-          else if (diffDays <= 14) durText = `${spellNumber(diffDays)} days`;
-          else if (diffDays <= 31) durText = `${spellNumber(Math.round(diffDays / 7))} weeks`;
-          else durText = `${spellNumber(Math.round(diffDays / 30))} months`;
-          durationEl.textContent = durText;
-        }
-        if (commitCount) {
-          commitsEl.textContent = spellNumber(commitCount);
-        }
-      } catch (e) {
-        // Leave fallback text in place
-      }
-    })();
-
-    function spellNumber(n) {
-      const small = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
-                     'eight', 'nine', 'ten', 'eleven', 'twelve'];
-      if (n <= 12) return small[n];
-      return n.toString();
-    }
-  </script>
   <script src="./src/freshness.js" defer></script>
 </body>
 </html>
