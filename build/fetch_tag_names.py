@@ -42,15 +42,21 @@ if not API_KEY:
     sys.exit(1)
 
 API_BASE = "https://content.guardianapis.com/tags"
+SEARCH_BASE = "https://content.guardianapis.com/search"
 PAGE_SIZE = 200
 REQUEST_INTERVAL = 1.0  # seconds — free dev tier is 1 req/s
+# CAPI's /tags endpoint 400s past a hard internal page limit (~190).
+# We stop paginating when we hit it and fall back to per-tag lookups
+# for anything we still haven't resolved.
+PAGE_CEILING_HINT = 190
 
 CATALOG_PATH = Path("data/tag-catalog.json")
 OUTPUT_PATH = Path("data/tag-names.json")
 
 
-def fetch_page(page: int) -> dict:
-    """Fetch one page of the /tags endpoint with retry on 429/5xx."""
+def fetch_page(page: int) -> dict | None:
+    """Fetch one page of the /tags endpoint with retry on 429/5xx.
+    Returns None on 400 (Guardian's internal page-ceiling hit)."""
     params = {
         "api-key": API_KEY,
         "page-size": PAGE_SIZE,
@@ -63,11 +69,43 @@ def fetch_page(page: int) -> dict:
         r = requests.get(API_BASE, params=params, timeout=30)
         if r.status_code == 200:
             return r.json()["response"]
+        if r.status_code == 400:
+            return None  # hit the page ceiling — caller will fall back
         if r.status_code in (429, 500, 502, 503, 504):
             continue
         r.reason = f"{r.reason} (page {page})"
         r.raise_for_status()
     raise RuntimeError(f"Gave up on /tags page {page}")
+
+
+def fetch_webtitle_via_search(tag_id: str) -> str | None:
+    """Look up a single tag's webTitle by asking /search for one
+    article carrying it and reading the tag's webTitle out of the
+    response. Costs one API call per tag — used only for tags the
+    /tags pagination sweep didn't resolve."""
+    params = {
+        "api-key": API_KEY,
+        "tag": tag_id,
+        "page-size": 1,
+        "show-tags": "keyword,series,tone",
+    }
+    for delay in [0, 5, 15]:
+        if delay:
+            time.sleep(delay)
+        r = requests.get(SEARCH_BASE, params=params, timeout=30)
+        if r.status_code == 200:
+            data = r.json().get("response", {})
+            results = data.get("results", [])
+            if not results:
+                return None  # no articles with this tag — mute tag, skip
+            for t in results[0].get("tags", []):
+                if t.get("id") == tag_id and t.get("webTitle"):
+                    return t["webTitle"]
+            return None
+        if r.status_code in (429, 500, 502, 503, 504):
+            continue
+        return None  # any other error, give up on this tag
+    return None
 
 
 def main():
@@ -85,16 +123,24 @@ def main():
 
     resolved = dict(existing)
 
+    # Phase 1: paginate /tags. Fast for the bulk of the catalogue —
+    # pulls ~200 tags per call rather than one-at-a-time. Stops when
+    # CAPI returns 400 (page ceiling) or we run out of pages.
     page = 1
     last_request = 0.0
     while wanted:
-        # Rate-limit: free tier is 1 req/s. Guard strictly.
         dt = time.monotonic() - last_request
         if dt < REQUEST_INTERVAL:
             time.sleep(REQUEST_INTERVAL - dt)
         last_request = time.monotonic()
 
         resp = fetch_page(page)
+        if resp is None:
+            print(
+                f"[page {page}] CAPI page ceiling hit — moving to per-tag lookups.",
+                file=sys.stderr,
+            )
+            break
         results = resp.get("results", [])
         if not results:
             print(f"[page {page}] empty — CAPI exhausted.", file=sys.stderr)
@@ -116,7 +162,6 @@ def main():
             file=sys.stderr,
         )
 
-        # Persist after each page so we can Ctrl-C and resume.
         OUTPUT_PATH.write_text(
             json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
         )
@@ -126,17 +171,51 @@ def main():
             break
         page += 1
 
-    print(
-        f"Wrote {len(resolved):,} tag names to {OUTPUT_PATH}.",
-        file=sys.stderr,
-    )
+    # Phase 2: per-tag fallback via /search for anything the bulk sweep
+    # missed. ~1 API call per tag, rate-limited to 1/sec. A 3000-tag
+    # catalogue with no pre-resolved entries would take ~50 min; a
+    # typical resume after phase 1 runs this over a 10-25 min tail.
     if wanted:
         print(
-            f"  {len(wanted)} catalog tags had no match — they'll fall back to "
+            f"\nPhase 2: per-tag lookups for {len(wanted):,} remaining tags "
+            f"(~{len(wanted)}s at 1 req/sec).",
+            file=sys.stderr,
+        )
+        for i, tid in enumerate(sorted(wanted), 1):
+            dt = time.monotonic() - last_request
+            if dt < REQUEST_INTERVAL:
+                time.sleep(REQUEST_INTERVAL - dt)
+            last_request = time.monotonic()
+            title = fetch_webtitle_via_search(tid)
+            if title:
+                resolved[tid] = title
+            if i % 50 == 0 or i == len(wanted):
+                print(
+                    f"  [{i}/{len(wanted)}] {len(resolved):,} total resolved",
+                    file=sys.stderr,
+                )
+                OUTPUT_PATH.write_text(
+                    json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
+                )
+        OUTPUT_PATH.write_text(
+            json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
+        )
+
+    # Compute final unresolved set from scratch (phase 2 doesn't mutate
+    # `wanted` since it iterates a snapshot).
+    catalog_ids = {t["id"] for t in catalog}
+    unresolved = catalog_ids - set(resolved.keys())
+    print(
+        f"Wrote {len(resolved):,} / {len(catalog_ids):,} tag names to {OUTPUT_PATH}.",
+        file=sys.stderr,
+    )
+    if unresolved:
+        print(
+            f"  {len(unresolved)} catalog tags had no match — they'll fall back to "
             f"NAME_OVERRIDES or slug_to_title:",
             file=sys.stderr,
         )
-        for t in sorted(wanted)[:20]:
+        for t in sorted(unresolved)[:20]:
             print(f"    {t}", file=sys.stderr)
 
 
