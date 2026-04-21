@@ -24,7 +24,27 @@ const state = {
   cancelToken: 0,                  // increment to cancel in-flight streams
   tagCatalog: null,                // lazy-loaded when tags mode is active
   cotags: new Map(),               // tag id → count, live
+  words: new Map(),                // word → count of *headlines* containing it
+  peakMonth: null,                 // YYYY-MM of the current peak
+  peakExpanded: false,             // whether the peak drilldown is open
 };
+
+// Light stopword set for the headline-word-frequency block. Kept
+// small and boring — the goal is to surface content words, not tune
+// the list. Plus common Guardian headline verbs ("says", "said")
+// that add little editorial signal.
+const STOPWORDS = new Set((`
+a an the and or but if so as of in on at to for from by with about into over under
+is are was were be been being am
+it its their his her my our your this that these those they them we us i me
+has have had do does did will would could should may might can must
+not no nor only just also more most less so than then
+new over after before during up down out off out
+one two three four five ten
+says said say saying
+who what when where why how which
+s t re ve ll d
+`).trim().split(/\s+/));
 
 // ───────────────── Elements ─────────────────
 const modeBtns = document.querySelectorAll('.mode-toggle .mode-btn');
@@ -54,7 +74,16 @@ const exportEl = document.getElementById('dd-export');
 const progressEl = document.getElementById('dd-progress');
 const headlinesEl = document.getElementById('dd-headlines');
 const cotagsEl = document.getElementById('dd-cotags');
+const wordsEl = document.getElementById('dd-words');
 const statBig = document.getElementById('stat-big');
+const heatmapEl = document.getElementById('dd-heatmap');
+const dispatchesEl = document.getElementById('dd-dispatches');
+const dispatchFirstEl = document.querySelector('#dd-dispatch-first .dd-dispatch-body');
+const dispatchLatestEl = document.querySelector('#dd-dispatch-latest .dd-dispatch-body');
+const peakBtn = document.getElementById('dd-stat-peak-btn');
+const peakDrill = document.getElementById('dd-peak-drill');
+const peakLabel = document.getElementById('dd-peak-label');
+const peakList = document.getElementById('dd-peak-list');
 
 // ───────────────── Init ─────────────────
 (async function init() {
@@ -259,11 +288,22 @@ async function runDeepDive() {
   const myToken = state.cancelToken;
   state.headlines = [];
   state.cotags.clear();
+  state.words.clear();
+  state.peakMonth = null;
+  state.peakExpanded = false;
   promptEl.hidden = true;
   summaryEl.hidden = false;
   bodyEl.hidden = false;
   headlinesEl.innerHTML = '';
   cotagsEl.innerHTML = '';
+  wordsEl.innerHTML = '';
+  dispatchesEl.hidden = true;
+  dispatchFirstEl.innerHTML = '';
+  dispatchLatestEl.innerHTML = '';
+  heatmapEl.innerHTML = '';
+  peakDrill.hidden = true;
+  peakBtn.setAttribute('aria-expanded', 'false');
+  peakBtn.classList.remove('open');
   listCountEl.textContent = '';
 
   // Update URL for deep-linking.
@@ -379,6 +419,13 @@ function updateSummaryFromHeadlines() {
   statFirst.textContent = firstDate ? formatFullDate(firstDate) : '—';
   statLast.textContent = lastDate ? formatFullDate(lastDate) : '—';
   drawSparkline(sparkEl, vals, peakIdx);
+
+  // Remember the peak so the stat's click handler knows what to
+  // filter when expanded. Only enable the button if we have data.
+  state.peakMonth = vals[peakIdx] > 0 ? months[peakIdx] : null;
+  peakBtn.disabled = !state.peakMonth;
+  // If the drill is already open, keep it in sync with the new peak.
+  if (state.peakExpanded && state.peakMonth) renderPeakDrill();
 }
 
 function renderSectionMix(sections, months) {
@@ -416,6 +463,146 @@ function drawSectionBreakdown(totals) {
   }).join('') || `<p class="dd-empty">No section data in this range.</p>`;
 }
 
+// ───────────────── Word frequency ─────────────────
+function renderWords() {
+  const total = state.headlines.length || 1;
+  const top = [...state.words.entries()]
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  wordsEl.innerHTML = top.map(([word, n]) => {
+    const pct = (n / total) * 100;
+    return `<li>
+      <span class="rising-label">${escapeHtml(word)}</span>
+      <span class="rising-jump">${pct.toFixed(0)}%</span>
+    </li>`;
+  }).join('') || '<li class="rising-loading">(need more headlines)</li>';
+}
+
+// ───────────────── First / latest dispatch cards ─────────────────
+function renderDispatches() {
+  if (!state.headlines.length) return;
+  // state.headlines is kept sorted newest-first in processShard.
+  const latest = state.headlines[0];
+  const first = state.headlines[state.headlines.length - 1];
+  dispatchFirstEl.innerHTML = dispatchCard(first);
+  dispatchLatestEl.innerHTML = dispatchCard(latest);
+  dispatchesEl.hidden = false;
+}
+function dispatchCard(h) {
+  if (!h) return '';
+  const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
+  const date = formatFullDate((h.d || '').slice(0, 10));
+  const section = sectionLabel(h.s || '');
+  const title = escapeHtml(h.t || '(untitled)');
+  return `<p class="hl-meta">${escapeHtml(section)} · ${date}</p>
+    ${url
+      ? `<a class="dd-dispatch-title" href="${escapeAttr(url)}" target="_blank" rel="noopener">${title}</a>`
+      : `<span class="dd-dispatch-title">${title}</span>`}`;
+}
+
+// ───────────────── Weekly heatmap ─────────────────
+function renderHeatmap() {
+  // Group matched headlines by ISO week key. Year by year.
+  const counts = new Map(); // "YYYY-WW" → count
+  for (const h of state.headlines) {
+    const key = isoWeekKey((h.d || '').slice(0, 10));
+    if (!key) continue;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  // Find the max to drive colour intensity.
+  let peak = 0;
+  for (const v of counts.values()) if (v > peak) peak = v;
+  if (peak === 0) { heatmapEl.innerHTML = ''; return; }
+
+  const years = [];
+  for (let y = state.yearFrom; y <= state.yearTo; y++) years.push(y);
+
+  heatmapEl.innerHTML = years.map(y => {
+    const cells = [];
+    for (let w = 1; w <= 53; w++) {
+      const key = `${y}-${String(w).padStart(2, '0')}`;
+      const c = counts.get(key) || 0;
+      const intensity = c === 0 ? 0 : (0.15 + 0.85 * (c / peak));
+      const label = c === 0
+        ? `Week ${w} ${y} · 0 articles`
+        : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'}`;
+      cells.push(`<span class="dd-hc" style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
+    }
+    return `<div class="dd-hm-row">
+      <span class="dd-hm-year">${y}</span>
+      <div class="dd-hm-cells">${cells.join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ISO week key (Thursday determines ISO year). Matches the format the
+// rest of the site uses ("YYYY-W##"). Returns null for empty inputs.
+function isoWeekKey(iso) {
+  if (!iso) return null;
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const dow = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dow);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-${String(weekNum).padStart(2, '0')}`;
+}
+
+// ───────────────── Peak month drilldown ─────────────────
+peakBtn.addEventListener('click', () => {
+  if (!state.peakMonth) return;
+  state.peakExpanded = !state.peakExpanded;
+  peakBtn.setAttribute('aria-expanded', String(state.peakExpanded));
+  peakBtn.classList.toggle('open', state.peakExpanded);
+  if (state.peakExpanded) renderPeakDrill();
+  peakDrill.hidden = !state.peakExpanded;
+});
+
+function renderPeakDrill() {
+  if (!state.peakMonth) return;
+  const monthHeadlines = state.headlines
+    .filter(h => (h.d || '').slice(0, 7) === state.peakMonth)
+    .sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+  peakLabel.textContent = `Headlines from ${formatMonth(state.peakMonth)} · ${monthHeadlines.length.toLocaleString('en-GB')} total`;
+  const top = monthHeadlines.slice(0, 12);
+  peakList.innerHTML = top.map(h => {
+    const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
+    const date = formatFullDate((h.d || '').slice(0, 10));
+    const section = sectionLabel(h.s || '');
+    const title = escapeHtml(h.t || '(untitled)');
+    return `<li>
+      <p class="hl-meta">${escapeHtml(section)} · ${date}</p>
+      ${url
+        ? `<a class="dd-peak-title" href="${escapeAttr(url)}" target="_blank" rel="noopener">${title}</a>`
+        : `<span class="dd-peak-title">${title}</span>`}
+    </li>`;
+  }).join('');
+  if (monthHeadlines.length > top.length) {
+    peakList.innerHTML += `<li class="dd-peak-more">${(monthHeadlines.length - top.length).toLocaleString('en-GB')} more in the full list below.</li>`;
+  }
+}
+
+// Lightweight tokeniser for the word-frequency block. Handles
+// possessives ("America's" → "america"), diacritics ("Orbán" →
+// "orban"), and strips numbers-only tokens.
+function tokenise(text) {
+  const normalised = (text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2019']s\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ');
+  const out = [];
+  for (const w of normalised.split(' ')) {
+    if (w.length < 3) continue;
+    if (/^\d+$/.test(w)) continue;
+    out.push(w);
+  }
+  return out;
+}
+
 // ───────────────── Headline stream ─────────────────
 async function streamHeadlines(myToken) {
   const months = monthsInRange(state.yearFrom, state.yearTo);
@@ -436,6 +623,7 @@ async function streamHeadlines(myToken) {
     try {
       const shard = await loadShard(month);
       if (myToken !== state.cancelToken) return;
+      const queryWord = state.query.kind === 'word' ? state.query.term.toLowerCase() : null;
       for (const h of shard.headlines) {
         const hit = tagId
           ? (h.g || []).includes(tagId)
@@ -447,6 +635,16 @@ async function streamHeadlines(myToken) {
           if (g === tagId) continue;
           if (!isUsefulTag(g)) continue;
           state.cotags.set(g, (state.cotags.get(g) || 0) + 1);
+        }
+        // Per-headline unique words — using a Set so a single headline
+        // containing "clarke" twice doesn't double-count.
+        const seen = new Set();
+        for (const w of tokenise(h.t || '')) {
+          if (STOPWORDS.has(w)) continue;
+          if (queryWord && w === queryWord) continue;
+          if (seen.has(w)) continue;
+          seen.add(w);
+          state.words.set(w, (state.words.get(w) || 0) + 1);
         }
       }
     } catch (_) { /* missing shards in gap months — silently skip */ }
@@ -463,6 +661,9 @@ async function streamHeadlines(myToken) {
     // so phrases / out-of-index terms get authoritative numbers rather
     // than the zero-filled sketch.
     updateSummaryFromHeadlines();
+    renderWords();
+    renderHeatmap();
+    renderDispatches();
   };
 
   // Simple worker pool.
