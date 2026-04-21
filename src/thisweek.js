@@ -125,8 +125,10 @@ function renderWeek(weekIdx) {
       heroTitle.textContent = name;
       heroTitle.style.visibility = '';
       heroTitle.style.height = '';
-      // Remove any leftover canvas from previous render
-      const oldCanvas = heroTitle.parentElement.querySelector('canvas');
+      // Remove any leftover typewriter overlay — scoped to its dedicated
+      // class so we don't accidentally nuke the sparkline canvas, which
+      // also lives in this section.
+      const oldCanvas = heroTitle.parentElement.querySelector('canvas.tw-typewriter-canvas');
       if (oldCanvas) oldCanvas.remove();
     }
 
@@ -428,8 +430,11 @@ async function typewriterTitle(el, text) {
   const lineH = Math.round(fontSize * 1.0);
   const totalH = lines.length * lineH + 8;
 
-  // Create canvas overlay
+  // Create canvas overlay. The class lets renderWeek's cleanup on
+  // subsequent navigations target this canvas specifically and not
+  // accidentally remove the sibling sparkline canvas in the hero.
   const canvas = document.createElement('canvas');
+  canvas.className = 'tw-typewriter-canvas';
   const dpr = window.devicePixelRatio || 1;
   canvas.style.width = containerW + 'px';
   canvas.style.height = totalH + 'px';
