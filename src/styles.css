@@ -69,6 +69,16 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Hard safety net: prevent horizontal scroll on every page. overflow-x: clip
+   (vs hidden) is the 2022+ way — it truncates overflow without creating a
+   scroll container, so sticky positioning and the subnav fade-mask still
+   work. Individual elements that legitimately need horizontal scroll
+   (.subnav, .subjects-table-wrap) set overflow-x: auto locally. */
+html, body {
+  overflow-x: clip;
+  max-width: 100vw;
+}
 html, body { margin: 0; padding: 0; }
 html { background: var(--paper); }
 body {
@@ -277,6 +287,10 @@ main {
   background: transparent;
   color: var(--ink);
   transition: border-color 150ms;
+  /* Without these, the input's default intrinsic size (~240px on iOS) can
+     push the sidebar wider than a narrow iPhone viewport. */
+  width: 100%;
+  min-width: 0;
 }
 .controls input[type=text]:focus {
   outline: none;
@@ -339,6 +353,11 @@ main {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  /* iOS <select> has its own intrinsic size derived from the longest
+     option; constrain so a long section name can't push the sidebar wide. */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--ink-mute) 50%),
     linear-gradient(135deg, var(--ink-mute) 50%, transparent 50%);
