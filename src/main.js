@@ -14,6 +14,7 @@ import { HeadlineExplorer } from './headlines.js';
 import { sectionLabel } from './sections.js';
 import { attachAutocomplete, detachAutocomplete, seedInput } from './autocomplete.js';
 import { computeRising } from './trending.js';
+import { isUsefulTag } from './skip-tags.js';
 import { exportChartAsPNG } from './share.js';
 import { pickWordRecipe, pickTagRecipe } from './lucky.js';
 
@@ -73,6 +74,7 @@ const examplesTagsEl = document.getElementById('examples-tags');
 const risingPanelEl = document.getElementById('rising-panel');
 const risingTagsListEl = document.querySelector('#rising-tags .rising-list');
 const risingWordsListEl = document.querySelector('#rising-words .rising-list');
+const trendingTagListEl = document.querySelector('#trending-tag .rising-list');
 const sectionFilterEl = document.getElementById('section-filter');
 
 const chart = new TrendChart(chartEl);
@@ -690,19 +692,35 @@ async function showRisingPanel() {
   if (_risingLoaded) return;
   _risingLoaded = true;
 
+  trendingTagListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
   risingTagsListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
   risingWordsListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
 
   try {
-    const [tagIdx, termIdx, catalog] = await Promise.all([
+    const [tagIdxWeekly, tagIdxDaily, termIdx, catalog] = await Promise.all([
       loadTagIndex('weekly'),
+      loadTagIndex('daily'),
       loadIndex('weekly'),
       loadTagCatalog(),
     ]);
 
-    const risingTags = computeRising(tagIdx, { topK: 6 });
+    const risingTags = computeRising(tagIdxWeekly, { topK: 6 });
     const risingTerms = computeRising(termIdx, { topK: 6 });
     const catalogIndex = new Map(catalog.map(t => [t.id, t.name]));
+
+    // Trending tag: the biggest useful tag in the most recent complete day
+    // we have data for. Skips today's bucket if it's still the current UTC
+    // day (partial), same pattern as This Week's last-complete-week logic.
+    const trending = findTopTagForLastDay(tagIdxDaily);
+    if (trending) {
+      const label = catalogIndex.get(trending.id) || trending.id.split('/').pop();
+      trendingTagListEl.innerHTML = `<li data-mode="tags" data-key="${escapeAttr(trending.id)}" data-label="${escapeAttr(label)}">
+        <span class="rising-label">${escapeHtml(label)}</span>
+        <span class="rising-jump">${trending.count} article${trending.count === 1 ? '' : 's'}</span>
+      </li>`;
+    } else {
+      trendingTagListEl.innerHTML = '<li class="rising-loading">No data yet.</li>';
+    }
 
     risingTagsListEl.innerHTML = risingTags.map(r => {
       const label = catalogIndex.get(r.key) || r.key.split('/').pop();
@@ -725,6 +743,25 @@ async function showRisingPanel() {
     risingTagsListEl.innerHTML = '<li class="rising-loading">Couldn\u2019t load.</li>';
     risingWordsListEl.innerHTML = '';
   }
+}
+
+// Finds the highest-count "useful" tag in the most recent complete daily
+// bucket. Skips today's bucket if it matches the current UTC date
+// (partial), unless today's is all we have.
+function findTopTagForLastDay(tagIdx) {
+  const { buckets, tags } = tagIdx;
+  if (!buckets?.length || !tags) return null;
+  // UTC today as YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
+  let idx = buckets.length - 1;
+  if (buckets[idx] === today && idx > 0) idx--;
+  let bestId = null, bestCount = 0;
+  for (const id in tags) {
+    if (!isUsefulTag(id)) continue;
+    const c = tags[id][idx] || 0;
+    if (c > bestCount) { bestCount = c; bestId = id; }
+  }
+  return bestId ? { id: bestId, count: bestCount, bucket: buckets[idx] } : null;
 }
 
 function formatRatio(r) {
@@ -765,6 +802,7 @@ function attachRisingClickHandler() {
   };
   risingTagsListEl.addEventListener('click', onClick);
   risingWordsListEl.addEventListener('click', onClick);
+  trendingTagListEl.addEventListener('click', onClick);
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
