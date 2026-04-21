@@ -93,6 +93,8 @@ export class TrendChart extends EventTarget {
     this.activeSeries = null;
     this.drawProgress = 1;
     this._animStart = 0;
+    this._rafId = 0;    // id of the current entrance-animation RAF — cancelled before starting a new one
+    this._cachedMaxVal = 0;
 
     canvas.addEventListener('mousemove', (e) => this._onMove(e));
     canvas.addEventListener('mouseleave', () => { this.hoveredIdx = null; this._emitHover(); this.draw(); });
@@ -119,6 +121,14 @@ export class TrendChart extends EventTarget {
   setSeries(series, palette) {
     const pal = palette || PALETTE;
     this.series = series.map((s, i) => ({ ...s, color: pal[i % pal.length] }));
+    // Pre-compute the y-axis max so draw() doesn't re-flatten all series
+    // on every RAF tick. On daily granularity that was ~20k-element
+    // allocations per frame which added up quickly.
+    let maxVal = 0.001;
+    for (const s of this.series) {
+      for (const v of s.values) if (v > maxVal) maxVal = v;
+    }
+    this._cachedMaxVal = maxVal;
     this._animStart = performance.now();
     this.drawProgress = 0;
     this._animate();
@@ -128,13 +138,19 @@ export class TrendChart extends EventTarget {
 
   _animate() {
     const DUR = 700;
+    // Cancel any in-flight entrance-animation RAF chain before starting a
+    // new one. Without this, rapid setSeries calls (e.g. hammering "I
+    // feel lucky") accumulated one RAF chain per click, each calling
+    // draw() at 60fps — a real memory-and-CPU leak that occasionally
+    // crashed mobile Chrome.
+    if (this._rafId) cancelAnimationFrame(this._rafId);
     const tick = () => {
       const t = Math.min(1, (performance.now() - this._animStart) / DUR);
       this.drawProgress = 1 - Math.pow(1 - t, 3);
       this.draw();
-      if (t < 1) requestAnimationFrame(tick);
+      this._rafId = t < 1 ? requestAnimationFrame(tick) : 0;
     };
-    requestAnimationFrame(tick);
+    this._rafId = requestAnimationFrame(tick);
   }
 
   _plot() {
@@ -198,8 +214,7 @@ export class TrendChart extends EventTarget {
 
     const p = this._plot();
     const buckets = this.series[0].buckets;
-    const maxVal = Math.max(0.001, ...this.series.flatMap(s => s.values));
-    const yMax = niceMax(maxVal);
+    const yMax = niceMax(this._cachedMaxVal || 0.001);
     this._yMax = yMax;
 
     this._drawGrid(p, yMax);
