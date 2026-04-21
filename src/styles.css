@@ -624,7 +624,10 @@ main {
 .ac-dropdown[hidden] { display: none; }
 .ac-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* Same minmax(0, 1fr) trick — prevents a long tag name in the
+     dropdown from forcing the popup wider than the viewport on
+     narrow phones. */
+  grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 10px;
   row-gap: 0;
   padding: 6px 12px;
@@ -638,6 +641,10 @@ main {
   color: var(--ink);
   font-family: var(--body);
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .ac-item .ac-slug {
   grid-column: 1;
@@ -646,6 +653,10 @@ main {
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .ac-item .ac-count {
   grid-column: 2;
@@ -802,7 +813,11 @@ main {
 .reading-panel .values { display: flex; flex-direction: column; gap: 14px; }
 .reading-panel .value-row {
   display: grid;
-  grid-template-columns: 4px 1fr auto;
+  /* minmax(0, 1fr) instead of 1fr — without it, long labels refuse to
+     shrink below their min-content width and push the whole grid (and
+     the whole page) wider than the viewport on mobile. The child's
+     ellipsis setup only kicks in once the column actually narrows. */
+  grid-template-columns: 4px minmax(0, 1fr) auto;
   column-gap: 10px;
   row-gap: 2px;
   align-items: baseline;
@@ -925,7 +940,9 @@ main {
 .rising-list li {
   counter-increment: rising;
   display: grid;
-  grid-template-columns: 18px 1fr auto;
+  /* minmax(0, 1fr) so a long tag like "World Cup 2026 Qualifiers" gets
+     ellipsis-truncated instead of pushing the whole page sideways. */
+  grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: baseline;
   padding: 4px 6px 4px 2px;
