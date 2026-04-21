@@ -438,7 +438,36 @@ def slug_to_title(slug: str) -> str:
     return _word_case(last)
 
 
+# Authoritative tag webTitles pulled from the Guardian's /tags CAPI
+# endpoint by build/fetch_tag_names.py. This is the current, correct,
+# editorially-maintained display name for each tag — it handles renames
+# (e.g. "Brexit Party" → "Reform UK") that a slug-derived name can't.
+# Loaded lazily on first call so the module still imports if the file
+# doesn't exist yet.
+_CAPI_NAMES: dict | None = None
+
+def _load_capi_names() -> dict:
+    global _CAPI_NAMES
+    if _CAPI_NAMES is not None:
+        return _CAPI_NAMES
+    path = DATA_DIR / "tag-names.json"
+    if path.exists():
+        _CAPI_NAMES = json.loads(path.read_text())
+    else:
+        _CAPI_NAMES = {}
+    return _CAPI_NAMES
+
+
 def display_name(tag_id: str) -> str:
+    # Priority order:
+    # 1. CAPI webTitle  — authoritative current name from the Guardian
+    # 2. NAME_OVERRIDES — manual editorial overrides (mostly obsolete
+    #                     once CAPI names are populated, but kept as a
+    #                     safety net for anything CAPI can't resolve)
+    # 3. slug_to_title  — last-resort derivation from the slug
+    capi = _load_capi_names()
+    if tag_id in capi:
+        return capi[tag_id]
     if tag_id in NAME_OVERRIDES:
         return NAME_OVERRIDES[tag_id]
     return slug_to_title(tag_id)
