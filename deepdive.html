@@ -87,10 +87,10 @@
             <span class="dd-stat-big" id="dd-stat-total">—</span>
             <span class="dd-stat-label">total headlines</span>
           </div>
-          <div class="dd-stat">
+          <button type="button" class="dd-stat dd-stat-btn" id="dd-stat-peak-btn" aria-expanded="false" aria-controls="dd-peak-drill">
             <span class="dd-stat-big" id="dd-stat-peak">—</span>
-            <span class="dd-stat-label">peak month</span>
-          </div>
+            <span class="dd-stat-label">peak month <span class="dd-stat-hint" aria-hidden="true">· click to see</span></span>
+          </button>
           <div class="dd-stat">
             <span class="dd-stat-big" id="dd-stat-first">—</span>
             <span class="dd-stat-label">first appearance</span>
@@ -105,6 +105,41 @@
           <p class="dd-spark-label">Monthly volume</p>
           <canvas id="dd-spark" height="96" role="img" aria-label="Monthly volume sparkline for the selected topic across the date range."></canvas>
         </div>
+      </div>
+
+      <!-- Peak-month drilldown: expands inline when the Peak stat is clicked. -->
+      <div class="dd-peak-drill" id="dd-peak-drill" hidden>
+        <p class="dd-eyebrow" id="dd-peak-label"></p>
+        <ol class="dd-peak-list" id="dd-peak-list"></ol>
+      </div>
+
+      <!-- Weekly heatmap — one cell per ISO week, shaded by volume. -->
+      <div class="dd-heatmap-wrap" id="dd-heatmap-wrap">
+        <div class="dd-heatmap-head">
+          <p class="dd-eyebrow">Weekly volume</p>
+          <p class="dd-heatmap-legend" aria-hidden="true">
+            <span>Less</span>
+            <span class="dd-hc" style="--dd-i:0"></span>
+            <span class="dd-hc" style="--dd-i:0.25"></span>
+            <span class="dd-hc" style="--dd-i:0.5"></span>
+            <span class="dd-hc" style="--dd-i:0.75"></span>
+            <span class="dd-hc" style="--dd-i:1"></span>
+            <span>More</span>
+          </p>
+        </div>
+        <div class="dd-heatmap" id="dd-heatmap" role="img" aria-label="Heatmap of weekly article volume across the selected years. Each cell is one ISO week, shaded darker blue when the topic had more coverage that week."></div>
+      </div>
+
+      <!-- First & latest dispatch — the actual articles at the extremes. -->
+      <div class="dd-dispatches" id="dd-dispatches" hidden>
+        <article class="dd-dispatch" id="dd-dispatch-first">
+          <p class="dd-eyebrow">First dispatch</p>
+          <div class="dd-dispatch-body"></div>
+        </article>
+        <article class="dd-dispatch" id="dd-dispatch-latest">
+          <p class="dd-eyebrow">Most recent</p>
+          <div class="dd-dispatch-body"></div>
+        </article>
       </div>
 
       <div class="breakdown">
@@ -136,6 +171,11 @@
         <div class="rising-block">
           <p class="rising-eyebrow">Travels with <span>top co-occurring tags</span></p>
           <ol class="rising-list" id="dd-cotags"></ol>
+        </div>
+
+        <div class="rising-block">
+          <p class="rising-eyebrow">In these headlines <span>common words</span></p>
+          <ol class="rising-list" id="dd-words"></ol>
         </div>
       </aside>
     </section>
