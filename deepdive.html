@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deep dive — Guardian Angles</title>
+  <meta name="description" content="A deeper view of a single topic: every Guardian headline in a chosen range, with coverage shape and context." />
+  <meta property="og:image" content="https://guardian-angles.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://guardian-angles.com/og-image.png" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      Pick one topic and a date range to see every Guardian headline in that span, alongside the shape of coverage and the tags it travelled with.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      headlines indexed<span class="stat-fresh" id="freshness"></span>
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html">Subjects</a>
+    <a href="./newsroom.html">Newsroom</a>
+    <a href="./thisweek.html">This Week</a>
+    <a href="./deepdive.html" class="active" aria-current="page">Deep dive</a>
+    <a href="./about.html">About</a>
+  </nav>
+
+  <main class="dd">
+    <section class="dd-controls">
+      <div class="mode-toggle" role="group" aria-label="Search mode">
+        <button type="button" class="mode-btn" data-mode="words">Word</button>
+        <button type="button" class="mode-btn active" data-mode="tags">Tag</button>
+      </div>
+
+      <form id="dd-form" autocomplete="off">
+        <div class="dd-query">
+          <label class="ctrl-label" id="dd-label" for="dd-input">Search a tag</label>
+          <input type="text" id="dd-input" placeholder="e.g. donald trump, climate crisis…" />
+        </div>
+
+        <div class="dd-range">
+          <label class="ctrl-label">Years</label>
+          <div class="range-wrapper">
+            <div class="range-track"></div>
+            <div class="range-fill" id="dd-range-fill"></div>
+            <input type="range" id="dd-year-from" min="2012" max="2026" value="2012" step="1" aria-label="From year" />
+            <input type="range" id="dd-year-to"   min="2012" max="2026" value="2026" step="1" aria-label="To year" />
+          </div>
+          <div class="range-values">
+            <span id="dd-year-from-display">2012</span>
+            <span id="dd-year-to-display">2026</span>
+          </div>
+        </div>
+
+        <div class="dd-actions">
+          <button type="submit">Dive in</button>
+          <button type="button" id="dd-clear" class="ghost">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Summary strip: renders instantly from existing indexes. -->
+    <section class="dd-summary" id="dd-summary" hidden>
+      <div class="dd-sum-head">
+        <h2 class="dd-headline" id="dd-headline"></h2>
+        <p class="dd-sub" id="dd-sub"></p>
+      </div>
+
+      <div class="dd-sum-grid">
+        <div class="dd-stat">
+          <span class="dd-stat-big" id="dd-stat-total">—</span>
+          <span class="dd-stat-label">total headlines</span>
+        </div>
+        <div class="dd-stat">
+          <span class="dd-stat-big" id="dd-stat-peak">—</span>
+          <span class="dd-stat-label">peak month</span>
+        </div>
+        <div class="dd-stat">
+          <span class="dd-stat-big" id="dd-stat-first">—</span>
+          <span class="dd-stat-label">first appearance</span>
+        </div>
+        <div class="dd-stat">
+          <span class="dd-stat-big" id="dd-stat-last">—</span>
+          <span class="dd-stat-label">most recent</span>
+        </div>
+      </div>
+
+      <div class="dd-spark-wrap">
+        <p class="dd-spark-label">Monthly volume</p>
+        <canvas id="dd-spark" height="72" role="img" aria-label="Monthly volume sparkline for the selected topic across the date range."></canvas>
+      </div>
+
+      <div class="breakdown">
+        <p class="breakdown-eyebrow">Where it ran — section mix</p>
+        <div class="breakdown-bars" id="dd-sections"></div>
+      </div>
+    </section>
+
+    <!-- Prompt / empty state before any search has run. -->
+    <section class="dd-prompt" id="dd-prompt">
+      <p class="chart-prompt">Pick a tag or word and a date range to begin.</p>
+    </section>
+
+    <!-- Body: headline list + co-occurring tags. -->
+    <section class="dd-body" id="dd-body" hidden>
+      <div class="dd-list-col">
+        <div class="dd-list-head">
+          <p class="rising-eyebrow">Headlines <span id="dd-list-count"></span></p>
+          <div class="dd-list-tools">
+            <input type="text" id="dd-filter" placeholder="Filter these headlines…" aria-label="Filter loaded headlines" />
+            <button type="button" id="dd-export" class="ghost">Export CSV ↓</button>
+          </div>
+        </div>
+        <p class="dd-progress" id="dd-progress" aria-live="polite"></p>
+        <div class="dd-headlines" id="dd-headlines"></div>
+      </div>
+
+      <aside class="dd-side">
+        <div class="rising-block">
+          <p class="rising-eyebrow">Travels with <span>top co-occurring tags</span></p>
+          <ol class="rising-list" id="dd-cotags"></ol>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Data rebuilds nightly. Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media. Not affiliated with or endorsed by the Guardian.
+  </footer>
+
+  <script type="module" src="./src/deepdive.js"></script>
+  <script src="./src/freshness.js" defer></script>
+</body>
+</html>
