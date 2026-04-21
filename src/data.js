@@ -206,6 +206,15 @@ export async function loadShard(month) {
   return p;
 }
 
+// Drop a shard from the in-memory cache so the browser can reclaim
+// the ~1-5MB of parsed JSON it holds. Deep Dive uses this after
+// extracting the matching headlines — without it, a 14-year dive
+// keeps 168 shards resident, which can push ~500MB and crash
+// mobile Safari / Chrome.
+export function evictShard(month) {
+  _shardCache.delete(month);
+}
+
 // Bucket key → month key so we know which shard to load for headlines
 //   "2024-07"      → "2024-07"
 //   "2024-07-15"   → "2024-07"

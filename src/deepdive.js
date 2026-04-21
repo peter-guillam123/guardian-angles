@@ -9,7 +9,7 @@
 
 import {
   loadIndex, loadTagIndex, loadTagCatalog, loadSections, loadShard,
-  makeWordMatcher,
+  evictShard, makeWordMatcher,
 } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
@@ -677,15 +677,21 @@ async function streamHeadlines(myToken) {
           ? (h.g || []).includes(tagId)
           : matcher(h.t || '');
         if (!hit) continue;
-        state.headlines.push(h);
+        // Flat-copy the fields we need rather than keeping a reference
+        // to the shard's object. Without this the shard's whole
+        // headlines[] array stays reachable via our matches, and the
+        // parsed shard can't be garbage-collected even after we evict
+        // it from the cache.
+        state.headlines.push({
+          t: h.t, d: h.d, s: h.s, u: h.u,
+          g: h.g ? h.g.slice() : undefined,
+        });
         perSectionActual[h.s] = (perSectionActual[h.s] || 0) + 1;
         if (h.g) for (const g of h.g) {
           if (g === tagId) continue;
           if (!isUsefulTag(g)) continue;
           state.cotags.set(g, (state.cotags.get(g) || 0) + 1);
         }
-        // Per-headline unique words — using a Set so a single headline
-        // containing "clarke" twice doesn't double-count.
         const seen = new Set();
         for (const w of tokenise(h.t || '')) {
           if (STOPWORDS.has(w)) continue;
@@ -695,6 +701,11 @@ async function streamHeadlines(myToken) {
           state.words.set(w, (state.words.get(w) || 0) + 1);
         }
       }
+      // Drop the shard from data.js's cache now that we've harvested
+      // what we need. On a high-volume dive (Taylor Swift, Peter
+      // Mandelson) this keeps heap use flat rather than growing with
+      // each month loaded. The GC reclaims ~1-5MB per shard evicted.
+      evictShard(month);
     } catch (_) { /* missing shards in gap months — silently skip */ }
     loaded++;
     progressEl.textContent = `Loaded ${loaded} / ${months.length} months · ${state.headlines.length.toLocaleString('en-GB')} headlines so far`;
