@@ -130,10 +130,15 @@
         <div class="dd-heatmap" id="dd-heatmap" role="img" aria-label="Heatmap of weekly article volume across the selected years. Each cell is one ISO week, shaded darker blue when the topic had more coverage that week."></div>
       </div>
 
-      <!-- First & latest dispatch — the actual articles at the extremes. -->
+      <!-- First / peak / latest dispatch — the shape of the story in three
+           editorial moments. -->
       <div class="dd-dispatches" id="dd-dispatches" hidden>
         <article class="dd-dispatch" id="dd-dispatch-first">
           <p class="dd-eyebrow">First dispatch</p>
+          <div class="dd-dispatch-body"></div>
+        </article>
+        <article class="dd-dispatch" id="dd-dispatch-peak">
+          <p class="dd-eyebrow" id="dd-dispatch-peak-label">From the peak</p>
           <div class="dd-dispatch-body"></div>
         </article>
         <article class="dd-dispatch" id="dd-dispatch-latest">
