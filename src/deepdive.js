@@ -1,0 +1,605 @@
+// Deep dive — a single-topic view showing every Guardian headline in a
+// chosen range, the shape of coverage, and the tags it tends to travel
+// with.
+//
+// Architecture note: the summary strip renders instantly from the
+// already-loaded monthly indexes (no shard I/O). The headline list
+// streams in as shards load, newest-first — so the user sees the shape
+// of the answer immediately and the detail fills in behind it.
+
+import {
+  loadIndex, loadTagIndex, loadTagCatalog, loadSections, loadShard,
+  makeWordMatcher,
+} from './data.js';
+import { sectionLabel, sectionColor } from './sections.js';
+import { isUsefulTag } from './skip-tags.js';
+
+// ───────────────── State ─────────────────
+const state = {
+  mode: 'tags',                    // 'tags' | 'words'
+  query: null,                     // { kind, id|term, label }
+  yearFrom: 2012,
+  yearTo: new Date().getUTCFullYear(),
+  headlines: [],                   // accumulated results, newest-first
+  cancelToken: 0,                  // increment to cancel in-flight streams
+  tagCatalog: null,                // lazy-loaded when tags mode is active
+  cotags: new Map(),               // tag id → count, live
+};
+
+// ───────────────── Elements ─────────────────
+const modeBtns = document.querySelectorAll('.mode-toggle .mode-btn');
+const inputEl = document.getElementById('dd-input');
+const labelEl = document.getElementById('dd-label');
+const formEl = document.getElementById('dd-form');
+const clearEl = document.getElementById('dd-clear');
+const yearFromInp = document.getElementById('dd-year-from');
+const yearToInp = document.getElementById('dd-year-to');
+const yearFromDisp = document.getElementById('dd-year-from-display');
+const yearToDisp = document.getElementById('dd-year-to-display');
+const rangeFill = document.getElementById('dd-range-fill');
+const promptEl = document.getElementById('dd-prompt');
+const summaryEl = document.getElementById('dd-summary');
+const bodyEl = document.getElementById('dd-body');
+const headlineEl = document.getElementById('dd-headline');
+const subEl = document.getElementById('dd-sub');
+const statTotal = document.getElementById('dd-stat-total');
+const statPeak = document.getElementById('dd-stat-peak');
+const statFirst = document.getElementById('dd-stat-first');
+const statLast = document.getElementById('dd-stat-last');
+const sparkEl = document.getElementById('dd-spark');
+const sectionsEl = document.getElementById('dd-sections');
+const listCountEl = document.getElementById('dd-list-count');
+const filterEl = document.getElementById('dd-filter');
+const exportEl = document.getElementById('dd-export');
+const progressEl = document.getElementById('dd-progress');
+const headlinesEl = document.getElementById('dd-headlines');
+const cotagsEl = document.getElementById('dd-cotags');
+const statBig = document.getElementById('stat-big');
+
+// ───────────────── Init ─────────────────
+(async function init() {
+  // Masthead stat — uses the same meta.json trick as other pages.
+  loadSections().then(s => {
+    const total = s.totals.reduce((a, b) => a + b, 0);
+    if (statBig && (/^[—\-]$|^\s*$/.test(statBig.textContent))) {
+      statBig.textContent = total >= 1_000_000
+        ? (total / 1_000_000).toFixed(2) + 'M'
+        : Math.round(total / 1000) + 'k';
+    }
+  });
+
+  wireMode();
+  wireRange();
+  wireForm();
+  wireFilter();
+  wireExport();
+  applyModeUI();
+  // Pull query from URL so the page is deep-linkable.
+  const params = new URLSearchParams(location.search);
+  const tag = params.get('tag');
+  const q = params.get('q');
+  const from = parseInt(params.get('from'));
+  const to = parseInt(params.get('to'));
+  if (from) { yearFromInp.value = from; }
+  if (to) { yearToInp.value = to; }
+  updateYearDisplay();
+  if (tag) {
+    setMode('tags');
+    await loadCatalogIfNeeded();
+    const t = state.tagCatalog.find(x => x.id === tag);
+    inputEl.value = t?.name || tag;
+    inputEl.dataset.tagId = tag;
+    runDeepDive();
+  } else if (q) {
+    setMode('words');
+    inputEl.value = q;
+    runDeepDive();
+  }
+})();
+
+// ───────────────── Mode ─────────────────
+function wireMode() {
+  modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+}
+function setMode(mode) {
+  state.mode = mode;
+  modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  applyModeUI();
+  delete inputEl.dataset.tagId;
+  inputEl.value = '';
+}
+async function applyModeUI() {
+  if (state.mode === 'tags') {
+    labelEl.textContent = 'Search a tag';
+    inputEl.placeholder = 'e.g. donald trump, climate crisis…';
+    await loadCatalogIfNeeded();
+    attachSimpleAutocomplete(inputEl);
+  } else {
+    labelEl.textContent = 'Search headlines for a word';
+    inputEl.placeholder = 'e.g. starmer, inflation…';
+    detachAutocomplete(inputEl);
+  }
+}
+
+async function loadCatalogIfNeeded() {
+  if (!state.tagCatalog) state.tagCatalog = await loadTagCatalog();
+}
+
+// Lightweight autocomplete (reuses the same dropdown CSS as Trends).
+let _acDropdown = null;
+function attachSimpleAutocomplete(inp) {
+  detachAutocomplete(inp);
+  const dropdown = document.createElement('ul');
+  dropdown.className = 'ac-dropdown';
+  dropdown.hidden = true;
+  inp.parentElement.style.position = 'relative';
+  inp.parentElement.appendChild(dropdown);
+  _acDropdown = dropdown;
+
+  const render = () => {
+    const q = inp.value.trim().toLowerCase();
+    if (!q) { dropdown.hidden = true; return; }
+    const matches = [];
+    for (const t of state.tagCatalog) {
+      if (t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)) {
+        matches.push(t);
+        if (matches.length >= 8) break;
+      }
+    }
+    if (!matches.length) { dropdown.hidden = true; return; }
+    dropdown.innerHTML = matches.map(t => `
+      <li class="ac-item" data-id="${t.id}" data-name="${escapeAttr(t.name)}">
+        <span class="ac-name">${escapeHtml(t.name)}</span>
+        <span class="ac-slug">${escapeHtml(t.id)}</span>
+        <span class="ac-count">${(t.n || 0).toLocaleString('en-GB')}</span>
+      </li>`).join('');
+    dropdown.hidden = false;
+  };
+  const onInput = () => render();
+  const onClick = (e) => {
+    const li = e.target.closest('.ac-item');
+    if (!li) return;
+    inp.value = li.dataset.name;
+    inp.dataset.tagId = li.dataset.id;
+    dropdown.hidden = true;
+  };
+  const onBlur = () => setTimeout(() => { dropdown.hidden = true; }, 200);
+  const onFocus = () => render();
+  inp.addEventListener('input', onInput);
+  dropdown.addEventListener('mousedown', onClick);
+  inp.addEventListener('blur', onBlur);
+  inp.addEventListener('focus', onFocus);
+  inp._acCleanup = () => {
+    inp.removeEventListener('input', onInput);
+    inp.removeEventListener('blur', onBlur);
+    inp.removeEventListener('focus', onFocus);
+    dropdown.remove();
+    _acDropdown = null;
+  };
+}
+function detachAutocomplete(inp) {
+  if (inp._acCleanup) { inp._acCleanup(); delete inp._acCleanup; }
+}
+
+// ───────────────── Year range ─────────────────
+function wireRange() {
+  const onInput = () => {
+    let from = parseInt(yearFromInp.value);
+    let to = parseInt(yearToInp.value);
+    if (from > to) [from, to] = [to, from];
+    state.yearFrom = from;
+    state.yearTo = to;
+    updateYearDisplay();
+  };
+  yearFromInp.addEventListener('input', onInput);
+  yearToInp.addEventListener('input', onInput);
+}
+function updateYearDisplay() {
+  const min = parseInt(yearFromInp.min), max = parseInt(yearFromInp.max);
+  const span = Math.max(1, max - min);
+  const fromPct = ((parseInt(yearFromInp.value) - min) / span) * 100;
+  const toPct = ((parseInt(yearToInp.value) - min) / span) * 100;
+  rangeFill.style.left = fromPct + '%';
+  rangeFill.style.right = (100 - toPct) + '%';
+  yearFromDisp.textContent = yearFromInp.value;
+  yearToDisp.textContent = yearToInp.value;
+  state.yearFrom = parseInt(yearFromInp.value);
+  state.yearTo = parseInt(yearToInp.value);
+}
+
+// ───────────────── Form ─────────────────
+function wireForm() {
+  formEl.addEventListener('submit', (e) => { e.preventDefault(); runDeepDive(); });
+  clearEl.addEventListener('click', () => {
+    inputEl.value = '';
+    delete inputEl.dataset.tagId;
+    state.query = null;
+    state.headlines = [];
+    state.cotags.clear();
+    summaryEl.hidden = true;
+    bodyEl.hidden = true;
+    promptEl.hidden = false;
+    state.cancelToken++;
+    history.replaceState(null, '', location.pathname);
+  });
+}
+
+function wireFilter() {
+  filterEl.addEventListener('input', () => renderHeadlines());
+}
+function wireExport() {
+  exportEl.addEventListener('click', () => exportCsv());
+}
+
+// ───────────────── Run ─────────────────
+async function runDeepDive() {
+  // Determine the query.
+  if (state.mode === 'tags') {
+    const tagId = inputEl.dataset.tagId;
+    if (!tagId) {
+      // Accept a typed label that matches a catalog name exactly.
+      await loadCatalogIfNeeded();
+      const match = state.tagCatalog.find(t =>
+        t.name.toLowerCase() === inputEl.value.trim().toLowerCase() ||
+        t.id.toLowerCase() === inputEl.value.trim().toLowerCase()
+      );
+      if (!match) { flashError('Pick a tag from the suggestions.'); return; }
+      inputEl.dataset.tagId = match.id;
+      inputEl.value = match.name;
+    }
+    state.query = { kind: 'tag', id: inputEl.dataset.tagId, label: inputEl.value.trim() };
+  } else {
+    const term = inputEl.value.trim();
+    if (!term) { flashError('Type a word.'); return; }
+    state.query = { kind: 'word', term, label: term };
+  }
+
+  // Reset state for a new run.
+  state.cancelToken++;
+  const myToken = state.cancelToken;
+  state.headlines = [];
+  state.cotags.clear();
+  promptEl.hidden = true;
+  summaryEl.hidden = false;
+  bodyEl.hidden = false;
+  headlinesEl.innerHTML = '';
+  cotagsEl.innerHTML = '';
+  listCountEl.textContent = '';
+
+  // Update URL for deep-linking.
+  const p = new URLSearchParams();
+  if (state.query.kind === 'tag') p.set('tag', state.query.id);
+  else p.set('q', state.query.term);
+  p.set('from', state.yearFrom);
+  p.set('to', state.yearTo);
+  history.replaceState(null, '', `?${p.toString()}`);
+
+  // ─── Instant summary ───
+  await renderInstantSummary();
+  if (myToken !== state.cancelToken) return;
+
+  // ─── Progressive stream ───
+  await streamHeadlines(myToken);
+}
+
+function flashError(msg) {
+  progressEl.textContent = msg;
+  progressEl.style.color = 'var(--news-red)';
+  setTimeout(() => { progressEl.style.color = ''; progressEl.textContent = ''; }, 2200);
+}
+
+// ───────────────── Instant summary (no shard I/O) ─────────────────
+async function renderInstantSummary() {
+  const { kind, id, term, label } = state.query;
+  const [idx, sections] = await Promise.all([
+    kind === 'tag' ? loadTagIndex('monthly') : loadIndex('monthly'),
+    loadSections(),
+  ]);
+  const buckets = idx.buckets;
+  const table = kind === 'tag' ? idx.tags : idx.terms;
+  const key = kind === 'tag' ? id : normaliseWord(term);
+  const counts = table[key] || new Array(buckets.length).fill(0);
+
+  // Clip to year range.
+  const keep = [], months = [], vals = [];
+  for (let i = 0; i < buckets.length; i++) {
+    const y = parseInt(buckets[i].slice(0, 4));
+    if (y >= state.yearFrom && y <= state.yearTo) {
+      keep.push(i);
+      months.push(buckets[i]);
+      vals.push(counts[i]);
+    }
+  }
+
+  const total = vals.reduce((a, b) => a + b, 0);
+  let peakIdx = 0;
+  for (let i = 1; i < vals.length; i++) if (vals[i] > vals[peakIdx]) peakIdx = i;
+  let firstIdx = vals.findIndex(v => v > 0);
+  let lastIdx = vals.length - 1;
+  while (lastIdx >= 0 && vals[lastIdx] === 0) lastIdx--;
+
+  headlineEl.textContent = `${label} in Guardian headlines`;
+  subEl.textContent = `${state.yearFrom}–${state.yearTo} · ${kind === 'tag' ? 'tag' : 'headline word'}`;
+  statTotal.textContent = total.toLocaleString('en-GB');
+  statPeak.textContent = peakIdx >= 0 && vals[peakIdx] > 0 ? formatMonth(months[peakIdx]) : '—';
+  statFirst.textContent = firstIdx >= 0 ? formatMonth(months[firstIdx]) : '—';
+  statLast.textContent = lastIdx >= 0 && vals[lastIdx] > 0 ? formatMonth(months[lastIdx]) : '—';
+
+  // If the term isn't in the top-5000 index it's still searchable via
+  // shards; flag that the summary's about-to-be-filled-in.
+  if (kind === 'word' && !table[key]) {
+    statTotal.textContent = '…';
+    statPeak.textContent = '…';
+  }
+
+  drawSparkline(sparkEl, vals, peakIdx);
+  renderSectionMix(sections, months);
+}
+
+function renderSectionMix(sections, months) {
+  // Sum per-section counts across the chosen year range, using the
+  // existing sections.json totals — not yet filtered to the topic.
+  // Once shards start landing we recompute this for just the matched
+  // articles (a more accurate picture). See streamHeadlines.
+  const idx = new Map(sections.months.map((m, i) => [m, i]));
+  const totals = {};
+  for (const m of months) {
+    const i = idx.get(m);
+    if (i == null) continue;
+    for (const [id, arr] of Object.entries(sections.sections)) {
+      totals[id] = (totals[id] || 0) + (arr[i] || 0);
+    }
+  }
+  drawSectionBreakdown(totals);
+}
+
+function drawSectionBreakdown(totals) {
+  const rows = Object.entries(totals)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  const max = rows[0]?.[1] || 1;
+  const grand = rows.reduce((a, [, n]) => a + n, 0);
+  sectionsEl.innerHTML = rows.map(([id, n]) => {
+    const pct = grand > 0 ? (n / grand) * 100 : 0;
+    const fill = (n / max) * 100;
+    return `<div class="breakdown-row">
+      <div class="name">${escapeHtml(sectionLabel(id))}</div>
+      <div class="bar-track"><div class="bar-fill" style="background:${sectionColor(id)};width:${fill.toFixed(1)}%"></div></div>
+      <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
+    </div>`;
+  }).join('') || `<p class="dd-empty">No section data in this range.</p>`;
+}
+
+// ───────────────── Headline stream ─────────────────
+async function streamHeadlines(myToken) {
+  const months = monthsInRange(state.yearFrom, state.yearTo);
+  const matcher = state.query.kind === 'word'
+    ? makeWordMatcher(state.query.term)
+    : null;
+  const tagId = state.query.kind === 'tag' ? state.query.id : null;
+
+  // Newest-first so the most recent headlines show up first.
+  months.reverse();
+  const CONCURRENCY = 4;
+  let loaded = 0;
+  let perSectionActual = {};
+
+  // Helper to process one shard's matching headlines.
+  const processShard = async (month) => {
+    if (myToken !== state.cancelToken) return;
+    try {
+      const shard = await loadShard(month);
+      if (myToken !== state.cancelToken) return;
+      for (const h of shard.headlines) {
+        const hit = tagId
+          ? (h.g || []).includes(tagId)
+          : matcher(h.t || '');
+        if (!hit) continue;
+        state.headlines.push(h);
+        perSectionActual[h.s] = (perSectionActual[h.s] || 0) + 1;
+        if (h.g) for (const g of h.g) {
+          if (g === tagId) continue;
+          if (!isUsefulTag(g)) continue;
+          state.cotags.set(g, (state.cotags.get(g) || 0) + 1);
+        }
+      }
+    } catch (_) { /* missing shards in gap months — silently skip */ }
+    loaded++;
+    progressEl.textContent = `Loaded ${loaded} / ${months.length} months · ${state.headlines.length.toLocaleString('en-GB')} headlines so far`;
+    // Sort newest-first as we go — shards arrive out of order with concurrency.
+    state.headlines.sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+    renderHeadlines();
+    renderCotags();
+    // Recompute actual section mix from matched articles rather than
+    // whole-month totals once we have enough data.
+    if (state.headlines.length > 20) drawSectionBreakdown(perSectionActual);
+  };
+
+  // Simple worker pool.
+  const queue = [...months];
+  const workers = [];
+  for (let i = 0; i < CONCURRENCY; i++) {
+    workers.push((async () => {
+      while (queue.length && myToken === state.cancelToken) {
+        const m = queue.shift();
+        await processShard(m);
+      }
+    })());
+  }
+  await Promise.all(workers);
+  if (myToken !== state.cancelToken) return;
+
+  progressEl.textContent = `Loaded ${loaded} months · ${state.headlines.length.toLocaleString('en-GB')} headlines total`;
+  // Final actual-section-mix swap.
+  drawSectionBreakdown(perSectionActual);
+}
+
+// ───────────────── Render: headlines + cotags ─────────────────
+function renderHeadlines() {
+  const filter = filterEl.value.trim().toLowerCase();
+  const filtered = filter
+    ? state.headlines.filter(h => (h.t || '').toLowerCase().includes(filter))
+    : state.headlines;
+
+  listCountEl.textContent = `· ${filtered.length.toLocaleString('en-GB')}${filter ? ' matching' : ''}`;
+
+  // Simple cap on rendered rows for performance — 500 visible is plenty
+  // for a scan; the full set is available via CSV.
+  const MAX_RENDER = 500;
+  const slice = filtered.slice(0, MAX_RENDER);
+  const overflow = filtered.length - slice.length;
+
+  headlinesEl.innerHTML = slice.map(h => {
+    const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
+    const date = formatDate(h.d);
+    const section = sectionLabel(h.s);
+    const title = escapeHtml(h.t || '(untitled)');
+    return `<article class="dd-h">
+      <p class="hl-meta">${escapeHtml(section)} · ${date}</p>
+      ${url
+        ? `<a class="dd-h-title" href="${escapeAttr(url)}" target="_blank" rel="noopener">${title}</a>`
+        : `<span class="dd-h-title">${title}</span>`}
+    </article>`;
+  }).join('');
+  if (overflow > 0) {
+    headlinesEl.innerHTML += `<p class="dd-overflow">Showing the first ${MAX_RENDER.toLocaleString('en-GB')} · ${overflow.toLocaleString('en-GB')} more available via export.</p>`;
+  }
+}
+
+function renderCotags() {
+  const top = [...state.cotags.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  const totalMatched = state.headlines.length || 1;
+  const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
+  cotagsEl.innerHTML = top.map(([id, n]) => {
+    const pct = (n / totalMatched) * 100;
+    const name = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
+    return `<li data-id="${escapeAttr(id)}">
+      <span class="rising-label">${escapeHtml(name)}</span>
+      <span class="rising-jump">${pct.toFixed(0)}%</span>
+    </li>`;
+  }).join('');
+}
+
+// Click a co-tag row to re-run the dive on that tag.
+cotagsEl.addEventListener('click', async (e) => {
+  const li = e.target.closest('li[data-id]');
+  if (!li) return;
+  const id = li.dataset.id;
+  setMode('tags');
+  await loadCatalogIfNeeded();
+  const t = state.tagCatalog.find(x => x.id === id);
+  inputEl.value = t?.name || id;
+  inputEl.dataset.tagId = id;
+  runDeepDive();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ───────────────── CSV export ─────────────────
+function exportCsv() {
+  if (!state.headlines.length) return;
+  const filter = filterEl.value.trim().toLowerCase();
+  const rows = filter
+    ? state.headlines.filter(h => (h.t || '').toLowerCase().includes(filter))
+    : state.headlines;
+  const head = ['date', 'section', 'headline', 'tags', 'url'];
+  const lines = [head.join(',')];
+  for (const h of rows) {
+    const url = h.u ? `https://www.theguardian.com/${h.u}` : '';
+    const tags = (h.g || []).join('|');
+    lines.push([
+      csv(h.d || ''),
+      csv(sectionLabel(h.s || '')),
+      csv(h.t || ''),
+      csv(tags),
+      csv(url),
+    ].join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const slug = (state.query.label || 'deep-dive')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  a.download = `guardian-angles-${slug}-${state.yearFrom}-${state.yearTo}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ───────────────── Sparkline ─────────────────
+function drawSparkline(canvas, counts, highlightIdx) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if (W === 0 || H === 0) return;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (!counts.length) return;
+
+  const max = Math.max(1, ...counts);
+  const pad = 4;
+  const yFor = (c) => H - pad - (c / max) * (H - pad * 2);
+  const xFor = (i) => (i / Math.max(1, counts.length - 1)) * W;
+
+  // Area fill
+  ctx.beginPath();
+  for (let i = 0; i < counts.length; i++) {
+    const x = xFor(i), y = yFor(counts[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = 'rgba(5, 41, 98, 0.12)';
+  ctx.fill();
+  // Line
+  ctx.beginPath();
+  for (let i = 0; i < counts.length; i++) {
+    const x = xFor(i), y = yFor(counts[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#052962';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Highlight peak
+  if (highlightIdx >= 0 && counts[highlightIdx] > 0) {
+    const hx = xFor(highlightIdx), hy = yFor(counts[highlightIdx]);
+    ctx.fillStyle = '#C70000';
+    ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ───────────────── Helpers ─────────────────
+function monthsInRange(from, to) {
+  const out = [];
+  for (let y = from; y <= to; y++) {
+    for (let m = 1; m <= 12; m++) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`);
+    }
+  }
+  return out;
+}
+function formatMonth(bucket) {
+  const m = bucket.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return bucket;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, 1))
+    .toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+function formatDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function normaliseWord(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function csv(v) {
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
