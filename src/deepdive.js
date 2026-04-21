@@ -494,7 +494,8 @@ function dispatchCard(h) {
   const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
   const date = formatFullDate((h.d || '').slice(0, 10));
   const section = sectionLabel(h.s || '');
-  const title = escapeHtml(h.t || '(untitled)');
+  const term = state.query.kind === 'word' ? state.query.term : null;
+  const title = highlightHeadline(h.t || '(untitled)', term);
   return `<p class="hl-meta">${escapeHtml(section)} · ${date}</p>
     ${url
       ? `<a class="dd-dispatch-title" href="${escapeAttr(url)}" target="_blank" rel="noopener">${title}</a>`
@@ -566,12 +567,13 @@ function renderPeakDrill() {
     .filter(h => (h.d || '').slice(0, 7) === state.peakMonth)
     .sort((a, b) => (b.d || '').localeCompare(a.d || ''));
   peakLabel.textContent = `Headlines from ${formatMonth(state.peakMonth)} · ${monthHeadlines.length.toLocaleString('en-GB')} total`;
+  const term = state.query.kind === 'word' ? state.query.term : null;
   const top = monthHeadlines.slice(0, 12);
   peakList.innerHTML = top.map(h => {
     const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
     const date = formatFullDate((h.d || '').slice(0, 10));
     const section = sectionLabel(h.s || '');
-    const title = escapeHtml(h.t || '(untitled)');
+    const title = highlightHeadline(h.t || '(untitled)', term);
     return `<li>
       <p class="hl-meta">${escapeHtml(section)} · ${date}</p>
       ${url
@@ -700,11 +702,12 @@ function renderHeadlines() {
   const slice = filtered.slice(0, MAX_RENDER);
   const overflow = filtered.length - slice.length;
 
+  const term = state.query.kind === 'word' ? state.query.term : null;
   headlinesEl.innerHTML = slice.map(h => {
     const url = h.u ? `https://www.theguardian.com/${h.u}` : null;
     const date = formatDate(h.d);
     const section = sectionLabel(h.s);
-    const title = escapeHtml(h.t || '(untitled)');
+    const title = highlightHeadline(h.t || '(untitled)', term);
     return `<article class="dd-h">
       <p class="hl-meta">${escapeHtml(section)} · ${date}</p>
       ${url
@@ -861,3 +864,29 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+// Produce HTML for a headline with the search term wrapped in <mark>.
+// Matches the Trends headline-list highlight: full-word match for
+// single-word terms (plus optional possessive "s"), substring match
+// for multi-word phrases. Tag-mode queries get no highlighting — the
+// tag id doesn't map cleanly to headline words. Safe against HTML
+// injection because we escape around the matches.
+function highlightHeadline(text, term) {
+  const safe = escapeHtml(text || '');
+  if (!term) return safe;
+  const needle = term.trim().toLowerCase();
+  if (!needle) return safe;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = /\s/.test(needle)
+    ? new RegExp(escaped, 'gi')
+    : new RegExp(`\\b${escaped}(?:'s)?\\b`, 'gi');
+  const src = text || '';
+  let out = '', last = 0;
+  for (const m of src.matchAll(re)) {
+    out += escapeHtml(src.slice(last, m.index));
+    out += '<mark>' + escapeHtml(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  out += escapeHtml(src.slice(last));
+  return out;
+}
