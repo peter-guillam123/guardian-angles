@@ -1110,7 +1110,10 @@ a.hl-text:hover {
   color: var(--guardian-blue);
 }
 
-.hl-text mark {
+.hl-text mark,
+.dd-h-title mark,
+.dd-dispatch-title mark,
+.dd-peak-title mark {
   background: #FFE500;
   color: inherit;
   padding: 0 1px;
