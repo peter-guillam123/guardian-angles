@@ -79,6 +79,8 @@ const statBig = document.getElementById('stat-big');
 const heatmapEl = document.getElementById('dd-heatmap');
 const dispatchesEl = document.getElementById('dd-dispatches');
 const dispatchFirstEl = document.querySelector('#dd-dispatch-first .dd-dispatch-body');
+const dispatchPeakEl = document.querySelector('#dd-dispatch-peak .dd-dispatch-body');
+const dispatchPeakLabel = document.getElementById('dd-dispatch-peak-label');
 const dispatchLatestEl = document.querySelector('#dd-dispatch-latest .dd-dispatch-body');
 const peakBtn = document.getElementById('dd-stat-peak-btn');
 const peakDrill = document.getElementById('dd-peak-drill');
@@ -303,6 +305,7 @@ async function runDeepDive() {
   wordsEl.innerHTML = '';
   dispatchesEl.hidden = true;
   dispatchFirstEl.innerHTML = '';
+  dispatchPeakEl.innerHTML = '';
   dispatchLatestEl.innerHTML = '';
   heatmapEl.innerHTML = '';
   peakDrill.hidden = true;
@@ -524,14 +527,35 @@ function renderWords() {
   }).join('') || '<li class="rising-loading">(need more headlines)</li>';
 }
 
-// ───────────────── First / latest dispatch cards ─────────────────
+// ───────────────── First / peak / latest dispatch cards ─────────────────
 function renderDispatches() {
   if (!state.headlines.length) return;
-  // state.headlines is kept sorted newest-first in processShard.
+  // state.headlines is sorted newest-first in scheduleRender.
   const latest = state.headlines[0];
   const first = state.headlines[state.headlines.length - 1];
   dispatchFirstEl.innerHTML = dispatchCard(first);
   dispatchLatestEl.innerHTML = dispatchCard(latest);
+
+  // Peak card: pick the headline from the peak month. Prefer the
+  // middle article chronologically within that month — it tends to
+  // be the representative piece rather than a news-lead or a
+  // follow-up. Falls back to whatever we have if only one match sits
+  // in the peak month.
+  if (state.peakMonth) {
+    const peakHeadlines = state.headlines.filter(
+      h => (h.d || '').slice(0, 7) === state.peakMonth
+    );
+    if (peakHeadlines.length) {
+      const pick = peakHeadlines[Math.floor(peakHeadlines.length / 2)];
+      dispatchPeakEl.innerHTML = dispatchCard(pick);
+      dispatchPeakLabel.textContent =
+        `From the peak · ${formatMonth(state.peakMonth)}`;
+    } else {
+      dispatchPeakEl.innerHTML = '';
+    }
+  } else {
+    dispatchPeakEl.innerHTML = '';
+  }
   dispatchesEl.hidden = false;
 }
 function dispatchCard(h) {
@@ -671,7 +695,17 @@ async function streamHeadlines(myToken) {
     try {
       const shard = await loadShard(month);
       if (myToken !== state.cancelToken) return;
-      const queryWord = state.query.kind === 'word' ? state.query.term.toLowerCase() : null;
+      // Tokens to strip from the word-frequency list — the query
+       // itself is noise. For a "peter mandelson" word search the
+       // raw term is the whole phrase, so we tokenise it to get
+       // ["peter", "mandelson"] and exclude both. For tag mode we
+       // use the tag's display name ("Climate crisis" → ["climate",
+       // "crisis"]) — that's typically what the headline copy will
+       // echo, so the frequency list is more editorially useful
+       // without it.
+      const queryTokens = state.query.kind === 'word'
+        ? new Set(tokenise(state.query.term))
+        : new Set(tokenise(state.query.label || ''));
       for (const h of shard.headlines) {
         const hit = tagId
           ? (h.g || []).includes(tagId)
@@ -695,7 +729,7 @@ async function streamHeadlines(myToken) {
         const seen = new Set();
         for (const w of tokenise(h.t || '')) {
           if (STOPWORDS.has(w)) continue;
-          if (queryWord && w === queryWord) continue;
+          if (queryTokens.has(w)) continue;
           if (seen.has(w)) continue;
           seen.add(w);
           state.words.set(w, (state.words.get(w) || 0) + 1);
