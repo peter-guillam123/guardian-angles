@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Guardian Angles OG image · OG1 from the Claude Design brand explorations.
+       Front-page chart composition: title block top-left, stat block top-right,
+       four weaving series across the lower half on newsprint paper, yellow axis.
+       Paths are deterministic (seeded) from the design source. -->
+
+  <rect width="1200" height="630" fill="#F4EFE6"/>
+
+  <!-- top masthead rule -->
+  <rect x="0" y="0" width="1200" height="8" fill="#052962"/>
+
+  <!-- faint newsprint grid -->
+  <g opacity="0.06" stroke="#121212" stroke-width="1">
+    <line x1="100"  y1="0" x2="100"  y2="630"/>
+    <line x1="200"  y1="0" x2="200"  y2="630"/>
+    <line x1="300"  y1="0" x2="300"  y2="630"/>
+    <line x1="400"  y1="0" x2="400"  y2="630"/>
+    <line x1="500"  y1="0" x2="500"  y2="630"/>
+    <line x1="600"  y1="0" x2="600"  y2="630"/>
+    <line x1="700"  y1="0" x2="700"  y2="630"/>
+    <line x1="800"  y1="0" x2="800"  y2="630"/>
+    <line x1="900"  y1="0" x2="900"  y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+    <line x1="1100" y1="0" x2="1100" y2="630"/>
+    <line x1="1200" y1="0" x2="1200" y2="630"/>
+  </g>
+
+  <!-- four series, lower half -->
+  <g fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="#052962" opacity="0.95" d="M 80.00 458.59 C 92.38 462.72, 129.52 484.66, 154.29 483.36 C 179.05 482.07, 203.81 456.15, 228.57 450.84 C 253.33 445.53, 278.10 448.17, 302.86 451.51 C 327.62 454.84, 352.38 460.94, 377.14 470.86 C 401.90 480.78, 426.67 513.20, 451.43 511.04 C 476.19 508.88, 500.95 467.65, 525.71 457.90 C 550.48 448.15, 575.24 449.64, 600.00 452.53 C 624.76 455.42, 649.52 478.17, 674.29 475.24 C 699.05 472.31, 723.81 437.18, 748.57 434.96 C 773.33 432.73, 798.10 452.29, 822.86 461.91 C 847.62 471.53, 872.38 483.60, 897.14 492.67 C 921.90 501.74, 946.67 516.26, 971.43 516.33 C 996.19 516.40, 1020.95 499.84, 1045.71 493.08 C 1070.48 486.33, 1107.62 478.70, 1120.00 475.82"/>
+    <path stroke="#C70000" opacity="0.85" d="M 80.00 402.15 C 92.38 408.95, 129.52 440.22, 154.29 442.93 C 179.05 445.64, 203.81 415.24, 228.57 418.42 C 253.33 421.60, 278.10 461.88, 302.86 462.03 C 327.62 462.18, 352.38 415.39, 377.14 419.34 C 401.90 423.29, 426.67 476.81, 451.43 485.74 C 476.19 494.68, 500.95 474.82, 525.71 472.95 C 550.48 471.07, 575.24 485.15, 600.00 474.47 C 624.76 463.78, 649.52 425.88, 674.29 408.84 C 699.05 391.79, 723.81 378.12, 748.57 372.21 C 773.33 366.30, 798.10 372.59, 822.86 373.38 C 847.62 374.18, 872.38 371.82, 897.14 376.96 C 921.90 382.10, 946.67 393.60, 971.43 404.22 C 996.19 414.84, 1020.95 427.08, 1045.71 440.66 C 1070.48 454.23, 1107.62 478.17, 1120.00 485.67"/>
+    <path stroke="#12862F" opacity="0.85" d="M 80.00 482.81 C 92.38 491.34, 129.52 527.70, 154.29 534.03 C 179.05 540.36, 203.81 523.94, 228.57 520.77 C 253.33 517.60, 278.10 520.88, 302.86 514.99 C 327.62 509.10, 352.38 490.96, 377.14 485.41 C 401.90 479.87, 426.67 477.82, 451.43 481.71 C 476.19 485.60, 500.95 502.06, 525.71 508.75 C 550.48 515.43, 575.24 516.37, 600.00 521.81 C 624.76 527.25, 649.52 540.68, 674.29 541.38 C 699.05 542.09, 723.81 531.75, 748.57 526.05 C 773.33 520.34, 798.10 514.51, 822.86 507.16 C 847.62 499.81, 872.38 483.42, 897.14 481.94 C 921.90 480.45, 946.67 495.11, 971.43 498.24 C 996.19 501.36, 1020.95 497.91, 1045.71 500.68 C 1070.48 503.44, 1107.62 512.48, 1120.00 514.84"/>
+    <path stroke="#7D0068" opacity="0.85" d="M 80.00 562.56 C 92.38 560.49, 129.52 549.89, 154.29 550.14 C 179.05 550.39, 203.81 566.81, 228.57 564.03 C 253.33 561.25, 278.10 535.88, 302.86 533.46 C 327.62 531.03, 352.38 544.91, 377.14 549.48 C 401.90 554.05, 426.67 554.11, 451.43 560.87 C 476.19 567.63, 500.95 588.89, 525.71 590.03 C 550.48 591.18, 575.24 571.74, 600.00 567.74 C 624.76 563.73, 649.52 572.39, 674.29 565.99 C 699.05 559.58, 723.81 536.08, 748.57 529.30 C 773.33 522.51, 798.10 520.85, 822.86 525.28 C 847.62 529.70, 872.38 555.05, 897.14 555.87 C 921.90 556.70, 946.67 526.32, 971.43 530.23 C 996.19 534.15, 1020.95 572.40, 1045.71 579.38 C 1070.48 586.36, 1107.62 573.33, 1120.00 572.12"/>
+  </g>
+
+  <!-- yellow baseline / axis -->
+  <rect x="80" y="598" width="1040" height="4" fill="#FFE500"/>
+
+  <!-- axis ticks -->
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#746d61">
+    <text x="80"   y="620" text-anchor="start">2015</text>
+    <text x="600"  y="620" text-anchor="middle">2020</text>
+    <text x="1120" y="620" text-anchor="end">2025</text>
+  </g>
+
+  <!-- title block (left) -->
+  <g font-family="'GH Guardian Headline', 'Guardian Egyptian Web', Georgia, serif" fill="#052962">
+    <text x="80" y="150" font-weight="700" font-size="96" letter-spacing="-3">Guardian</text>
+    <text x="80" y="240" font-weight="700" font-style="italic" font-size="96" letter-spacing="-3">Angles</text>
+  </g>
+  <rect x="80" y="262" width="260" height="6" fill="#FFE500"/>
+  <g font-family="'GH Guardian Headline', Georgia, serif" fill="#121212" font-size="26">
+    <text x="80" y="312">How often has the Guardian written about</text>
+    <text x="80" y="346">your topic — and from which <tspan font-style="italic">angle?</tspan></text>
+  </g>
+
+  <!-- stat block (right) -->
+  <g>
+    <text x="1120" y="150" text-anchor="end"
+          font-family="'GH Guardian Headline', Georgia, serif"
+          font-weight="700" font-size="88" fill="#121212" letter-spacing="-2">1M+</text>
+    <text x="1120" y="182" text-anchor="end"
+          font-family="'Guardian Sans', system-ui, sans-serif"
+          font-size="15" fill="#746d61" letter-spacing="1.2">HEADLINES INDEXED</text>
+    <text x="1120" y="214" text-anchor="end"
+          font-family="'Guardian Sans', system-ui, sans-serif"
+          font-size="15" fill="#746d61" letter-spacing="1.2">A DECADE · FOUR SECTIONS</text>
+  </g>
+</svg>
