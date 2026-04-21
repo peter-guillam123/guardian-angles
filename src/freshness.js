@@ -33,6 +33,18 @@
     el.innerHTML =
       `<span class="freshness-dot" aria-hidden="true"></span>` +
       `updated <time datetime="${meta.built_at}" title="${exact}">${label}</time>`;
+
+    // On pages that don't run main.js / newsroom.js / thisweek.js
+    // (About, Subjects), also populate the big headline count from
+    // meta so it doesn't go stale. Safe no-op if the element's
+    // absent or a page-specific script already set it.
+    const big = document.getElementById('stat-big');
+    if (big && meta.total_headlines && /^[—\-]$|^\s*$/.test(big.textContent)) {
+      const n = meta.total_headlines;
+      big.textContent = n >= 1_000_000
+        ? (n / 1_000_000).toFixed(2) + 'M'
+        : Math.round(n / 1000) + 'k';
+    }
   } catch (e) {
     // Silent — just leave the element empty
   }
