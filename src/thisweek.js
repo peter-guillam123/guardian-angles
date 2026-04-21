@@ -323,42 +323,65 @@ function drawSparkline(canvas, counts, highlightIdx) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   const W = rect.width, H = rect.height;
+  // If the canvas hasn't laid out yet (0 width) or we have no data,
+  // bail rather than leave stale paint from a previous week.
+  if (W === 0 || H === 0 || !counts || !counts.length) {
+    canvas.width = 0; canvas.height = 0;
+    return;
+  }
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
 
   const n = counts.length;
   const max = Math.max(...counts, 1);
   const pad = 4;
+  // A vertical axis mark on the highlighted week so you can always see
+  // *where you are* in history, even when the tag's value is tiny at
+  // that week relative to its all-time peak (which is the case for any
+  // tag picked as "biggest" in an older week whose peak is now).
+  const hx = (highlightIdx / Math.max(1, n - 1)) * W;
+  ctx.strokeStyle = 'rgba(199, 0, 0, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(hx, pad); ctx.lineTo(hx, H - pad);
+  ctx.stroke();
+
+  // Map a count to y. Tiny values get lifted off the axis so the shape
+  // is still legible when the whole series is dwarfed by one peak.
+  const MIN_LIFT = 0.5; // px above the baseline for any non-zero count
+  const yFor = (c) => {
+    const raw = (c / max) * (H - pad * 2);
+    const lifted = c > 0 ? Math.max(raw, MIN_LIFT) : 0;
+    return H - pad - lifted;
+  };
 
   // Area fill
   ctx.beginPath();
   for (let i = 0; i < n; i++) {
     const x = (i / (n - 1)) * W;
-    const y = H - pad - (counts[i] / max) * (H - pad * 2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, yFor(counts[i])); else ctx.lineTo(x, yFor(counts[i]));
   }
   ctx.lineTo(W, H);
   ctx.lineTo(0, H);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(5, 41, 98, 0.08)';
+  ctx.fillStyle = 'rgba(5, 41, 98, 0.14)';
   ctx.fill();
 
   // Line
   ctx.beginPath();
   for (let i = 0; i < n; i++) {
     const x = (i / (n - 1)) * W;
-    const y = H - pad - (counts[i] / max) * (H - pad * 2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, yFor(counts[i])); else ctx.lineTo(x, yFor(counts[i]));
   }
   ctx.strokeStyle = '#052962';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Highlight dot
-  const hx = (highlightIdx / (n - 1)) * W;
-  const hy = H - pad - (counts[highlightIdx] / max) * (H - pad * 2);
+  // Highlight dot — sits on the curve at the current week.
+  const hy = yFor(counts[highlightIdx]);
   ctx.fillStyle = '#C70000';
   ctx.beginPath();
   ctx.arc(hx, hy, 4, 0, Math.PI * 2);
