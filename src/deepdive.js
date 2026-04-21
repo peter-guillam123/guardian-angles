@@ -291,6 +291,10 @@ async function runDeepDive() {
   state.words.clear();
   state.peakMonth = null;
   state.peakExpanded = false;
+  state._streamDone = false;
+  state._perSectionActual = null;
+  _renderTick = 0;
+  _lastHeatmapTick = 0;
   promptEl.hidden = true;
   summaryEl.hidden = false;
   bodyEl.hidden = false;
@@ -461,6 +465,47 @@ function drawSectionBreakdown(totals) {
       <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
     </div>`;
   }).join('') || `<p class="dd-empty">No section data in this range.</p>`;
+}
+
+// ───────────────── Render scheduling ─────────────────
+// One animation-frame-coalesced render pass is WAY cheaper than
+// re-rendering every single block on every single shard completion.
+// Especially the heatmap (795 cells) and the headline list (up to
+// 500 DOM nodes) — rebuilding both dozens of times per second was
+// the thing bringing iOS Chrome down.
+let _pendingRender = false;
+let _renderTick = 0;
+let _lastHeatmapTick = 0;
+
+function scheduleRender() {
+  if (_pendingRender) return;
+  _pendingRender = true;
+  requestAnimationFrame(() => {
+    _pendingRender = false;
+    _renderTick++;
+
+    // Sort once per render pass, not once per shard. Shards arrive
+    // out of order because we load four in parallel; the sort was
+    // previously O(n log n) per shard, O(n² log n) overall.
+    state.headlines.sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+
+    renderHeadlines();
+    renderCotags();
+    renderWords();
+    renderDispatches();
+    updateSummaryFromHeadlines();
+    if (state._perSectionActual && state.headlines.length > 20) {
+      drawSectionBreakdown(state._perSectionActual);
+    }
+    // The heatmap is the heaviest block (795 inline-styled spans).
+    // Only rebuild it every ~6th render tick, unless it's the final
+    // pass — user still sees it filling in, but we're not murdering
+    // the DOM every frame.
+    if (_renderTick - _lastHeatmapTick >= 6 || state._streamDone) {
+      _lastHeatmapTick = _renderTick;
+      renderHeatmap();
+    }
+  });
 }
 
 // ───────────────── Word frequency ─────────────────
@@ -653,20 +698,13 @@ async function streamHeadlines(myToken) {
     } catch (_) { /* missing shards in gap months — silently skip */ }
     loaded++;
     progressEl.textContent = `Loaded ${loaded} / ${months.length} months · ${state.headlines.length.toLocaleString('en-GB')} headlines so far`;
-    // Sort newest-first as we go — shards arrive out of order with concurrency.
-    state.headlines.sort((a, b) => (b.d || '').localeCompare(a.d || ''));
-    renderHeadlines();
-    renderCotags();
-    // Recompute actual section mix from matched articles rather than
-    // whole-month totals once we have enough data.
-    if (state.headlines.length > 20) drawSectionBreakdown(perSectionActual);
-    // Always recompute summary stats + sparkline from matched headlines
-    // so phrases / out-of-index terms get authoritative numbers rather
-    // than the zero-filled sketch.
-    updateSummaryFromHeadlines();
-    renderWords();
-    renderHeatmap();
-    renderDispatches();
+    // Don't render directly — coalesce into a single animation frame so
+    // multiple shards landing in the same frame produce one paint rather
+    // than a dozen. Crucial for memory pressure on mobile: a 14-year
+    // Cummings dive is ~150 shards × 5 renders each without this, which
+    // thrashes iOS WKWebView into an OOM kill.
+    state._perSectionActual = perSectionActual;
+    scheduleRender();
   };
 
   // Simple worker pool.
@@ -684,8 +722,11 @@ async function streamHeadlines(myToken) {
   if (myToken !== state.cancelToken) return;
 
   progressEl.textContent = `Loaded ${loaded} months · ${state.headlines.length.toLocaleString('en-GB')} headlines total`;
-  // Final actual-section-mix swap.
+  // Final actual-section-mix swap + one guaranteed full render so the
+  // heatmap is current even if the throttle skipped the last tick.
   drawSectionBreakdown(perSectionActual);
+  state._streamDone = true;
+  scheduleRender();
 }
 
 // ───────────────── Render: headlines + cotags ─────────────────
