@@ -979,6 +979,10 @@ main {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* The trending-tag block shows a single item — numbering it "1" looks
+   confused. Suppress the counter just in that block; the 18px grid
+   column stays for alignment with the Rising blocks below. */
+#trending-tag .rising-list li::before { content: ''; }
 .rising-list .rising-label {
   font-family: var(--body);
   font-size: 14px;
