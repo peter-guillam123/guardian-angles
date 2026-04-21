@@ -320,20 +320,65 @@ async function renderInstantSummary() {
 
   headlineEl.textContent = `${label} in Guardian headlines`;
   subEl.textContent = `${state.yearFrom}–${state.yearTo} · ${kind === 'tag' ? 'tag' : 'headline word'}`;
-  statTotal.textContent = total.toLocaleString('en-GB');
-  statPeak.textContent = peakIdx >= 0 && vals[peakIdx] > 0 ? formatMonth(months[peakIdx]) : '—';
-  statFirst.textContent = firstIdx >= 0 ? formatMonth(months[firstIdx]) : '—';
-  statLast.textContent = lastIdx >= 0 && vals[lastIdx] > 0 ? formatMonth(months[lastIdx]) : '—';
 
-  // If the term isn't in the top-5000 index it's still searchable via
-  // shards; flag that the summary's about-to-be-filled-in.
-  if (kind === 'word' && !table[key]) {
-    statTotal.textContent = '…';
+  // The monthly term-index only knows single words, so a phrase like
+  // "noel clarke" or any term outside the top 5,000 isn't there. In
+  // those cases the instant summary would read all zeros. Show a
+  // "counting…" state instead and let the shard stream fill it in
+  // authoritatively via updateSummaryFromHeadlines().
+  const indexHasIt = kind === 'tag' || Boolean(table[key]);
+  if (indexHasIt) {
+    statTotal.textContent = total.toLocaleString('en-GB');
+    statPeak.textContent = peakIdx >= 0 && vals[peakIdx] > 0 ? formatMonth(months[peakIdx]) : '—';
+    statFirst.textContent = firstIdx >= 0 ? formatMonth(months[firstIdx]) : '—';
+    statLast.textContent = lastIdx >= 0 && vals[lastIdx] > 0 ? formatMonth(months[lastIdx]) : '—';
+    drawSparkline(sparkEl, vals, peakIdx);
+  } else {
+    statTotal.textContent = 'counting…';
     statPeak.textContent = '…';
+    statFirst.textContent = '…';
+    statLast.textContent = '…';
+    drawSparkline(sparkEl, new Array(months.length).fill(0), -1);
   }
 
-  drawSparkline(sparkEl, vals, peakIdx);
   renderSectionMix(sections, months);
+  // Stash the month grid for recomputeFromHeadlines below.
+  state._summaryMonths = months;
+}
+
+// Recompute the summary strip straight from the matched headlines
+// we've loaded from shards. This supersedes the instant index-driven
+// sketch once we have real data, and is the only way phrases / rare
+// terms ever get authoritative stats.
+function updateSummaryFromHeadlines() {
+  const months = state._summaryMonths;
+  if (!months || !months.length) return;
+  const idx = new Map(months.map((m, i) => [m, i]));
+  const vals = new Array(months.length).fill(0);
+
+  let firstDate = null;
+  let lastDate = null;
+
+  for (const h of state.headlines) {
+    const d = (h.d || '').slice(0, 7); // YYYY-MM
+    const i = idx.get(d);
+    if (i != null) vals[i]++;
+    const full = (h.d || '').slice(0, 10); // YYYY-MM-DD
+    if (full) {
+      if (!firstDate || full < firstDate) firstDate = full;
+      if (!lastDate || full > lastDate) lastDate = full;
+    }
+  }
+
+  const total = state.headlines.length;
+  let peakIdx = 0;
+  for (let i = 1; i < vals.length; i++) if (vals[i] > vals[peakIdx]) peakIdx = i;
+
+  statTotal.textContent = total.toLocaleString('en-GB');
+  statPeak.textContent = vals[peakIdx] > 0 ? formatMonth(months[peakIdx]) : '—';
+  statFirst.textContent = firstDate ? formatFullDate(firstDate) : '—';
+  statLast.textContent = lastDate ? formatFullDate(lastDate) : '—';
+  drawSparkline(sparkEl, vals, peakIdx);
 }
 
 function renderSectionMix(sections, months) {
@@ -414,6 +459,10 @@ async function streamHeadlines(myToken) {
     // Recompute actual section mix from matched articles rather than
     // whole-month totals once we have enough data.
     if (state.headlines.length > 20) drawSectionBreakdown(perSectionActual);
+    // Always recompute summary stats + sparkline from matched headlines
+    // so phrases / out-of-index terms get authoritative numbers rather
+    // than the zero-filled sketch.
+    updateSummaryFromHeadlines();
   };
 
   // Simple worker pool.
@@ -590,6 +639,14 @@ function formatMonth(bucket) {
 function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+// Pretty-print an ISO YYYY-MM-DD as "4 May 2021".
+function formatFullDate(iso) {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 function normaliseWord(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
