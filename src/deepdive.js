@@ -528,7 +528,8 @@ function renderHeatmap() {
       const label = c === 0
         ? `Week ${w} ${y} · 0 articles`
         : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'}`;
-      cells.push(`<span class="dd-hc" style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
+      const cls = c === 0 ? 'dd-hc dd-hc-empty' : 'dd-hc';
+      cells.push(`<span class="${cls}" style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
     }
     return `<div class="dd-hm-row">
       <span class="dd-hm-year">${y}</span>

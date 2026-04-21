@@ -2685,8 +2685,10 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   min-height: 10px;
   pointer-events: none;
 }
-/* zero cells still show a faint paper-rule so the grid is visible */
-.dd-hc[style*="--dd-i:0"] { background: var(--paper-rule); }
+/* Empty cells show a faint paper-rule so the grid is still visible.
+   (Must be a class — a `[style*="--dd-i:0"]` selector would also match
+   0.24, 0.43 etc. and wipe out every non-peak cell.) */
+.dd-hc-empty { background: var(--paper-rule); }
 
 /* ─── First / latest dispatch cards ─── */
 .dd-dispatches {
