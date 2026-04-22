@@ -581,18 +581,27 @@ function granularityAdverb() {
 function updateReadingPanel(bucketIdx) {
   if (!currentSeries.length || !currentBuckets) return;
   risingPanelEl.hidden = true;
-  const bucket = currentBuckets[bucketIdx];
-  const periodTotal = currentTotals[bucketIdx];
+  // When the year slider is active, the chart has been given a clipped
+  // view of the series and emits hover indices relative to that clip.
+  // Translate back to the original (unclipped) index so currentBuckets
+  // / currentTotals / currentSeries[i].counts all line up with what the
+  // user's pointer is actually over. applyYearFilter stashes a _keep
+  // array on each filtered series for exactly this mapping.
+  const view = applyYearFilter(currentSeries);
+  const keep = view[0]?._keep;
+  const originalIdx = keep ? keep[bucketIdx] : bucketIdx;
+  const bucket = currentBuckets[originalIdx];
+  const periodTotal = currentTotals[originalIdx];
   readingEyebrow.textContent = granularityEyebrow();
   readingMonth.classList.remove('idle');
   readingMonth.textContent = formatBucketLong(bucket);
 
   const rows = currentSeries
     .map((s, i) => {
-      const count = s.counts[bucketIdx];
-      const value = s.values[bucketIdx];
+      const count = s.counts[originalIdx];
+      const value = s.values[originalIdx];
       const pct = periodTotal > 0 ? (count / periodTotal) * 100 : 0;
-      const prev = bucketIdx > 0 ? s.values[bucketIdx - 1] : null;
+      const prev = originalIdx > 0 ? s.values[originalIdx - 1] : null;
       let delta = null;
       if (prev != null && prev > 0 && value > 0) {
         const change = ((value - prev) / prev) * 100;
