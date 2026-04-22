@@ -27,6 +27,10 @@ const state = {
   words: new Map(),                // word → count of *headlines* containing it
   peakMonth: null,                 // YYYY-MM of the current peak
   peakExpanded: false,             // whether the peak drilldown is open
+  // Click-driven filter on the sidebar lists + section mix. Works
+  // live during streaming — as more headlines arrive they flow into
+  // the filtered view automatically.
+  structuredFilter: null,          // { kind: 'tag'|'word'|'section', value, label } | null
 };
 
 // Light stopword set for the headline-word-frequency block. Kept
@@ -86,6 +90,10 @@ const peakBtn = document.getElementById('dd-stat-peak-btn');
 const peakDrill = document.getElementById('dd-peak-drill');
 const peakLabel = document.getElementById('dd-peak-label');
 const peakList = document.getElementById('dd-peak-list');
+const activeFilterEl = document.getElementById('dd-active-filter');
+const afKindEl = document.getElementById('dd-af-kind');
+const afValueEl = document.getElementById('dd-af-value');
+const afClearEl = document.getElementById('dd-af-clear');
 
 // ───────────────── Init ─────────────────
 (async function init() {
@@ -295,6 +303,7 @@ async function runDeepDive() {
   state.peakExpanded = false;
   state._streamDone = false;
   state._perSectionActual = null;
+  state.structuredFilter = null;
   _renderTick = 0;
   _lastHeatmapTick = 0;
   promptEl.hidden = true;
@@ -459,10 +468,12 @@ function drawSectionBreakdown(totals) {
     .slice(0, 8);
   const max = rows[0]?.[1] || 1;
   const grand = rows.reduce((a, [, n]) => a + n, 0);
+  const active = state.structuredFilter?.kind === 'section' ? state.structuredFilter.value : null;
   sectionsEl.innerHTML = rows.map(([id, n]) => {
     const pct = grand > 0 ? (n / grand) * 100 : 0;
     const fill = (n / max) * 100;
-    return `<div class="breakdown-row">
+    const cls = id === active ? ' dd-fc-active' : '';
+    return `<div class="breakdown-row${cls}" data-section="${escapeAttr(id)}" role="button" tabindex="0" aria-label="Filter to ${escapeAttr(sectionLabel(id))} section">
       <div class="name">${escapeHtml(sectionLabel(id))}</div>
       <div class="bar-track"><div class="bar-fill" style="background:${sectionColor(id)};width:${fill.toFixed(1)}%"></div></div>
       <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
@@ -518,9 +529,11 @@ function renderWords() {
     .filter(([, n]) => n >= 2)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
+  const active = state.structuredFilter?.kind === 'word' ? state.structuredFilter.value : null;
   wordsEl.innerHTML = top.map(([word, n]) => {
     const pct = (n / total) * 100;
-    return `<li>
+    const cls = word === active ? ' class="dd-fc-active"' : '';
+    return `<li data-word="${escapeAttr(word)}"${cls}>
       <span class="rising-label">${escapeHtml(word)}</span>
       <span class="rising-jump">${pct.toFixed(0)}%</span>
     </li>`;
@@ -776,12 +789,26 @@ async function streamHeadlines(myToken) {
 
 // ───────────────── Render: headlines + cotags ─────────────────
 function renderHeadlines() {
-  const filter = filterEl.value.trim().toLowerCase();
-  const filtered = filter
-    ? state.headlines.filter(h => (h.t || '').toLowerCase().includes(filter))
-    : state.headlines;
+  const textFilter = filterEl.value.trim().toLowerCase();
+  const sf = state.structuredFilter;
+  // Apply both filters: the typed text box AND the clicked facet.
+  let filtered = state.headlines;
+  if (sf) {
+    if (sf.kind === 'tag') {
+      filtered = filtered.filter(h => (h.g || []).includes(sf.value));
+    } else if (sf.kind === 'section') {
+      filtered = filtered.filter(h => h.s === sf.value);
+    } else if (sf.kind === 'word') {
+      const re = new RegExp(`\\b${sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:'s)?\\b`, 'i');
+      filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    }
+  }
+  if (textFilter) {
+    filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
+  }
 
-  listCountEl.textContent = `· ${filtered.length.toLocaleString('en-GB')}${filter ? ' matching' : ''}`;
+  const matchingSuffix = (sf || textFilter) ? ' matching' : '';
+  listCountEl.textContent = `· ${filtered.length.toLocaleString('en-GB')}${matchingSuffix}`;
 
   // Simple cap on rendered rows for performance — 500 visible is plenty
   // for a scan; the full set is available via CSV.
@@ -813,28 +840,76 @@ function renderCotags() {
     .slice(0, 10);
   const totalMatched = state.headlines.length || 1;
   const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
+  const active = state.structuredFilter?.kind === 'tag' ? state.structuredFilter.value : null;
   cotagsEl.innerHTML = top.map(([id, n]) => {
     const pct = (n / totalMatched) * 100;
     const name = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
-    return `<li data-id="${escapeAttr(id)}">
+    const cls = id === active ? ' class="dd-fc-active"' : '';
+    return `<li data-id="${escapeAttr(id)}"${cls}>
       <span class="rising-label">${escapeHtml(name)}</span>
       <span class="rising-jump">${pct.toFixed(0)}%</span>
     </li>`;
   }).join('');
 }
 
-// Click a co-tag row to re-run the dive on that tag.
-cotagsEl.addEventListener('click', async (e) => {
+// ───────────────── Structured filter ─────────────────
+// Click any entry in Travels-with / In-these-headlines / the section
+// mix to narrow the headline list to that facet. Works live during
+// streaming — new shards flow into the filtered view as they arrive.
+function setStructuredFilter(filter) {
+  state.structuredFilter = filter;
+  renderActiveFilter();
+  renderHeadlines();
+  // Re-render the faceted blocks so the active row shows highlighted.
+  renderCotags();
+  renderWords();
+  if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
+}
+function clearStructuredFilter() {
+  setStructuredFilter(null);
+}
+function renderActiveFilter() {
+  const f = state.structuredFilter;
+  if (!f) { activeFilterEl.hidden = true; return; }
+  afKindEl.textContent = f.kind === 'tag' ? 'tag' :
+                         f.kind === 'word' ? 'word' : 'section';
+  afValueEl.textContent = f.label;
+  activeFilterEl.hidden = false;
+}
+afClearEl.addEventListener('click', clearStructuredFilter);
+
+cotagsEl.addEventListener('click', (e) => {
   const li = e.target.closest('li[data-id]');
   if (!li) return;
   const id = li.dataset.id;
-  setMode('tags');
-  await loadCatalogIfNeeded();
-  const t = state.tagCatalog.find(x => x.id === id);
-  inputEl.value = t?.name || id;
-  inputEl.dataset.tagId = id;
-  runDeepDive();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Toggle: clicking the active filter clears it.
+  if (state.structuredFilter?.kind === 'tag' && state.structuredFilter.value === id) {
+    clearStructuredFilter(); return;
+  }
+  const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
+  const label = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
+  setStructuredFilter({ kind: 'tag', value: id, label });
+});
+
+wordsEl.addEventListener('click', (e) => {
+  const li = e.target.closest('li[data-word]');
+  if (!li) return;
+  const word = li.dataset.word;
+  if (state.structuredFilter?.kind === 'word' && state.structuredFilter.value === word) {
+    clearStructuredFilter(); return;
+  }
+  setStructuredFilter({ kind: 'word', value: word, label: word });
+});
+
+sectionsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('.breakdown-row[data-section]');
+  if (!row) return;
+  const id = row.dataset.section;
+  if (state.structuredFilter?.kind === 'section' && state.structuredFilter.value === id) {
+    clearStructuredFilter(); return;
+  }
+  const label = sectionLabel(id);
+  setStructuredFilter({ kind: 'section', value: id, label });
 });
 
 // ───────────────── CSV export ─────────────────

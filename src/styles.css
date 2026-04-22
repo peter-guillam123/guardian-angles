@@ -2572,6 +2572,73 @@ a.dd-h-title:hover { color: var(--guardian-blue); border-bottom-color: var(--gua
   gap: 24px;
 }
 
+/* Active structured-filter chip above the headline list.
+   Guardian-blue tint so it reads as "state", not decoration; the
+   clear button is a plain link with a × glyph. */
+.dd-active-filter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  background: var(--paper-deep);
+  border-left: 3px solid var(--guardian-blue);
+  font-family: var(--ui);
+  font-size: 13px;
+  color: var(--ink-soft);
+  max-width: 100%;
+  min-width: 0;
+}
+.dd-active-filter .dd-af-label {
+  font: 700 10px/1.2 var(--ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.dd-active-filter .dd-af-value {
+  font: 500 14px/1.2 var(--display);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dd-active-filter button {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  font: 700 11px/1 var(--ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--guardian-blue);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dd-active-filter button:hover { color: var(--ink); }
+
+/* Active-facet highlight: applies to a clicked cotag, word, or
+   section row to show which chose the active filter. */
+.dd-fc-active {
+  background: var(--paper-deep) !important;
+  box-shadow: inset 3px 0 0 var(--guardian-blue);
+}
+
+/* Section-mix rows are clickable. Make it feel that way. */
+.breakdown-row[data-section] {
+  cursor: pointer;
+  transition: background 120ms;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 1px;
+}
+.breakdown-row[data-section]:hover { background: var(--paper-deep); }
+.breakdown-row[data-section]:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* Shared small tracked-caps eyebrow for the new summary blocks. */
 .dd-eyebrow {
   margin: 0 0 8px;
@@ -2725,12 +2792,16 @@ a.dd-dispatch-title { border-bottom: 1px solid transparent; transition: border-c
 a.dd-dispatch-title:hover { color: var(--guardian-blue); border-bottom-color: var(--guardian-blue); }
 
 /* Below 1100px: controls and body collapse but the summary's
-   stats+sparkline split still fits — keep them side-by-side. */
+   stats+sparkline split still fits — keep them side-by-side.
+   Once stacked, put the sidebar (Travels with / common words)
+   BEFORE the headline list: on mobile those blocks are filters
+   and should sit where a user can tap them first. */
 @media (max-width: 1100px) {
   main.dd { padding: 24px 32px 64px; gap: 24px; }
   .dd-controls form { grid-template-columns: 1fr; }
   .dd-actions button[type=submit] { flex: 1; }
   .dd-body { grid-template-columns: 1fr; gap: 32px; }
+  .dd-side { order: -1; }
 }
 /* Below 900px: stack dispatches 1→3→1 looks fine; cards would
    otherwise squish to ~180px wide each on a tablet. */
