@@ -79,6 +79,21 @@
       <ol class="changelog">
 
         <li class="milestone">
+          <h3>Deep dive, deeper</h3>
+          <p>The middle of the Deep dive page looked a bit hollow once the four summary stats landed, so I added four more blocks that fill the space with something the stats can't show you on their own. A weekly heatmap — one cell per ISO week, shaded by volume — that surfaces cluster shapes the monthly sparkline only hints at. First / Peak / Most recent dispatch cards showing the actual articles at those points, rather than just the dates. A peak-month drilldown that expands inline when you click the peak stat, listing up to twelve headlines from that month. And a sidebar block surfacing the content words that keep appearing in matched headlines, which turns out to be a nice read on framing — "allegations" and "investigation" rising to the top on Noel Clarke, "labour" and "party" on Mandelson. The yellow-bar highlight from Trends carries through too. Later: the sidebar blocks and the section-mix bars all became clickable filters. Click "Labour" in Travels-with or any of the section rows and the headline list narrows to that facet; click again to clear. A blue-ruled chip sits above the list to make the active filter obvious.</p>
+        </li>
+
+        <li>
+          <h3>Every tag gets its real name</h3>
+          <p>A reader spotted that the site was showing "Brexit Party" for a tag the Guardian has since renamed to "Reform UK". Tag slugs are immutable in the Guardian's CMS but the webTitle on a tag can change — and ours was derived from the slug, so renames were invisible to us. Wired up a small script that pulls every catalogued tag's current webTitle from the Guardian's /tags API and caches it; runs monthly on its own. Side effect: the hundred-odd smooshed-name overrides I'd been hand-maintaining are now mostly redundant, since CAPI returns "Margaret Thatcher" for a slug that's simply "politics/margaretthatcher".</p>
+        </li>
+
+        <li>
+          <h3>"Subjects" is now "Topics"</h3>
+          <p>Minor but niggling: "Subjects" is the Guardian CMS's internal word, not a reader's. Renamed the tab to "Topics", which reads more naturally for what the view actually does. While I was in the nav, I reshuffled it a bit — the three search surfaces (Trends, Topics, Deep dive) now cluster together on the left, with This Week and Newsroom as the editorial-frame tabs to the right. URL paths all stayed the same so shared links still work.</p>
+        </li>
+
+        <li class="milestone">
           <h3>Deep dive</h3>
           <p>A fifth tab for when the question is about a single topic rather than a comparison. Pick a tag or a word, pick a date range, and you get the shape of coverage — total, peak month, first and last appearance, section mix, a volume sparkline — followed by every headline in that span streaming in newest-first, with the tags it tends to travel with in a sidebar. A filter box and a CSV export sit above the list. Compare-up-to-four is a great way in but the wrong shape when you want the whole story on one thing.</p>
         </li>
