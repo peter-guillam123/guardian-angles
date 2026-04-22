@@ -90,10 +90,9 @@ const peakBtn = document.getElementById('dd-stat-peak-btn');
 const peakDrill = document.getElementById('dd-peak-drill');
 const peakLabel = document.getElementById('dd-peak-label');
 const peakList = document.getElementById('dd-peak-list');
-const activeFilterEl = document.getElementById('dd-active-filter');
-const afKindEl = document.getElementById('dd-af-kind');
-const afValueEl = document.getElementById('dd-af-value');
-const afClearEl = document.getElementById('dd-af-clear');
+const filterWrapEl = document.getElementById('dd-filter-wrap');
+const filterKindEl = document.getElementById('dd-filter-kind');
+const filterClearEl = document.getElementById('dd-filter-clear');
 
 // ───────────────── Init ─────────────────
 (async function init() {
@@ -264,7 +263,24 @@ function wireForm() {
 }
 
 function wireFilter() {
-  filterEl.addEventListener('input', () => renderHeadlines());
+  filterEl.addEventListener('input', () => {
+    // Typing replaces any structured (click-populated) filter — we're
+    // now in free-text mode. Drop the kind badge and reset state, but
+    // DON'T call setStructuredFilter(null) because that would wipe the
+    // input contents the user is typing.
+    if (state.structuredFilter) {
+      state.structuredFilter = null;
+      filterKindEl.hidden = true;
+      filterWrapEl.classList.remove('has-filter');
+      // Refresh the sidebar active-row highlight.
+      renderCotags();
+      renderWords();
+      if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
+    }
+    // Show / hide the × button based on whether the field has content.
+    filterClearEl.hidden = !filterEl.value;
+    renderHeadlines();
+  });
 }
 function wireExport() {
   exportEl.addEventListener('click', () => exportCsv());
@@ -321,6 +337,10 @@ async function runDeepDive() {
   peakBtn.setAttribute('aria-expanded', 'false');
   peakBtn.classList.remove('open');
   listCountEl.textContent = '';
+  filterEl.value = '';
+  filterKindEl.hidden = true;
+  filterClearEl.hidden = true;
+  filterWrapEl.classList.remove('has-filter');
 
   // Update URL for deep-linking.
   const p = new URLSearchParams();
@@ -789,9 +809,11 @@ async function streamHeadlines(myToken) {
 
 // ───────────────── Render: headlines + cotags ─────────────────
 function renderHeadlines() {
-  const textFilter = filterEl.value.trim().toLowerCase();
   const sf = state.structuredFilter;
-  // Apply both filters: the typed text box AND the clicked facet.
+  const textFilter = sf ? '' : filterEl.value.trim().toLowerCase();
+  // Structured filter takes precedence — if one's active, typing into
+  // the field has already dropped it (see wireFilter), so we never
+  // have both at once.
   let filtered = state.headlines;
   if (sf) {
     if (sf.kind === 'tag') {
@@ -802,8 +824,7 @@ function renderHeadlines() {
       const re = new RegExp(`\\b${sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:'s)?\\b`, 'i');
       filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
     }
-  }
-  if (textFilter) {
+  } else if (textFilter) {
     filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
   }
 
@@ -852,15 +873,34 @@ function renderCotags() {
   }).join('');
 }
 
-// ───────────────── Structured filter ─────────────────
-// Click any entry in Travels-with / In-these-headlines / the section
-// mix to narrow the headline list to that facet. Works live during
-// streaming — new shards flow into the filtered view as they arrive.
+// ───────────────── Filter: unified field ─────────────────
+// Single filter control. Two ways to fill it:
+//   1. type into the input      → free-text substring match on headlines
+//   2. click a facet in the     → structured match (tag id, section id,
+//      sidebar / section mix       or word boundary)
+// A kind badge appears inside the field when the filter came from a
+// click, so the user can tell the difference between "tag: Labour"
+// (which matches articles tagged Labour) and typing "labour" (which
+// substring-matches headline text). Typing replaces a structured
+// filter — the kind badge disappears and it reverts to free-text.
+// A × button at the right clears everything.
+
 function setStructuredFilter(filter) {
   state.structuredFilter = filter;
-  renderActiveFilter();
+  if (filter) {
+    filterEl.value = filter.label;
+    filterKindEl.textContent = filter.kind;
+    filterKindEl.hidden = false;
+    filterWrapEl.classList.add('has-filter');
+    filterClearEl.hidden = false;
+  } else {
+    filterEl.value = '';
+    filterKindEl.hidden = true;
+    filterWrapEl.classList.remove('has-filter');
+    filterClearEl.hidden = true;
+  }
   renderHeadlines();
-  // Re-render the faceted blocks so the active row shows highlighted.
+  // Re-render the faceted blocks so the active row is highlighted.
   renderCotags();
   renderWords();
   if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
@@ -868,15 +908,10 @@ function setStructuredFilter(filter) {
 function clearStructuredFilter() {
   setStructuredFilter(null);
 }
-function renderActiveFilter() {
-  const f = state.structuredFilter;
-  if (!f) { activeFilterEl.hidden = true; return; }
-  afKindEl.textContent = f.kind === 'tag' ? 'tag' :
-                         f.kind === 'word' ? 'word' : 'section';
-  afValueEl.textContent = f.label;
-  activeFilterEl.hidden = false;
-}
-afClearEl.addEventListener('click', clearStructuredFilter);
+// The × button clears EVERYTHING — structured filter or free text.
+filterClearEl.addEventListener('click', () => {
+  setStructuredFilter(null);
+});
 
 cotagsEl.addEventListener('click', (e) => {
   const li = e.target.closest('li[data-id]');

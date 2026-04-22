@@ -164,16 +164,13 @@
         <div class="dd-list-head">
           <p class="rising-eyebrow">Headlines <span id="dd-list-count"></span></p>
           <div class="dd-list-tools">
-            <input type="text" id="dd-filter" placeholder="Filter these headlines…" aria-label="Filter loaded headlines" />
+            <div class="dd-filter-wrap" id="dd-filter-wrap">
+              <span class="dd-filter-kind" id="dd-filter-kind" hidden></span>
+              <input type="text" id="dd-filter" placeholder="Filter headlines — type, or click a tag, section or word below" aria-label="Filter headlines" />
+              <button type="button" id="dd-filter-clear" aria-label="Clear filter" hidden>×</button>
+            </div>
             <button type="button" id="dd-export" class="ghost">Export CSV ↓</button>
           </div>
-        </div>
-        <!-- Active structured filter (tag / word / section). Hidden
-             when no filter is set. -->
-        <div class="dd-active-filter" id="dd-active-filter" hidden>
-          <span class="dd-af-label">Filtered by <span id="dd-af-kind"></span></span>
-          <span class="dd-af-value" id="dd-af-value"></span>
-          <button type="button" id="dd-af-clear" aria-label="Clear filter">Clear ×</button>
         </div>
         <p class="dd-progress" id="dd-progress" aria-live="polite"></p>
         <div class="dd-headlines" id="dd-headlines"></div>
