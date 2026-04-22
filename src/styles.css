@@ -2572,51 +2572,56 @@ a.dd-h-title:hover { color: var(--guardian-blue); border-bottom-color: var(--gua
   gap: 24px;
 }
 
-/* Active structured-filter chip above the headline list.
-   Guardian-blue tint so it reads as "state", not decoration; the
-   clear button is a plain link with a × glyph. */
-.dd-active-filter {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 10px 14px;
-  margin: 0 0 12px;
-  background: var(--paper-deep);
-  border-left: 3px solid var(--guardian-blue);
-  font-family: var(--ui);
-  font-size: 13px;
-  color: var(--ink-soft);
-  max-width: 100%;
+/* Unified filter: one field, two ways in.
+   - Free text (typed): plain input, no badge, × appears when content.
+   - Click-populated from a facet: field shows a small TAG/SECTION/
+     WORD badge on the left and a blue-tinted bottom rule so the
+     active-filter state is obvious. Typing reverts it to free text. */
+.dd-filter-wrap {
+  position: relative;
+  flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--paper-rule);
+  transition: border-bottom-color 120ms;
 }
-.dd-active-filter .dd-af-label {
-  font: 700 10px/1.2 var(--ui);
+.dd-filter-wrap.has-filter { border-bottom-color: var(--guardian-blue); }
+.dd-filter-wrap:focus-within { border-bottom-color: var(--guardian-blue); }
+.dd-filter-kind {
+  font: 700 10px/1 var(--ui);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-mute);
-  white-space: nowrap;
+  color: var(--paper);
+  background: var(--guardian-blue);
+  padding: 4px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
-.dd-active-filter .dd-af-value {
-  font: 500 14px/1.2 var(--display);
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.dd-filter-wrap input[type="text"] {
+  flex: 1;
   min-width: 0;
+  /* Override the default styling applied further up. */
+  border: none !important;
+  padding: 2px 0 !important;
+  background: transparent;
 }
-.dd-active-filter button {
-  margin-left: auto;
+#dd-filter-clear {
+  flex-shrink: 0;
   background: transparent;
   border: none;
-  padding: 4px 6px;
-  font: 700 11px/1 var(--ui);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--guardian-blue);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font: 500 22px/1 var(--display);
+  color: var(--ink-mute);
   cursor: pointer;
-  white-space: nowrap;
+  border-radius: 50%;
+  transition: background 120ms, color 120ms;
 }
-.dd-active-filter button:hover { color: var(--ink); }
+#dd-filter-clear:hover { color: var(--ink); background: var(--paper-deep); }
 
 /* Active-facet highlight: applies to a clicked cotag, word, or
    section row to show which chose the active filter. */
