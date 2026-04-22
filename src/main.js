@@ -950,7 +950,7 @@ async function openHeadlines({ term: queryLabel, bucket, seriesIdx }) {
     : (currentMode === 'tags'
         ? await headlinesForTagInBucket(series.query, bucket)
         : await headlinesForTermInBucket(series.query, bucket));
-  headlinesMeta.textContent = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'} · rendered with Pretext`;
+  headlinesMeta.textContent = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'}`;
   renderSectionBreakdown(list);
   // Pass the display label as the highlighter for the headline explorer;
   // in tag mode there's no substring to highlight (but still pass nothing).
