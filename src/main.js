@@ -42,6 +42,10 @@ function setChartTitle(kind, text) {
     chartHeadlineEl.textContent = text;
     chartHeadlineEl.hidden = false;
     chartPromptEl.hidden = true;
+    // Once a real headline lands, the working-state pulse has served
+    // its purpose — make sure it doesn't stick around if the user
+    // later clears back to the empty state.
+    chartPromptEl.classList.remove('is-working');
   }
 }
 function currentChartTitle() {
@@ -380,6 +384,15 @@ async function runSearch() {
   currentLabels = labels;
   const sectionId = sectionFilterEl.value || null;
   setReadingIdle(sectionId ? 'Filtering by section…' : 'Searching the archive…');
+  // Also show the "I'm working" state right in the chart area — the
+  // reading panel's message is easily off-screen on mobile, so we
+  // swap the chart's empty-state prompt for a live "Searching…"
+  // while the query runs. Keyframed dot matches the freshness pulse
+  // in the masthead so the vocabulary's consistent.
+  setChartTitle('prompt',
+    sectionId ? 'Filtering by section…' : 'Searching the archive…'
+  );
+  chartPromptEl.classList.add('is-working');
 
   let results;
   if (sectionId) {
@@ -394,8 +407,16 @@ async function runSearch() {
         : queryTerm(q, currentGranularity)
     ));
   }
+  // Query finished — drop the working-state pulse. (setChartTitle
+  // will reset the class for us when the proper headline lands, but
+  // for the no-results path we still need to remove it here.)
+  chartPromptEl.classList.remove('is-working');
   const valid = results.filter(Boolean);
-  if (!valid.length) { setReadingIdle('No results.'); return; }
+  if (!valid.length) {
+    setReadingIdle('No results.');
+    setChartTitle('prompt', 'No matches in that range.');
+    return;
+  }
 
   currentBuckets = valid[0].buckets;
   currentTotals = valid[0].totals;

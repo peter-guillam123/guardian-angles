@@ -474,6 +474,23 @@ main {
   flex: 1 1 auto;
   min-width: 0;
 }
+/* Live "I'm working" state during a Compare — pulsing Guardian-blue
+   dot prepended to the prompt, using the same keyframes as the
+   freshness-dot in the masthead so the vocabulary's consistent. */
+.chart-stage .chart-prompt.is-working::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--guardian-blue);
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: freshnessPulse 1.3s ease-in-out infinite;
+}
+.chart-stage .chart-prompt.is-working {
+  color: var(--ink-soft);
+}
 .chart-stage .legend {
   display: flex;
   flex-wrap: wrap;
