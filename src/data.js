@@ -278,10 +278,16 @@ export async function queryTerm(term, granularity = 'monthly') {
     return { term: q, buckets: idx.buckets, counts: idx.terms[q], totals: idx.totals, gapMask: gapMaskFor(idx), source: 'index' };
   }
 
-  // Fallback: scan every shard and re-bucket client-side.
+  // Fallback: scan every shard and re-bucket client-side. This path
+  // runs for any word not in the top-N monthly term index (rare
+  // terms, phrases). Previously this was a `Promise.all(months.map
+  // (loadShard))` which on a 14-year catalogue loaded 163 shards
+  // simultaneously — ~500MB of parsed JSON, enough to OOM mobile
+  // Chrome. Now bounded to 4-concurrent, and each shard is evicted
+  // from the cache as soon as we're done counting its matches so
+  // heap stays roughly flat at ~20MB for the whole scan.
   const sections = await loadSections();
   const months = sections.months;
-  const shards = await Promise.all(months.map(loadShard));
 
   const buckets = idx.buckets;
   const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
@@ -289,14 +295,34 @@ export async function queryTerm(term, granularity = 'monthly') {
 
   const matcher = makeWordMatcher(q);
   const toBucket = makeBucketer(granularity);
-  for (const shard of shards) {
-    for (const h of shard.headlines) {
-      if (!matcher(h.t)) continue;
-      const b = toBucket((h.d || '').slice(0, 10));
-      const bi = bucketIdx.get(b);
-      if (bi != null) counts[bi]++;
-    }
+
+  async function scanOne(month) {
+    try {
+      const shard = await loadShard(month);
+      for (const h of shard.headlines) {
+        if (!matcher(h.t)) continue;
+        const b = toBucket((h.d || '').slice(0, 10));
+        const bi = bucketIdx.get(b);
+        if (bi != null) counts[bi]++;
+      }
+    } catch (_) { /* missing shard for a gap month — skip */ }
+    // Drop the shard's parsed JSON; we don't need it again.
+    evictShard(month);
   }
+
+  const CONCURRENCY = 4;
+  const queue = [...months];
+  const workers = [];
+  for (let w = 0; w < CONCURRENCY; w++) {
+    workers.push((async () => {
+      while (queue.length) {
+        const m = queue.shift();
+        await scanOne(m);
+      }
+    })());
+  }
+  await Promise.all(workers);
+
   return { term: q, buckets, counts, totals: idx.totals, gapMask: gapMaskFor(idx), source: 'scan' };
 }
 
@@ -344,49 +370,59 @@ export function normalisePerMille(counts, totals) {
 // like "starmer in Opinion only" or "us-news/donaldtrump in World news only"
 // which the bulk indexes can't answer.
 //
-// Loads all monthly shards on first call (heavy first-time cost; subsequent
-// calls reuse the in-memory cache via loadShard).
+// Bounded to 4-concurrent shard loads with per-shard eviction so peak
+// heap is ~20MB rather than the whole catalogue. Uses the canonical
+// bucket list from loadIndex(granularity) so x-axes line up with
+// non-filtered queries (previously rebuilt from scratch, which also
+// required two full passes over every shard).
 export async function queryInSection({ kind, key, granularity, sectionId }) {
   if (!sectionId) throw new Error('queryInSection requires sectionId');
+  const idx = await loadIndex(granularity);
   const sections = await loadSections();
   const allMonths = sections.months;
-  const shards = await Promise.all(allMonths.map(loadShard));
 
-  const bucketer = makeBucketer(granularity);
-
-  // First pass: collect bucket keys (matching the global universe so x-axes
-  // line up with non-filtered queries)
-  const bucketsSet = new Set();
-  for (const shard of shards) {
-    for (const h of shard.headlines) {
-      const date = (h.d || '').slice(0, 10);
-      if (date) bucketsSet.add(bucketer(date));
-    }
-  }
-  const buckets = Array.from(bucketsSet).sort();
+  const buckets = idx.buckets;
   const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
   const n = buckets.length;
   const counts = new Array(n).fill(0);
   const totals = new Array(n).fill(0);   // per-bucket totals WITHIN this section
 
+  const bucketer = makeBucketer(granularity);
   const matcher = kind === 'words' ? makeWordMatcher(key) : null;
   const tagId = kind === 'tags' ? key : null;
 
-  for (const shard of shards) {
-    for (const h of shard.headlines) {
-      if (h.s !== sectionId) continue;
-      const date = (h.d || '').slice(0, 10);
-      if (!date) continue;
-      const bi = bucketIdx.get(bucketer(date));
-      if (bi == null) continue;
-      totals[bi]++;
-      if (matcher) {
-        if (matcher(h.t)) counts[bi]++;
-      } else {
-        if (Array.isArray(h.g) && h.g.includes(tagId)) counts[bi]++;
+  async function scanOne(month) {
+    try {
+      const shard = await loadShard(month);
+      for (const h of shard.headlines) {
+        if (h.s !== sectionId) continue;
+        const date = (h.d || '').slice(0, 10);
+        if (!date) continue;
+        const bi = bucketIdx.get(bucketer(date));
+        if (bi == null) continue;
+        totals[bi]++;
+        if (matcher) {
+          if (matcher(h.t)) counts[bi]++;
+        } else if (Array.isArray(h.g) && h.g.includes(tagId)) {
+          counts[bi]++;
+        }
       }
-    }
+    } catch (_) { /* missing shard — skip */ }
+    evictShard(month);
   }
+
+  const CONCURRENCY = 4;
+  const queue = [...allMonths];
+  const workers = [];
+  for (let w = 0; w < CONCURRENCY; w++) {
+    workers.push((async () => {
+      while (queue.length) {
+        const m = queue.shift();
+        await scanOne(m);
+      }
+    })());
+  }
+  await Promise.all(workers);
 
   return { key, buckets, counts, totals, source: 'section-scan' };
 }
