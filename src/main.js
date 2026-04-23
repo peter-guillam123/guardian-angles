@@ -706,21 +706,31 @@ async function showRisingPanel() {
   risingWordsListEl.innerHTML = '<li class="rising-loading">Loading…</li>';
 
   try {
-    const [tagIdxWeekly, tagIdxDaily, termIdx, catalog] = await Promise.all([
+    // Previously also loaded tag-index-daily (~80MB parsed) and
+    // term-index-weekly (~60MB parsed). Both indexes are huge on
+    // mobile and were pushing Chrome iOS past its tab memory budget
+    // before the user had even hit Compare. The monthly term index
+    // is already loaded for search, and the weekly tag index is
+    // already being fetched for the rising-tags list — we can
+    // piggyback on both. Cost: "trending tag" now reads "last 7
+    // days" rather than "last 24 hours", and "rising words"
+    // compares last 4 months vs prior 12 months rather than the
+    // weekly equivalent.
+    const [tagIdxWeekly, termIdxMonthly, catalog] = await Promise.all([
       loadTagIndex('weekly'),
-      loadTagIndex('daily'),
-      loadIndex('weekly'),
+      loadIndex('monthly'),
       loadTagCatalog(),
     ]);
 
     const risingTags = computeRising(tagIdxWeekly, { topK: 6 });
-    const risingTerms = computeRising(termIdx, { topK: 6 });
+    const risingTerms = computeRising(termIdxMonthly, {
+      topK: 6, recent: 4, baseline: 12,
+    });
     const catalogIndex = new Map(catalog.map(t => [t.id, t.name]));
 
-    // Trending tag: the biggest useful tag in the most recent complete day
-    // we have data for. Skips today's bucket if it's still the current UTC
-    // day (partial), same pattern as This Week's last-complete-week logic.
-    const trending = findTopTagForLastDay(tagIdxDaily);
+    // Trending tag: biggest useful tag in the most recent *complete*
+    // weekly bucket (skipping the current in-progress week).
+    const trending = findTopTagForLastWeek(tagIdxWeekly);
     if (trending) {
       const label = catalogIndex.get(trending.id) || trending.id.split('/').pop();
       trendingTagListEl.innerHTML = `<li data-mode="tags" data-key="${escapeAttr(trending.id)}" data-label="${escapeAttr(label)}">
@@ -754,16 +764,18 @@ async function showRisingPanel() {
   }
 }
 
-// Finds the highest-count "useful" tag in the most recent complete daily
-// bucket. Skips today's bucket if it matches the current UTC date
-// (partial), unless today's is all we have.
-function findTopTagForLastDay(tagIdx) {
+// Finds the highest-count useful tag in the most recent COMPLETE
+// weekly bucket. Skips the last bucket if it's the current week in
+// progress (we use the same "is it a full week?" test as This Week
+// rather than trying to parse the ISO-week key here — the heuristic
+// is simply: if we have more than one bucket, the last one is
+// in-progress; use n-2). This reads from the weekly tag index
+// that's already loaded for the rising-tags list, so no extra
+// fetch / memory is spent on the trending-tag insert.
+function findTopTagForLastWeek(tagIdx) {
   const { buckets, tags } = tagIdx;
   if (!buckets?.length || !tags) return null;
-  // UTC today as YYYY-MM-DD
-  const today = new Date().toISOString().slice(0, 10);
-  let idx = buckets.length - 1;
-  if (buckets[idx] === today && idx > 0) idx--;
+  const idx = Math.max(0, buckets.length - 2); // skip in-progress week
   let bestId = null, bestCount = 0;
   for (const id in tags) {
     if (!isUsefulTag(id)) continue;
