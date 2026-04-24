@@ -2733,6 +2733,24 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   gap: 14px;
   flex-wrap: wrap;
 }
+.dd-heatmap-hint {
+  margin: 4px 0 0;
+  font: italic 12px/1.4 var(--body);
+  color: var(--ink-mute);
+}
+/* Touch devices can't shift-click — trim the hint to the part that
+   actually applies so we don't suggest an interaction users can't do. */
+@media (pointer: coarse) {
+  .dd-heatmap-hint::after {
+    content: attr(data-touch-hint);
+  }
+  .dd-heatmap-hint {
+    font-size: 0;
+  }
+  .dd-heatmap-hint::after {
+    font: italic 12px/1.4 var(--body);
+  }
+}
 .dd-heatmap-legend {
   margin: 0;
   display: inline-flex;
@@ -2775,15 +2793,20 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
 }
 .dd-hc[data-week] { cursor: pointer; }
 .dd-hc:hover { transform: scale(1.6); }
-/* Clicked week shows a Guardian-yellow ring so it stays visible
-   even at the small default cell size. Scale slightly too so the
-   active cell reads as "lifted" out of the grid. */
+/* Active week(s). All cells in the selected range get the yellow
+   outline, but only the two endpoints scale up — a mid-range cell
+   scaled-up would look noisy against its neighbours, while the
+   endpoints deserve emphasis as the range's handles. */
 .dd-hc.dd-hc-active {
   outline: 2px solid var(--guardian-yellow);
   outline-offset: 1px;
-  transform: scale(1.3);
   z-index: 2;
   position: relative;
+}
+.dd-hc.dd-hc-active-start,
+.dd-hc.dd-hc-active-end {
+  transform: scale(1.3);
+  z-index: 3;
 }
 .dd-hc[data-week]:focus-visible {
   outline: 2px solid var(--ink);
