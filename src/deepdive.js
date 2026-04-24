@@ -621,7 +621,11 @@ function renderHeatmap() {
   const years = [];
   for (let y = state.yearFrom; y <= state.yearTo; y++) years.push(y);
 
-  const activeWeek = state.structuredFilter?.kind === 'week' ? state.structuredFilter.value : null;
+  // Active range (inclusive) from the structured filter, if one's set.
+  // String comparison on YYYY-WW sorts chronologically because both
+  // year and week are zero-padded.
+  const activeFrom = state.structuredFilter?.kind === 'week' ? state.structuredFilter.from : null;
+  const activeTo = state.structuredFilter?.kind === 'week' ? state.structuredFilter.to : null;
 
   heatmapEl.innerHTML = years.map(y => {
     const cells = [];
@@ -634,7 +638,10 @@ function renderHeatmap() {
         : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'} · click to filter`;
       const classes = ['dd-hc'];
       if (c === 0) classes.push('dd-hc-empty');
-      if (key === activeWeek) classes.push('dd-hc-active');
+      const inRange = activeFrom && key >= activeFrom && key <= activeTo;
+      if (inRange) classes.push('dd-hc-active');
+      if (inRange && key === activeFrom) classes.push('dd-hc-active-start');
+      if (inRange && key === activeTo) classes.push('dd-hc-active-end');
       // Only non-empty cells become buttons.
       const attrs = c > 0
         ? `role="button" tabindex="0" data-week="${key}" aria-label="${label}"`
@@ -832,7 +839,12 @@ function renderHeadlines() {
       const re = new RegExp(`\\b${sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:'s)?\\b`, 'i');
       filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
     } else if (sf.kind === 'week') {
-      filtered = filtered.filter(h => isoWeekKey((h.d || '').slice(0, 10)) === sf.value);
+      // Inclusive chronological range. For a single-week filter
+      // from === to, so both comparisons collapse to equality.
+      filtered = filtered.filter(h => {
+        const k = isoWeekKey((h.d || '').slice(0, 10));
+        return k && k >= sf.from && k <= sf.to;
+      });
     }
   } else if (textFilter) {
     filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
@@ -947,16 +959,40 @@ wordsEl.addEventListener('click', (e) => {
   setStructuredFilter({ kind: 'word', value: word, label: word });
 });
 
-function handleHeatmapActivation(cell) {
+function handleHeatmapActivation(cell, extend = false) {
   const week = cell.dataset.week;
-  if (state.structuredFilter?.kind === 'week' && state.structuredFilter.value === week) {
+  const sf = state.structuredFilter;
+
+  // Shift-click extends an existing week filter into a chronological
+  // range. If there's no existing week filter, shift-click falls
+  // through to single-cell behaviour.
+  if (extend && sf?.kind === 'week') {
+    const anchor = sf.from; // range always anchored from the first click
+    const [from, to] = anchor <= week ? [anchor, week] : [week, anchor];
+    setStructuredFilter({
+      kind: 'week',
+      from, to,
+      label: formatWeekRange(from, to),
+    });
+    scrollListIntoView();
+    return;
+  }
+
+  // Non-shift click on an already-active single-week cell toggles off.
+  if (sf?.kind === 'week' && sf.from === week && sf.to === week) {
     clearStructuredFilter(); return;
   }
-  setStructuredFilter({ kind: 'week', value: week, label: formatWeek(week) });
-  // After the filter applies, nudge the headline list into view. On
-  // both desktop and mobile the list is below the heatmap, and the
-  // user just clicked a week expecting to READ that week — so put
-  // it in front of them.
+
+  setStructuredFilter({
+    kind: 'week',
+    from: week, to: week,
+    label: formatWeek(week),
+  });
+  scrollListIntoView();
+  return;
+}
+
+function scrollListIntoView() {
   requestAnimationFrame(() => {
     const listTop = document.getElementById('dd-body');
     if (!listTop) return;
@@ -967,14 +1003,14 @@ function handleHeatmapActivation(cell) {
 }
 heatmapEl.addEventListener('click', (e) => {
   const cell = e.target.closest('.dd-hc[data-week]');
-  if (cell) handleHeatmapActivation(cell);
+  if (cell) handleHeatmapActivation(cell, e.shiftKey);
 });
 heatmapEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const cell = e.target.closest('.dd-hc[data-week]');
   if (!cell) return;
   e.preventDefault();
-  handleHeatmapActivation(cell);
+  handleHeatmapActivation(cell, e.shiftKey);
 });
 
 sectionsEl.addEventListener('click', (e) => {
@@ -1082,11 +1118,10 @@ function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-// Pretty-print a YYYY-WW ISO week key as "Week of 4 May 2021". Used
-// as the label on the filter badge when a heatmap cell is clicked.
-function formatWeek(key) {
+// ISO week key → that week's Monday, as a Date.
+function weekMonday(key) {
   const m = key.match(/^(\d{4})-(\d{2})$/);
-  if (!m) return key;
+  if (!m) return null;
   const year = +m[1], week = +m[2];
   // ISO week 1 contains Jan 4, by definition. Find that week's Monday.
   const jan4 = new Date(Date.UTC(year, 0, 4));
@@ -1095,7 +1130,31 @@ function formatWeek(key) {
   mondayW1.setUTCDate(jan4.getUTCDate() - (dow - 1));
   const monday = new Date(mondayW1);
   monday.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
+  return monday;
+}
+
+// Pretty-print a YYYY-WW ISO week key as "Week of 4 May 2021". Used
+// as the label on the filter badge when a heatmap cell is clicked.
+function formatWeek(key) {
+  const monday = weekMonday(key);
+  if (!monday) return key;
   return `Week of ${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
+// Pretty-print a week range as "4 May → 30 Aug 2021" when the years
+// match, or "4 May 2020 → 30 Aug 2021" when they don't.
+function formatWeekRange(fromKey, toKey) {
+  const a = weekMonday(fromKey);
+  const b = weekMonday(toKey);
+  if (!a || !b) return `${fromKey} → ${toKey}`;
+  const sameYear = a.getUTCFullYear() === b.getUTCFullYear();
+  const fmt = (d, withYear) => d.toLocaleDateString('en-GB',
+    withYear
+      ? { day: 'numeric', month: 'short', year: 'numeric' }
+      : { day: 'numeric', month: 'short' });
+  return sameYear
+    ? `${fmt(a, false)} → ${fmt(b, true)}`
+    : `${fmt(a, true)} → ${fmt(b, true)}`;
 }
 
 // Pretty-print an ISO YYYY-MM-DD as "4 May 2021".
