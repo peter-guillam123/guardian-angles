@@ -2773,7 +2773,22 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   background: rgba(5, 41, 98, calc(var(--dd-i, 0) * 0.95));
   transition: transform 80ms;
 }
+.dd-hc[data-week] { cursor: pointer; }
 .dd-hc:hover { transform: scale(1.6); }
+/* Clicked week shows a Guardian-yellow ring so it stays visible
+   even at the small default cell size. Scale slightly too so the
+   active cell reads as "lifted" out of the grid. */
+.dd-hc.dd-hc-active {
+  outline: 2px solid var(--guardian-yellow);
+  outline-offset: 1px;
+  transform: scale(1.3);
+  z-index: 2;
+  position: relative;
+}
+.dd-hc[data-week]:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
 .dd-heatmap-legend .dd-hc {
   aspect-ratio: auto;
   width: 10px; height: 10px;

@@ -621,6 +621,8 @@ function renderHeatmap() {
   const years = [];
   for (let y = state.yearFrom; y <= state.yearTo; y++) years.push(y);
 
+  const activeWeek = state.structuredFilter?.kind === 'week' ? state.structuredFilter.value : null;
+
   heatmapEl.innerHTML = years.map(y => {
     const cells = [];
     for (let w = 1; w <= 53; w++) {
@@ -629,9 +631,15 @@ function renderHeatmap() {
       const intensity = c === 0 ? 0 : (0.15 + 0.85 * (c / peak));
       const label = c === 0
         ? `Week ${w} ${y} · 0 articles`
-        : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'}`;
-      const cls = c === 0 ? 'dd-hc dd-hc-empty' : 'dd-hc';
-      cells.push(`<span class="${cls}" style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
+        : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'} · click to filter`;
+      const classes = ['dd-hc'];
+      if (c === 0) classes.push('dd-hc-empty');
+      if (key === activeWeek) classes.push('dd-hc-active');
+      // Only non-empty cells become buttons.
+      const attrs = c > 0
+        ? `role="button" tabindex="0" data-week="${key}" aria-label="${label}"`
+        : 'aria-hidden="true"';
+      cells.push(`<span class="${classes.join(' ')}" ${attrs} style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
     }
     return `<div class="dd-hm-row">
       <span class="dd-hm-year">${y}</span>
@@ -823,6 +831,8 @@ function renderHeadlines() {
     } else if (sf.kind === 'word') {
       const re = new RegExp(`\\b${sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:'s)?\\b`, 'i');
       filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    } else if (sf.kind === 'week') {
+      filtered = filtered.filter(h => isoWeekKey((h.d || '').slice(0, 10)) === sf.value);
     }
   } else if (textFilter) {
     filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
@@ -903,6 +913,7 @@ function setStructuredFilter(filter) {
   // Re-render the faceted blocks so the active row is highlighted.
   renderCotags();
   renderWords();
+  renderHeatmap();
   if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
 }
 function clearStructuredFilter() {
@@ -934,6 +945,36 @@ wordsEl.addEventListener('click', (e) => {
     clearStructuredFilter(); return;
   }
   setStructuredFilter({ kind: 'word', value: word, label: word });
+});
+
+function handleHeatmapActivation(cell) {
+  const week = cell.dataset.week;
+  if (state.structuredFilter?.kind === 'week' && state.structuredFilter.value === week) {
+    clearStructuredFilter(); return;
+  }
+  setStructuredFilter({ kind: 'week', value: week, label: formatWeek(week) });
+  // After the filter applies, nudge the headline list into view. On
+  // both desktop and mobile the list is below the heatmap, and the
+  // user just clicked a week expecting to READ that week — so put
+  // it in front of them.
+  requestAnimationFrame(() => {
+    const listTop = document.getElementById('dd-body');
+    if (!listTop) return;
+    const rect = listTop.getBoundingClientRect();
+    const onScreen = rect.top >= 0 && rect.top < window.innerHeight * 0.5;
+    if (!onScreen) listTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+heatmapEl.addEventListener('click', (e) => {
+  const cell = e.target.closest('.dd-hc[data-week]');
+  if (cell) handleHeatmapActivation(cell);
+});
+heatmapEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const cell = e.target.closest('.dd-hc[data-week]');
+  if (!cell) return;
+  e.preventDefault();
+  handleHeatmapActivation(cell);
 });
 
 sectionsEl.addEventListener('click', (e) => {
@@ -1041,6 +1082,22 @@ function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+// Pretty-print a YYYY-WW ISO week key as "Week of 4 May 2021". Used
+// as the label on the filter badge when a heatmap cell is clicked.
+function formatWeek(key) {
+  const m = key.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return key;
+  const year = +m[1], week = +m[2];
+  // ISO week 1 contains Jan 4, by definition. Find that week's Monday.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dow = jan4.getUTCDay() || 7;
+  const mondayW1 = new Date(jan4);
+  mondayW1.setUTCDate(jan4.getUTCDate() - (dow - 1));
+  const monday = new Date(mondayW1);
+  monday.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
+  return `Week of ${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
 // Pretty-print an ISO YYYY-MM-DD as "4 May 2021".
 function formatFullDate(iso) {
   if (!iso) return '';
