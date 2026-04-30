@@ -2123,11 +2123,14 @@ a.tw-headline-text:hover {
 }
 
 /* On this week in… */
-.tw-history {
+.tw-history,
+.tw-top {
   padding-top: 32px;
   border-top: 1px solid var(--paper-rule);
+  margin-top: 32px;
 }
-.tw-history-title {
+.tw-history-title,
+.tw-top-title {
   font-family: var(--display);
   font-weight: 500;
   font-size: 28px;
@@ -2135,10 +2138,42 @@ a.tw-headline-text:hover {
   margin: 0 0 4px;
   color: var(--ink);
 }
-.tw-history-sub {
+.tw-history-sub,
+.tw-top-sub {
   font: 13px var(--ui);
   color: var(--ink-mute);
   margin: 0 0 20px;
+}
+
+/* Top 20 list — same per-item layout as risers/fallers, but two
+   columns on desktop because 20 items in one column is a long
+   read. Single column on mobile. Custom rank prefix in mono so
+   the numbers track and don't wobble between rows. */
+.tw-top-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 32px;
+}
+.tw-top-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.tw-top-rank {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  min-width: 22px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .tw-top-list { grid-template-columns: 1fr; }
 }
 .tw-history-grid {
   display: grid;

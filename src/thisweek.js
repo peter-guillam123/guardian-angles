@@ -15,6 +15,7 @@ const heroKicker = document.getElementById('tw-kicker');
 const risersList = document.getElementById('tw-risers');
 const fallersList = document.getElementById('tw-fallers');
 const historyGrid = document.getElementById('tw-history-grid');
+const topList = document.getElementById('tw-top-list');
 const prevBtn = document.getElementById('tw-prev');
 const nextBtn = document.getElementById('tw-next');
 
@@ -218,6 +219,29 @@ function renderWeek(weekIdx) {
       <span class="tw-badge tw-down">× ${m.ratio.toFixed(2)}</span>
     </li>
   `).join('') || '<li class="tw-empty">Nothing dropped dramatically this week.</li>';
+
+  // ----- Top 20 tags this week (raw volume, useful tags only) -----
+  const ranked = [];
+  for (const [id, counts] of Object.entries(tags)) {
+    if (!isUseful(id)) continue;
+    const c = counts[thisWeekIdx];
+    if (!c) continue;
+    ranked.push({ id, count: c });
+  }
+  ranked.sort((a, b) => b.count - a.count);
+  const top20 = ranked.slice(0, 20);
+  const weekTotal = totals[thisWeekIdx] || 1;
+  topList.innerHTML = top20.map((t, i) => {
+    const name = tagName(t.id);
+    const pct = ((t.count / weekTotal) * 100).toFixed(1);
+    return `<li>
+      <span class="tw-top-rank">${i + 1}</span>
+      <a class="tw-item-link" href="./?tags=${encodeURIComponent(t.id)}&g=weekly">
+        <span class="tw-item-name">${esc(name)}</span>
+        <span class="tw-item-meta">${t.count} article${t.count === 1 ? '' : 's'} · ${pct}%</span>
+      </a>
+    </li>`;
+  }).join('') || '<li class="tw-empty">No tag data this week.</li>';
 
   // ----- "On this week in…" -----
   const weekNum = parseInt(thisWeek.split('-W')[1]);
