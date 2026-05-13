@@ -2551,6 +2551,14 @@ main.dd {
   margin-bottom: 10px;
   flex-wrap: wrap;
 }
+/* Reserve enough space for the eyebrow so the count growing from
+   "· 8,894" to "· 181 matching" doesn't squeeze the filter tools
+   to the right — that was reading as a horizontal layout jump on
+   every filter toggle. */
+.dd-list-head .rising-eyebrow {
+  min-width: 220px;
+  flex: 0 0 auto;
+}
 .dd-list-tools {
   display: flex;
   gap: 8px;

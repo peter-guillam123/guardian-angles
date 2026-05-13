@@ -580,16 +580,42 @@ function scheduleRender() {
 
 // ───────────────── Word frequency ─────────────────
 function renderWords() {
-  const total = state.headlines.length || 1;
-  const top = [...state.words.entries()]
+  // When a filter is active, recompute from the filtered subset so
+  // the common-words block reflects the narrowed view — e.g. "in
+  // the Opinion-tone climate articles, what words keep appearing".
+  // Without a filter we use the cumulative state.words map that the
+  // stream is building, which is cheaper and continuously updating.
+  const sf = state.structuredFilter;
+  const filtered = sf ? applyActiveFilter(state.headlines) : null;
+  const total = (filtered || state.headlines).length || 1;
+  let entries;
+  if (filtered) {
+    const queryTokens = state.query?.kind === 'word'
+      ? new Set(tokenise(state.query.term))
+      : new Set(tokenise(state.query?.label || ''));
+    const counts = new Map();
+    for (const h of filtered) {
+      const seen = new Set();
+      for (const w of tokenise(h.t || '')) {
+        if (STOPWORDS.has(w) || queryTokens.has(w) || seen.has(w)) continue;
+        seen.add(w);
+        counts.set(w, (counts.get(w) || 0) + 1);
+      }
+    }
+    entries = [...counts.entries()];
+  } else {
+    entries = [...state.words.entries()];
+  }
+  const top = entries
     .filter(([, n]) => n >= 2)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
-  const active = state.structuredFilter?.kind === 'word' ? state.structuredFilter.value : null;
+  // Highlighting the word matching an active 'word' structured filter
+  // is no longer possible from this list (typing wipes the filter),
+  // but kept for completeness in case it ever returns.
   wordsEl.innerHTML = top.map(([word, n]) => {
     const pct = (n / total) * 100;
-    const cls = word === active ? ' class="dd-fc-active"' : '';
-    return `<li data-word="${escapeAttr(word)}"${cls}>
+    return `<li data-word="${escapeAttr(word)}">
       <span class="rising-label">${escapeHtml(word)}</span>
       <span class="rising-jump">${pct.toFixed(0)}%</span>
     </li>`;
@@ -868,6 +894,35 @@ async function streamHeadlines(myToken) {
 }
 
 // ───────────────── Render: headlines + cotags ─────────────────
+// Returns the current matched-headlines set narrowed by the active
+// filter (structured OR text — they're mutually exclusive in the UI).
+// Used by the headline list AND by Travels-with / common-words so all
+// three reflect the same filtered view.
+function applyActiveFilter(headlines) {
+  const sf = state.structuredFilter;
+  const textFilter = sf ? '' : filterEl.value.trim().toLowerCase();
+  let filtered = headlines;
+  if (sf) {
+    if (sf.kind === 'tag' || sf.kind === 'tone') {
+      filtered = filtered.filter(h => (h.g || []).includes(sf.value));
+    } else if (sf.kind === 'section') {
+      filtered = filtered.filter(h => h.s === sf.value);
+    } else if (sf.kind === 'week') {
+      filtered = filtered.filter(h => {
+        const k = isoWeekKey((h.d || '').slice(0, 10));
+        return k && k >= sf.from && k <= sf.to;
+      });
+    } else if (sf.kind === 'word') {
+      const esc = sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`\\b${esc}(?:'s)?\\b`, 'i');
+      filtered = filtered.filter(h => re.test((h.t || '').toLowerCase()));
+    }
+  } else if (textFilter) {
+    filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
+  }
+  return filtered;
+}
+
 function renderHeadlines() {
   const sf = state.structuredFilter;
   const textFilter = sf ? '' : filterEl.value.trim().toLowerCase();
@@ -925,12 +980,35 @@ function renderHeadlines() {
 }
 
 function renderCotags() {
-  const top = [...state.cotags.entries()]
+  // Same pattern as renderWords: cumulative state.cotags when no
+  // filter is active, recomputed from the filtered subset when one
+  // is. Skips the original query tag and any tone tag so the list
+  // stays "other keyword tags that travel with this view".
+  const sf = state.structuredFilter;
+  const filtered = sf ? applyActiveFilter(state.headlines) : null;
+  const queryTagId = state.query?.kind === 'tag' ? state.query.id : null;
+  let entries;
+  if (filtered) {
+    const counts = new Map();
+    for (const h of filtered) {
+      if (!h.g) continue;
+      for (const g of h.g) {
+        if (g === queryTagId) continue;
+        if (isUsefulTone(g)) continue;
+        if (!isUsefulTag(g)) continue;
+        counts.set(g, (counts.get(g) || 0) + 1);
+      }
+    }
+    entries = [...counts.entries()];
+  } else {
+    entries = [...state.cotags.entries()];
+  }
+  const top = entries
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
-  const totalMatched = state.headlines.length || 1;
+  const totalMatched = (filtered || state.headlines).length || 1;
   const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
-  const active = state.structuredFilter?.kind === 'tag' ? state.structuredFilter.value : null;
+  const active = sf?.kind === 'tag' ? sf.value : null;
   cotagsEl.innerHTML = top.map(([id, n]) => {
     const pct = (n / totalMatched) * 100;
     const name = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
