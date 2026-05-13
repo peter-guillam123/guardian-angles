@@ -2682,16 +2682,20 @@ a.dd-h-title:hover { color: var(--guardian-blue); border-bottom-color: var(--gua
   box-shadow: inset 3px 0 0 var(--guardian-blue);
 }
 
-/* Section-mix rows are clickable. Make it feel that way. */
-.breakdown-row[data-section] {
+/* Section-mix and tone-mix rows are clickable. Make them feel
+   that way. Both pick up the same hover + focus treatment. */
+.breakdown-row[data-section],
+.breakdown-row[data-tone] {
   cursor: pointer;
   transition: background 120ms;
   padding: 2px 4px;
   margin: 0 -4px;
   border-radius: 1px;
 }
-.breakdown-row[data-section]:hover { background: var(--paper-deep); }
-.breakdown-row[data-section]:focus-visible {
+.breakdown-row[data-section]:hover,
+.breakdown-row[data-tone]:hover { background: var(--paper-deep); }
+.breakdown-row[data-section]:focus-visible,
+.breakdown-row[data-tone]:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
