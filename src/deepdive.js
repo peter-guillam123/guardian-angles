@@ -13,6 +13,7 @@ import {
 } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
+import { isUsefulTone, toneLabel, toneColor } from './tones.js';
 
 // ───────────────── State ─────────────────
 const state = {
@@ -72,6 +73,7 @@ const statFirst = document.getElementById('dd-stat-first');
 const statLast = document.getElementById('dd-stat-last');
 const sparkEl = document.getElementById('dd-spark');
 const sectionsEl = document.getElementById('dd-sections');
+const tonesEl = document.getElementById('dd-tones');
 const listCountEl = document.getElementById('dd-list-count');
 const filterEl = document.getElementById('dd-filter');
 const exportEl = document.getElementById('dd-export');
@@ -319,6 +321,7 @@ async function runDeepDive() {
   state.peakExpanded = false;
   state._streamDone = false;
   state._perSectionActual = null;
+  state._perToneActual = null;
   state.structuredFilter = null;
   _renderTick = 0;
   _lastHeatmapTick = 0;
@@ -501,6 +504,36 @@ function drawSectionBreakdown(totals) {
   }).join('') || `<p class="dd-empty">No section data in this range.</p>`;
 }
 
+// Tone breakdown — same shape as the section bars but keyed off the
+// per-tone counts we collect in processShard. Note an article can
+// carry multiple tones (e.g. tone/analysis + tone/comment), so the
+// percentages here are "of articles with at least one tone tagged
+// as X" rather than mutually-exclusive shares — and the row total
+// may exceed 100% across all tones for that reason.
+function drawToneBreakdown(perTone) {
+  const rows = Object.entries(perTone || {})
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  if (!rows.length) {
+    tonesEl.innerHTML = `<p class="dd-empty">No tone data yet.</p>`;
+    return;
+  }
+  const max = rows[0][1];
+  const totalMatched = state.headlines.length || 1;
+  const active = state.structuredFilter?.kind === 'tone' ? state.structuredFilter.value : null;
+  tonesEl.innerHTML = rows.map(([id, n]) => {
+    const pct = (n / totalMatched) * 100;
+    const fill = (n / max) * 100;
+    const cls = id === active ? ' dd-fc-active' : '';
+    return `<div class="breakdown-row${cls}" data-tone="${escapeAttr(id)}" role="button" tabindex="0" aria-label="Filter to ${escapeAttr(toneLabel(id))} tone">
+      <div class="name">${escapeHtml(toneLabel(id))}</div>
+      <div class="bar-track"><div class="bar-fill" style="background:${toneColor(id)};width:${fill.toFixed(1)}%"></div></div>
+      <div class="num">${pct.toFixed(1)}% <span class="count">· ${n.toLocaleString('en-GB')}</span></div>
+    </div>`;
+  }).join('');
+}
+
 // ───────────────── Render scheduling ─────────────────
 // One animation-frame-coalesced render pass is WAY cheaper than
 // re-rendering every single block on every single shard completion.
@@ -530,6 +563,9 @@ function scheduleRender() {
     updateSummaryFromHeadlines();
     if (state._perSectionActual && state.headlines.length > 20) {
       drawSectionBreakdown(state._perSectionActual);
+    }
+    if (state._perToneActual) {
+      drawToneBreakdown(state._perToneActual);
     }
     // The heatmap is the heaviest block (795 inline-styled spans).
     // Only rebuild it every ~6th render tick, unless it's the final
@@ -736,6 +772,7 @@ async function streamHeadlines(myToken) {
   const CONCURRENCY = 4;
   let loaded = 0;
   let perSectionActual = {};
+  let perToneActual = {};
 
   // Helper to process one shard's matching headlines.
   const processShard = async (month) => {
@@ -771,6 +808,13 @@ async function streamHeadlines(myToken) {
         perSectionActual[h.s] = (perSectionActual[h.s] || 0) + 1;
         if (h.g) for (const g of h.g) {
           if (g === tagId) continue;
+          // Tones get their own per-tone counter — they're noise in
+          // the keyword-tag cotag flow but useful as their own
+          // dimension (the "tone mix" panel below the section mix).
+          if (isUsefulTone(g)) {
+            perToneActual[g] = (perToneActual[g] || 0) + 1;
+            continue;
+          }
           if (!isUsefulTag(g)) continue;
           state.cotags.set(g, (state.cotags.get(g) || 0) + 1);
         }
@@ -797,6 +841,7 @@ async function streamHeadlines(myToken) {
     // Cummings dive is ~150 shards × 5 renders each without this, which
     // thrashes iOS WKWebView into an OOM kill.
     state._perSectionActual = perSectionActual;
+    state._perToneActual = perToneActual;
     scheduleRender();
   };
 
@@ -838,6 +883,8 @@ function renderHeadlines() {
     } else if (sf.kind === 'word') {
       const re = new RegExp(`\\b${sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:'s)?\\b`, 'i');
       filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    } else if (sf.kind === 'tone') {
+      filtered = filtered.filter(h => (h.g || []).includes(sf.value));
     } else if (sf.kind === 'week') {
       // Inclusive chronological range. For a single-week filter
       // from === to, so both comparisons collapse to equality.
@@ -927,6 +974,7 @@ function setStructuredFilter(filter) {
   renderWords();
   renderHeatmap();
   if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
+  if (state._perToneActual) drawToneBreakdown(state._perToneActual);
 }
 function clearStructuredFilter() {
   setStructuredFilter(null);
@@ -1011,6 +1059,16 @@ heatmapEl.addEventListener('keydown', (e) => {
   if (!cell) return;
   e.preventDefault();
   handleHeatmapActivation(cell, e.shiftKey);
+});
+
+tonesEl.addEventListener('click', (e) => {
+  const row = e.target.closest('.breakdown-row[data-tone]');
+  if (!row) return;
+  const id = row.dataset.tone;
+  if (state.structuredFilter?.kind === 'tone' && state.structuredFilter.value === id) {
+    clearStructuredFilter(); return;
+  }
+  setStructuredFilter({ kind: 'tone', value: id, label: toneLabel(id) });
 });
 
 sectionsEl.addEventListener('click', (e) => {
