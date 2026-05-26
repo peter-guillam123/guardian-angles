@@ -62,6 +62,7 @@ const yearToInp = document.getElementById('dd-year-to');
 const yearFromDisp = document.getElementById('dd-year-from-display');
 const yearToDisp = document.getElementById('dd-year-to-display');
 const rangeFill = document.getElementById('dd-range-fill');
+const toneHintEl = document.getElementById('dd-tone-hint');
 const promptEl = document.getElementById('dd-prompt');
 const summaryEl = document.getElementById('dd-summary');
 const bodyEl = document.getElementById('dd-body');
@@ -170,6 +171,8 @@ function setMode(mode) {
   }
 }
 async function applyModeUI() {
+  // Hint sits beside the year range — only relevant in tone mode.
+  toneHintEl.hidden = state.mode !== 'tones';
   if (state.mode === 'tags') {
     labelEl.textContent = 'Search a tag';
     inputEl.placeholder = 'e.g. donald trump, climate crisis…';

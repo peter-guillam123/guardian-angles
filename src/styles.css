@@ -1354,6 +1354,16 @@ main.subjects {
   margin-top: 4px;
 }
 
+/* Hint that appears under the year slider on Deep dive in tone mode.
+   Explains why we snapped the range and what widening costs. Italic,
+   muted ink, matches the rest of the editorial captions. */
+.dd-tone-hint {
+  margin: 8px 0 0;
+  font: italic 12px/1.4 var(--body);
+  color: var(--ink-mute);
+  max-width: 38em;
+}
+
 /* Meta line */
 .subjects-meta {
   font: 12px/1.4 var(--ui);
