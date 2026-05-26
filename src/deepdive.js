@@ -273,28 +273,32 @@ function detachAutocomplete(inp) {
 
 // ───────────────── Year range ─────────────────
 function wireRange() {
-  const onInput = () => {
-    let from = parseInt(yearFromInp.value);
-    let to = parseInt(yearToInp.value);
-    if (from > to) [from, to] = [to, from];
-    state.yearFrom = from;
-    state.yearTo = to;
-    updateYearDisplay();
-  };
+  // Dual-thumb sliders let the user drag one thumb past the other,
+  // producing a crossed (from > to) state. Always recompute via
+  // updateYearDisplay — it's the single source of truth that swaps
+  // and writes state. The previous version did its own swap then
+  // called updateYearDisplay, which re-read raw inputs and un-swapped
+  // — leaving state.yearFrom > state.yearTo. monthsInRange(2026,
+  // 2024) returns empty, so the shard stream never runs and the
+  // dive sits at "counting…" forever.
+  const onInput = () => updateYearDisplay();
   yearFromInp.addEventListener('input', onInput);
   yearToInp.addEventListener('input', onInput);
 }
 function updateYearDisplay() {
   const min = parseInt(yearFromInp.min), max = parseInt(yearFromInp.max);
   const span = Math.max(1, max - min);
-  const fromPct = ((parseInt(yearFromInp.value) - min) / span) * 100;
-  const toPct = ((parseInt(yearToInp.value) - min) / span) * 100;
+  let from = parseInt(yearFromInp.value);
+  let to = parseInt(yearToInp.value);
+  if (from > to) [from, to] = [to, from];
+  const fromPct = ((from - min) / span) * 100;
+  const toPct = ((to - min) / span) * 100;
   rangeFill.style.left = fromPct + '%';
   rangeFill.style.right = (100 - toPct) + '%';
-  yearFromDisp.textContent = yearFromInp.value;
-  yearToDisp.textContent = yearToInp.value;
-  state.yearFrom = parseInt(yearFromInp.value);
-  state.yearTo = parseInt(yearToInp.value);
+  yearFromDisp.textContent = from;
+  yearToDisp.textContent = to;
+  state.yearFrom = from;
+  state.yearTo = to;
 }
 
 // ───────────────── Form ─────────────────
