@@ -1163,10 +1163,16 @@ sectionsEl.addEventListener('click', (e) => {
 // ───────────────── CSV export ─────────────────
 function exportCsv() {
   if (!state.headlines.length) return;
-  const filter = filterEl.value.trim().toLowerCase();
-  const rows = filter
-    ? state.headlines.filter(h => (h.t || '').toLowerCase().includes(filter))
-    : state.headlines;
+  // Use the same filter pipeline as the headline list itself —
+  // previously the export did its own substring match on filterEl
+  // value, which broke for every structured filter type. A tone
+  // filter "Features" would look for the word "features" in
+  // headlines (mostly empty); a tag filter "Television" would only
+  // catch headlines containing the word "Television" (mostly 2026
+  // because that's when the word's recent in copy). applyActiveFilter
+  // is the single source of truth for "what's in the current view".
+  const rows = applyActiveFilter(state.headlines);
+  if (!rows.length) return;
   const head = ['date', 'section', 'headline', 'tags', 'url'];
   const lines = [head.join(',')];
   for (const h of rows) {
@@ -1183,9 +1189,15 @@ function exportCsv() {
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  const slug = (state.query.label || 'deep-dive')
+  const toSlug = (s) => (s || '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  a.download = `guardian-angles-${slug}-${state.yearFrom}-${state.yearTo}.csv`;
+  const baseSlug = toSlug(state.query.label) || 'deep-dive';
+  // If a filter's active, fold its label into the filename so the
+  // downloaded file says what it actually contains.
+  const filterSlug = state.structuredFilter
+    ? `-${toSlug(state.structuredFilter.kind)}-${toSlug(state.structuredFilter.label)}`
+    : '';
+  a.download = `guardian-angles-${baseSlug}${filterSlug}-${state.yearFrom}-${state.yearTo}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
