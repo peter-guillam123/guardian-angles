@@ -100,3 +100,13 @@ export function toneColor(id) {
 export function isUsefulTone(id) {
   return typeof id === 'string' && id.startsWith('tone/');
 }
+
+// All known tones as a catalog-like array, sorted by label. Used by
+// the Deep dive autocomplete when the user switches into Tone mode.
+// Shape matches the tag catalog ({ id, name }) so the same
+// autocomplete rendering path can drive both.
+export function getToneCatalog() {
+  return Object.entries(TONE_LABELS)
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

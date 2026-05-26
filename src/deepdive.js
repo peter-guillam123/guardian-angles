@@ -13,7 +13,7 @@ import {
 } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
-import { isUsefulTone, toneLabel, toneColor } from './tones.js';
+import { isUsefulTone, toneLabel, toneColor, getToneCatalog } from './tones.js';
 
 // ───────────────── State ─────────────────
 const state = {
@@ -117,6 +117,7 @@ const filterClearEl = document.getElementById('dd-filter-clear');
   // Pull query from URL so the page is deep-linkable.
   const params = new URLSearchParams(location.search);
   const tag = params.get('tag');
+  const tone = params.get('tone');
   const q = params.get('q');
   const from = parseInt(params.get('from'));
   const to = parseInt(params.get('to'));
@@ -130,6 +131,11 @@ const filterClearEl = document.getElementById('dd-filter-clear');
     inputEl.value = t?.name || tag;
     inputEl.dataset.tagId = tag;
     runDeepDive();
+  } else if (tone) {
+    setMode('tones');
+    inputEl.value = toneLabel(tone);
+    inputEl.dataset.toneId = tone;
+    runDeepDive();
   } else if (q) {
     setMode('words');
     inputEl.value = q;
@@ -142,18 +148,39 @@ function wireMode() {
   modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 }
 function setMode(mode) {
+  const prevMode = state.mode;
   state.mode = mode;
   modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   applyModeUI();
   delete inputEl.dataset.tagId;
+  delete inputEl.dataset.toneId;
   inputEl.value = '';
+  // Entering tone mode for the first time, snap the year range to the
+  // current year only. Tones can match enormous numbers of articles
+  // (every Opinion piece across a decade is 100k+), so the default
+  // narrow range keeps the first dive fast and stable. User can drag
+  // the slider out from there. Don't re-snap if they're already in
+  // tone mode (no point) or coming back to tone after deliberate
+  // adjustment in the same session.
+  if (mode === 'tones' && prevMode !== 'tones') {
+    const thisYear = new Date().getUTCFullYear();
+    yearFromInp.value = String(thisYear);
+    yearToInp.value = String(thisYear);
+    updateYearDisplay();
+  }
 }
 async function applyModeUI() {
   if (state.mode === 'tags') {
     labelEl.textContent = 'Search a tag';
     inputEl.placeholder = 'e.g. donald trump, climate crisis…';
     await loadCatalogIfNeeded();
-    attachSimpleAutocomplete(inputEl);
+    attachSimpleAutocomplete(inputEl, state.tagCatalog);
+  } else if (state.mode === 'tones') {
+    labelEl.textContent = 'Search a tone';
+    inputEl.placeholder = 'e.g. opinion, features, analysis…';
+    attachSimpleAutocomplete(inputEl, getToneCatalog(), {
+      hideSlug: true, hideCount: true, datasetKey: 'toneId',
+    });
   } else {
     labelEl.textContent = 'Search headlines for a word';
     inputEl.placeholder = 'e.g. starmer, inflation…';
@@ -166,8 +193,12 @@ async function loadCatalogIfNeeded() {
 }
 
 // Lightweight autocomplete (reuses the same dropdown CSS as Trends).
+// Takes an explicit catalog so the same UI drives both tag mode
+// (3,000 entries, slug + count visible) and tone mode (~25 entries,
+// slug + count hidden via opts).
 let _acDropdown = null;
-function attachSimpleAutocomplete(inp) {
+function attachSimpleAutocomplete(inp, catalog, opts = {}) {
+  const { hideSlug = false, hideCount = false, datasetKey = 'tagId' } = opts;
   detachAutocomplete(inp);
   const dropdown = document.createElement('ul');
   dropdown.className = 'ac-dropdown';
@@ -178,20 +209,25 @@ function attachSimpleAutocomplete(inp) {
 
   const render = () => {
     const q = inp.value.trim().toLowerCase();
-    if (!q) { dropdown.hidden = true; return; }
     const matches = [];
-    for (const t of state.tagCatalog) {
-      if (t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)) {
-        matches.push(t);
-        if (matches.length >= 8) break;
+    // With no query and a small catalog (≤ 30), show all entries — a
+    // tone picker is more useful as a full list than an empty one.
+    if (!q && catalog.length <= 30) {
+      matches.push(...catalog);
+    } else if (q) {
+      for (const t of catalog) {
+        if (t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)) {
+          matches.push(t);
+          if (matches.length >= 8) break;
+        }
       }
     }
     if (!matches.length) { dropdown.hidden = true; return; }
     dropdown.innerHTML = matches.map(t => `
-      <li class="ac-item" data-id="${t.id}" data-name="${escapeAttr(t.name)}">
+      <li class="ac-item" data-id="${escapeAttr(t.id)}" data-name="${escapeAttr(t.name)}">
         <span class="ac-name">${escapeHtml(t.name)}</span>
-        <span class="ac-slug">${escapeHtml(t.id)}</span>
-        <span class="ac-count">${(t.n || 0).toLocaleString('en-GB')}</span>
+        ${hideSlug ? '' : `<span class="ac-slug">${escapeHtml(t.id)}</span>`}
+        ${hideCount ? '' : `<span class="ac-count">${(t.n || 0).toLocaleString('en-GB')}</span>`}
       </li>`).join('');
     dropdown.hidden = false;
   };
@@ -200,7 +236,7 @@ function attachSimpleAutocomplete(inp) {
     const li = e.target.closest('.ac-item');
     if (!li) return;
     inp.value = li.dataset.name;
-    inp.dataset.tagId = li.dataset.id;
+    inp.dataset[datasetKey] = li.dataset.id;
     dropdown.hidden = true;
   };
   const onBlur = () => setTimeout(() => { dropdown.hidden = true; }, 200);
@@ -305,6 +341,20 @@ async function runDeepDive() {
       inputEl.value = match.name;
     }
     state.query = { kind: 'tag', id: inputEl.dataset.tagId, label: inputEl.value.trim() };
+  } else if (state.mode === 'tones') {
+    let toneId = inputEl.dataset.toneId;
+    if (!toneId) {
+      // Accept a typed label that matches a tone exactly.
+      const typed = inputEl.value.trim().toLowerCase();
+      const match = getToneCatalog().find(t =>
+        t.name.toLowerCase() === typed || t.id.toLowerCase() === typed
+      );
+      if (!match) { flashError('Pick a tone from the suggestions.'); return; }
+      inputEl.dataset.toneId = match.id;
+      inputEl.value = match.name;
+      toneId = match.id;
+    }
+    state.query = { kind: 'tone', id: toneId, label: inputEl.value.trim() };
   } else {
     const term = inputEl.value.trim();
     if (!term) { flashError('Type a word.'); return; }
@@ -348,6 +398,7 @@ async function runDeepDive() {
   // Update URL for deep-linking.
   const p = new URLSearchParams();
   if (state.query.kind === 'tag') p.set('tag', state.query.id);
+  else if (state.query.kind === 'tone') p.set('tone', state.query.id);
   else p.set('q', state.query.term);
   p.set('from', state.yearFrom);
   p.set('to', state.yearTo);
@@ -370,13 +421,23 @@ function flashError(msg) {
 // ───────────────── Instant summary (no shard I/O) ─────────────────
 async function renderInstantSummary() {
   const { kind, id, term, label } = state.query;
+  // Tones aren't in either the term or the tag index (excluded by
+  // SKIP_PREFIXES at build time), so a tone dive has no quick
+  // sketch — load the sections artifact only and let the shard
+  // stream fill in the numbers authoritatively below.
   const [idx, sections] = await Promise.all([
-    kind === 'tag' ? loadTagIndex('monthly') : loadIndex('monthly'),
+    kind === 'tag' ? loadTagIndex('monthly')
+      : kind === 'tone' ? null
+      : loadIndex('monthly'),
     loadSections(),
   ]);
-  const buckets = idx.buckets;
-  const table = kind === 'tag' ? idx.tags : idx.terms;
-  const key = kind === 'tag' ? id : normaliseWord(term);
+  const buckets = idx ? idx.buckets : sections.months;
+  const table = kind === 'tag' ? idx.tags
+              : kind === 'word' ? idx.terms
+              : {};  // tone: empty — every key misses, falls to "counting…"
+  const key = kind === 'tag' ? id
+            : kind === 'word' ? normaliseWord(term)
+            : id;
   const counts = table[key] || new Array(buckets.length).fill(0);
 
   // Clip to year range.
@@ -398,7 +459,10 @@ async function renderInstantSummary() {
   while (lastIdx >= 0 && vals[lastIdx] === 0) lastIdx--;
 
   headlineEl.textContent = `${label} in Guardian headlines`;
-  subEl.textContent = `${state.yearFrom}–${state.yearTo} · ${kind === 'tag' ? 'tag' : 'headline word'}`;
+  const kindLabel = kind === 'tag' ? 'tag'
+                  : kind === 'tone' ? 'tone'
+                  : 'headline word';
+  subEl.textContent = `${state.yearFrom}–${state.yearTo} · ${kindLabel}`;
 
   // The monthly term-index only knows single words, so a phrase like
   // "noel clarke" or any term outside the top 5,000 isn't there. In
@@ -511,6 +575,16 @@ function drawSectionBreakdown(totals) {
 // as X" rather than mutually-exclusive shares — and the row total
 // may exceed 100% across all tones for that reason.
 function drawToneBreakdown(perTone) {
+  // On a tone dive the panel would either be 100% the chosen tone
+  // (boring) or 100% minus a sliver of multi-tone articles (still
+  // not editorially interesting). Hide it.
+  if (state.query?.kind === 'tone') {
+    tonesEl.innerHTML = '';
+    tonesEl.parentElement.hidden = true;
+    return;
+  }
+  tonesEl.parentElement.hidden = false;
+
   const rows = Object.entries(perTone || {})
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1])
@@ -624,6 +698,10 @@ function renderWords() {
 
 // ───────────────── First / peak / latest dispatch cards ─────────────────
 function renderDispatches() {
+  // Tone dives don't have an editorial "first / peak / latest" in
+  // the same sense — the first ever Opinion piece in our data isn't
+  // really the start of a story. Hide the row entirely.
+  if (state.query?.kind === 'tone') { dispatchesEl.hidden = true; return; }
   if (!state.headlines.length) return;
   // state.headlines is sorted newest-first in scheduleRender.
   const latest = state.headlines[0];
@@ -791,7 +869,12 @@ async function streamHeadlines(myToken) {
   const matcher = state.query.kind === 'word'
     ? makeWordMatcher(state.query.term)
     : null;
-  const tagId = state.query.kind === 'tag' ? state.query.id : null;
+  // Tag mode and tone mode both filter the shard by checking whether
+  // h.g includes the chosen id. The matching logic is identical;
+  // we just reuse the tagId variable for both for convenience.
+  const tagId = (state.query.kind === 'tag' || state.query.kind === 'tone')
+    ? state.query.id
+    : null;
 
   // Newest-first so the most recent headlines show up first.
   months.reverse();
