@@ -2500,17 +2500,20 @@ main.dd {
   color: var(--ink-mute);
 }
 
-/* Stat strip + sparkline sit side by side on desktop so the page
-   uses its width. Section mix drops beneath them — that row's a
-   natural chunk of its own because it's tabular. */
+/* Stats row + sparkline stack vertically, both at the full
+   width of the summary section. Originally these sat side-by-side
+   in a 1.1fr/1fr grid but that read as visually narrow against the
+   rest of the Deep dive page (heatmap, dispatches, section mix,
+   tone mix all full-width). Stacking lets the sparkline use the
+   breadth it deserves and keeps the summary section visually
+   consistent with everything below it. */
 .dd-sum-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
   padding: 18px 0;
   border-top: 1px solid var(--paper-rule);
   border-bottom: 1px solid var(--paper-rule);
-  align-items: center;
 }
 .dd-sum-grid {
   display: grid;
@@ -2544,7 +2547,7 @@ main.dd {
   text-transform: uppercase;
   color: var(--ink-mute);
 }
-#dd-spark { width: 100%; height: 96px; display: block; }
+#dd-spark { width: 100%; height: 140px; display: block; }
 
 .dd-body {
   display: grid;
@@ -2941,10 +2944,8 @@ a.dd-dispatch-title:hover { color: var(--guardian-blue); border-bottom-color: va
     border-bottom: none;
   }
 }
-/* Below 720px: stack the summary's internal split too. */
-@media (max-width: 720px) {
-  .dd-sum-main { grid-template-columns: 1fr; gap: 22px; }
-}
+/* (Pre-stack mobile override removed — the stack is the default
+   now, so no breakpoint adjustment needed.) */
 @media (max-width: 640px) {
   main.dd { padding: 16px 16px 48px; gap: 20px; }
   .dd-controls { padding: 14px 0; }
