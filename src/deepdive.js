@@ -156,18 +156,29 @@ function setMode(mode) {
   delete inputEl.dataset.tagId;
   delete inputEl.dataset.toneId;
   inputEl.value = '';
-  // Entering tone mode for the first time, snap the year range to the
-  // current year only. Tones can match enormous numbers of articles
-  // (every Opinion piece across a decade is 100k+), so the default
-  // narrow range keeps the first dive fast and stable. User can drag
-  // the slider out from there. Don't re-snap if they're already in
-  // tone mode (no point) or coming back to tone after deliberate
-  // adjustment in the same session.
+  // Entering tone mode: stash the current year range so we can
+  // restore it on exit, then snap to current-year only. Tones match
+  // a lot — narrow default keeps the first dive stable. User can
+  // drag the slider wider; the restore covers the case where they
+  // flip back to Tag/Word and would otherwise be stuck at narrow.
   if (mode === 'tones' && prevMode !== 'tones') {
+    state._preToneRange = {
+      from: yearFromInp.value,
+      to: yearToInp.value,
+    };
     const thisYear = new Date().getUTCFullYear();
     yearFromInp.value = String(thisYear);
     yearToInp.value = String(thisYear);
     updateYearDisplay();
+  }
+  // Leaving tone mode: restore the range we stashed on entry. Any
+  // adjustment the user made while in tone mode is intentionally
+  // discarded — the slider returns to whatever they had for Tag/Word.
+  if (mode !== 'tones' && prevMode === 'tones' && state._preToneRange) {
+    yearFromInp.value = state._preToneRange.from;
+    yearToInp.value = state._preToneRange.to;
+    updateYearDisplay();
+    state._preToneRange = null;
   }
 }
 async function applyModeUI() {
