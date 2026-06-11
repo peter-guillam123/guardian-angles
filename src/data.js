@@ -10,6 +10,7 @@ let _sectionsPromise = null;
 let _metaPromise = null;
 let _tagCatalogPromise = null;
 let _cooccurPromise = null;
+let _languagePromise = null;
 const _shardCache = new Map();
 
 // Build a headline matcher for a free-text query.
@@ -85,6 +86,15 @@ export function loadCooccur() {
     _cooccurPromise = fetchJsonMaybeGz(`${DATA_BASE}/cooccur.json`);
   }
   return _cooccurPromise;
+}
+
+// Headline-language markers by month — see build/build_language.py for
+// the schema and marker definitions. ~5KB gz; the Style page's data.
+export function loadLanguage() {
+  if (!_languagePromise) {
+    _languagePromise = fetchJsonMaybeGz(`${DATA_BASE}/language.json`);
+  }
+  return _languagePromise;
 }
 
 // ─── Dense bucket helpers ───

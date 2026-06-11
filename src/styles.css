@@ -3118,3 +3118,119 @@ a.dd-dispatch-title:hover { color: var(--guardian-blue); border-bottom-color: va
   .dd-stat-btn .dd-stat-hint { display: none; }
 }
 
+
+/* ─── Style page — how the headlines are written ─── */
+main.stylepage {
+  display: block;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 48px 80px;
+}
+.sp-hero {
+  padding: 8px 0 28px;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.sp-hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+  margin-top: 14px;
+}
+.sp-hero-big {
+  display: block;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 84px;
+  line-height: 0.95;
+  color: var(--ink);
+}
+.sp-hero-unit {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--ui);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.sp-hero-then {
+  display: block;
+  margin-top: 10px;
+  font: italic 13px/1.5 var(--body);
+  color: var(--ink-mute);
+}
+.sp-hero-chart { margin: 0; min-width: 0; }
+.sp-hero-chart svg { display: block; width: 100%; height: auto; }
+
+.sp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 28px 36px;
+  padding: 28px 0;
+}
+.sp-card { min-width: 0; }
+.sp-card-title {
+  margin: 0 0 2px;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.sp-card-now {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--ink);
+}
+.sp-card-then {
+  font-family: var(--ui);
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.sp-card svg { display: block; width: 100%; height: auto; }
+.sp-card-dek {
+  margin: 8px 0 0;
+  font: 13px/1.5 var(--body);
+  color: var(--ink-mute);
+}
+
+.sp-line { fill: none; stroke: var(--guardian-blue); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.sp-dot { fill: var(--guardian-blue); }
+.sp-dot-hollow { fill: var(--paper); stroke: var(--guardian-blue); stroke-width: 2; }
+.sp-gline { stroke: var(--paper-rule); stroke-width: 1; }
+.sp-tick { font-family: var(--mono); font-size: 10px; fill: var(--ink-mute); }
+.sp-card-years {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+
+.sp-notes {
+  border-top: 1px solid var(--paper-rule);
+  padding-top: 22px;
+  max-width: 720px;
+}
+.sp-notes ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+.sp-notes li {
+  font: 13px/1.6 var(--body);
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  main.stylepage { padding: 20px 20px 64px; }
+  .sp-hero-row { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .sp-hero-big { font-size: 64px; }
+  .sp-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Style — Guardian Angles</title>
+  <meta name="description" content="How Guardian headlines are written: fifteen years of length, punctuation and quotation." />
+  <meta property="og:image" content="https://guardian-angles.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://guardian-angles.com/og-image.png" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+  <header class="masthead">
+    <h1 class="title">
+      <a href="./" aria-label="Guardian Angles home">Guardian<br/>Angles</a>
+    </h1>
+    <p class="dek">
+      Not what the Guardian wrote about — how the headlines themselves are written. Fifteen years of house habits: length, punctuation, quotation, and the archaeology of the liveblog.
+    </p>
+    <div class="stat" id="stat-counter">
+      <span class="big" id="stat-big">—</span>
+      headlines measured<span class="stat-fresh" id="freshness"></span>
+    </div>
+  </header>
+
+  <div class="rule-band"></div>
+
+  <nav class="subnav" aria-label="Primary">
+    <a href="./">Trends</a>
+    <a href="./subjects.html">Topics</a>
+    <a href="./deepdive.html">Deep dive</a>
+    <a href="./thisweek.html">This Week</a>
+    <a href="./newsroom.html">Newsroom</a>
+    <a href="./style.html" class="active" aria-current="page">Style</a>
+    <a href="./about.html">About</a>
+  </nav>
+
+  <main class="stylepage">
+
+    <!-- Hero: the length of a headline, the steadiest line on the site. -->
+    <section class="sp-hero" id="sp-hero">
+      <p class="dd-eyebrow">The headline became a sentence</p>
+      <div class="sp-hero-row">
+        <div class="sp-hero-stat">
+          <span class="sp-hero-big" id="sp-hero-now">—</span>
+          <span class="sp-hero-unit">words in an average headline now</span>
+          <span class="sp-hero-then" id="sp-hero-then"></span>
+        </div>
+        <figure class="sp-hero-chart" id="sp-hero-chart" role="img"
+                aria-label="Average words per Guardian headline by year, rising steadily across fifteen years.">
+        </figure>
+      </div>
+    </section>
+
+    <!-- The habit cards. -->
+    <section class="sp-grid" id="sp-cards" aria-label="Headline habits"></section>
+
+    <!-- Small print. -->
+    <section class="sp-notes">
+      <p class="dd-eyebrow">Small print</p>
+      <ul>
+        <li>Every figure is a share of that year's headlines, so the Guardian's changing output volume doesn't skew the lines. Charts start at zero.</li>
+        <li>A "colon" means a colon followed by a space — so 3:30pm doesn't count. A "quote opening" is a headline whose first character is a quotation mark.</li>
+        <li>Closed live blogs are retitled "…as it happened", so that suffix — not the word "live" — is how the archive remembers live coverage.</li>
+        <li>The current year is drawn hollow: it's the year so far, not the year.</li>
+        <li>And the word the Guardian famously won't use: <em>Exclusive:</em> opens <span id="sp-exclusive">—</span> headlines out of <span id="sp-total-inline">—</span>. Almost none of them recent.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    Built with the <a href="https://open-platform.theguardian.com/">Guardian Open Platform</a>.
+    Data rebuilds nightly. Source on <a href="https://github.com/peter-guillam123/guardian-angles">GitHub</a>.
+    Headlines © Guardian News &amp; Media. Not affiliated with or endorsed by the Guardian.
+  </footer>
+
+  <script type="module" src="./src/style-page.js"></script>
+  <script src="./src/freshness.js" defer></script>
+</body>
+</html>
