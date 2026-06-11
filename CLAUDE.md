@@ -51,6 +51,25 @@ configured via Cloudflare DNS (DNS-only, grey cloud). Repo:
     concurrent design commits.
   - `refresh-tag-names.yml` — monthly cron + manual dispatch.
 
+- **Data lifecycle (June 2026 — don't regress this)**: git history
+  had grown to ~4.7GB because every hourly run committed ~10MB of
+  regenerated index files. Now:
+  - **Derived files are never committed** (term/tag indexes,
+    `sections.json`, `tag-catalog.json`, `meta.json`) — gitignored,
+    rebuilt every CI run, shipped only in the Pages artifact.
+  - **The current month's shard is never committed** — it changes
+    hourly; the deploy artifact carries it. The workflow `git reset`s
+    it out of the data commit. It lands in history once, when the
+    first run after month rollover sees it as a closed month.
+  - **Shard gzip output is deterministic** (`mtime=0`, no embedded
+    filename, no `fetched_at` field) so refetching unchanged content
+    is a git no-op. Don't add timestamps back into shards.
+  - **Code pushes fetch the current month** before rebuilding indexes
+    (`fetch_guardian.py --months PREV,CUR --skip-existing`) — without
+    this a design push would deploy a site missing the current month.
+  - Fresh clones must run `build_index.py` + `build_tag_index.py`
+    before the site works locally.
+
 ## Conventions established (don't fight these)
 
 - **One commit per theme.** Even small refactors get their own commit.

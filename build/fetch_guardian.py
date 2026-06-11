@@ -9,7 +9,6 @@ Usage:
 Each shard is data/shards/YYYY-MM.json.gz with shape:
     {
       "month": "2025-01",
-      "fetched_at": "2026-04-14T03:00:00Z",
       "count": 12453,
       "headlines": [
         {
@@ -142,9 +141,10 @@ def fetch_month(month: str) -> dict:
             break
         page += 1
         time.sleep(RATE_LIMIT_SECONDS)
+    # No fetched_at timestamp: nothing reads it, and a timestamp would make
+    # every refetch of unchanged content a new file in git's eyes.
     return {
         "month": month,
-        "fetched_at": dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
         "count": len(all_results),
         "headlines": all_results,
     }
@@ -154,8 +154,12 @@ def write_shard(shard: dict) -> Path:
     SHARD_DIR.mkdir(parents=True, exist_ok=True)
     path = SHARD_DIR / f"{shard['month']}.json.gz"
     payload = json.dumps(shard, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    with gzip.open(path, "wb", compresslevel=9) as f:
-        f.write(payload)
+    # mtime=0 + no embedded filename so the same content always gzips to the
+    # same bytes — refetching an unchanged month must not register as a git
+    # change, or the hourly CI run commits ~600KB of nothing.
+    with open(path, "wb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=0) as f:
+            f.write(payload)
     size_kb = path.stat().st_size / 1024
     print(f"[{shard['month']}] wrote {path.name} ({size_kb:.0f} KB, {shard['count']} headlines)", file=sys.stderr)
     return path

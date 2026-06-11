@@ -41,31 +41,54 @@ jobs:
         run: pip install -r build/requirements.txt
 
       - name: Batch fetch (small chunk per run — rate-limit friendly)
-        # Only fetch on schedule / manual dispatch. Pushes of code just
-        # rebuild indexes + redeploy; they don't hit the Guardian API.
+        # Only on schedule / manual dispatch. At steady state this
+        # refreshes the current + previous months.
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
         run: python build/batch_fetch.py
 
+      - name: Fetch current month (code pushes)
+        # The current month's shard is never committed (it changes hourly;
+        # only the deploy artifact carries it), so a code push has to fetch
+        # it fresh or the site would deploy without this month's data.
+        # --skip-existing leaves committed (closed) months untouched; the
+        # previous month is included only for the rollover window before
+        # the first scheduled run of a new month has archived it.
+        if: github.event_name == 'push'
+        env:
+          GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
+        run: |
+          CUR=$(date -u +%Y-%m)
+          PREV=$(date -u -d "$(date -u +%Y-%m-01) - 1 day" +%Y-%m)
+          python build/fetch_guardian.py --months "$PREV,$CUR" --skip-existing
+
       - name: Rebuild indexes
+        # The index files (term/tag indexes, sections.json, tag-catalog.json,
+        # meta.json) are derived artefacts: rebuilt fresh every run, shipped
+        # in the Pages artifact below, never committed. Committing them
+        # hourly is what grew git history to ~4.7GB.
         run: |
           python build/build_index.py
           python build/build_tag_index.py
 
-      - name: Commit updated data
+      - name: Commit shard changes (closed months only)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "guardian-angles-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add data/
+          git add data/shards/
+          # The current month churns hourly — it ships in the deploy
+          # artifact instead of history, and gets committed once, when
+          # the first run after rollover sees it as a closed month.
+          git reset -q -- "data/shards/$(date -u +%Y-%m).json.gz" || true
           if git diff --cached --quiet; then
-            echo "No data changes to commit."
+            echo "No shard changes to commit."
           else
-            git commit -m "data: batch fetch + rebuild"
+            git commit -m "data: archive shard updates"
             # Retry with rebase — a design push can land between our fetch
             # and our push, and vanilla `git push` would fail, dropping all
-            # the new 2015 shards we just fetched. Rebase each try so the
+            # the new shards we just fetched. Rebase each try so the
             # data commit re-lands on top of whatever's new.
             for attempt in 1 2 3 4 5; do
               if git push; then
@@ -77,6 +100,14 @@ jobs:
             done
           fi
 
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact (working tree, with freshly built indexes)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
   deploy:
     needs: build
     if: ${{ !cancelled() }}
@@ -85,19 +116,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check out (with any newly-committed data)
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

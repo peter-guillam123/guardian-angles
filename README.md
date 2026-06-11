@@ -35,16 +35,26 @@ Fetch just a couple of recent months so you can see it working without waiting a
 ```bash
 python build/fetch_guardian.py --months 2025-01,2025-02
 python build/build_index.py
+python build/build_tag_index.py
 python -m http.server 8000
 ```
 
 Open http://localhost:8000 in your browser.
+
+**Note for fresh clones:** the search indexes (`data/term-index-*`,
+`data/tag-index-*`, `sections.json`, `tag-catalog.json`, `meta.json`) and the
+current month's shard are *not* committed — CI rebuilds them on every run and
+ships them in the Pages artifact, which keeps git history from growing by
+~10MB an hour. After cloning, run the two `build_*` scripts above to generate
+them from the committed shards (and optionally fetch the current month first
+for the freshest data).
 
 ## Full build
 
 ```bash
 python build/fetch_guardian.py            # ~2 hours for the full decade (rate-limited)
 python build/build_index.py
+python build/build_tag_index.py
 ```
 
 After the first full build, future nightlies only need to fetch the current month (`--skip-existing`).

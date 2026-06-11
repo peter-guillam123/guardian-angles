@@ -99,12 +99,18 @@ def main() -> int:
     missing = find_missing_months()
     url_less = find_url_less_shards()
 
-    print(f"Status: {len(missing)} months missing, {len(url_less)} shards without URLs",
+    # The current month's shard is never committed to git (it changes hourly;
+    # the deploy artifact carries it instead), so on a fresh CI checkout it
+    # always looks "missing". That alone doesn't mean we're in backfill mode —
+    # only a missing CLOSED month does.
+    missing_closed = [m for m in missing if m != current_month()]
+
+    print(f"Status: {len(missing_closed)} closed months missing, {len(url_less)} shards without URLs",
           file=sys.stderr)
 
     queue: list[str] = []
 
-    if missing or url_less:
+    if missing_closed or url_less:
         # Backfill mode — prioritise getting the dataset complete first.
         # We skip the current-month freshness refresh while we're still
         # catching up, to keep every run small.

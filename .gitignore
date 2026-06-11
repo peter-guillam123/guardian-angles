@@ -1,5 +1,17 @@
 .env
 .env.*
+
+# Derived data — rebuilt by CI on every run (build/build_index.py,
+# build/build_tag_index.py) and shipped in the Pages artifact, never
+# committed. (data/tag-names.json IS committed: it's fetched from CAPI
+# monthly, not derived from shards. The current month's shard is also
+# excluded from commits, but by the workflow, since its name changes.)
+data/meta.json
+data/sections.json
+data/tag-catalog.json
+data/term-index*.json.gz
+data/tag-index-*.json.gz
+
 __pycache__/
 *.pyc
 .DS_Store
