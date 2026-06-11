@@ -44,6 +44,12 @@ configured via Cloudflare DNS (DNS-only, grey cloud). Repo:
     so it runs after build_tag_index.py. Applies the skip rules via
     `skip_rules.py`, which parses src/skip-tags.js at build time —
     that JS file stays the single source of truth.
+  - `build_language.py` — headline-language markers by month (length,
+    questions, colons, quote-starts, "as it happened", digits, the
+    opinion pipe) for the Style page. ~7s, ~5KB gz. Marker definitions
+    live in that file only; changing one recomputes all history next
+    build. NB "live:" is near-useless as a marker — closed liveblogs
+    get retitled "as it happened", which is the real liveblog signal.
   - `find_smooshes.py` — dictionary-decomposition detector for
     smooshed display names (e.g. "Margaretthatcher"). Run as needed.
 

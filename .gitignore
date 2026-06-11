@@ -12,6 +12,7 @@ data/tag-catalog.json
 data/term-index*.json.gz
 data/tag-index-*.json.gz
 data/cooccur.json.gz
+data/language.json.gz
 
 __pycache__/
 *.pyc
