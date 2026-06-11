@@ -298,6 +298,8 @@ function renderRow(r, inRange) {
       <td class="col-name">
         <span class="subject-name">${escHtml(r.name)}</span>
         <span class="subject-slug">${escHtml(r.id)}</span>
+        <a class="dd-link" href="./deepdive.html?tag=${encodeURIComponent(r.id)}&from=${state.yearFrom}&to=${state.yearTo}"
+           aria-label="Deep dive on ${escAttr(r.name)}">dive →</a>
       </td>
       <td class="col-section">${escHtml(sectionLabel(r.section))}</td>
       <td class="col-count">${fmtCompact(r.count)}</td>
@@ -309,6 +311,9 @@ function renderRow(r, inRange) {
 function updateCheckboxes() {
   // Row click toggles selection (for whole-row clickability)
   bodyEl.onclick = (e) => {
+    // Links inside a row (Deep dive) navigate; they must not also
+    // toggle the row's selection checkbox.
+    if (e.target.closest('a')) return;
     const tr = e.target.closest('tr[data-id]');
     if (!tr) return;
     const cb = tr.querySelector('input[type="checkbox"]');

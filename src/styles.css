@@ -905,25 +905,34 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Quiet per-term escape hatch into Deep dive. Tracked caps at 10.5px
-   (the tracked-caps floor) so it reads as a label, not body text. */
-.reading-panel .value-row .sub .dd-link {
-  flex: none;
+/* Quiet cross-view escape hatch into Deep dive — shared by the Trends
+   overview rows and the Topics table. Tracked caps at 10.5px (the
+   tracked-caps floor) so it reads as a label, not body text. */
+.dd-link {
+  font-family: var(--ui);
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-soft);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--ink-mute);
+  /* text-decoration (not border-bottom) so the dotted rule hugs the
+     text — a border would sit at the bottom of the padded hitbox. */
+  text-decoration: underline dotted var(--ink-mute);
+  text-underline-offset: 3px;
+  white-space: nowrap;
   /* 40px tap target without moving a pixel: pad the hitbox, pull the
      layout back with negative margin. */
   padding: 12px 0;
   margin: -12px 0;
 }
-.reading-panel .value-row .sub .dd-link:hover {
+.dd-link:hover {
   color: var(--ink);
-  border-bottom-color: var(--ink);
+  text-decoration-color: var(--ink);
 }
+.reading-panel .value-row .sub .dd-link { flex: none; }
+/* In the Topics table the link sits on the slug line — a sibling, not
+   a child, of .subject-slug, so it survives the slug being hidden on
+   mobile (max-width: 640px). */
+.col-name .dd-link { margin-left: 6px; }
 /* Delta is a magnitude, not a value judgement. A rise in "trump" coverage
    isn't good or bad — it's just news. Both directions share neutral ink;
    the arrow glyph carries the direction. Red is reserved for genuinely
@@ -1462,7 +1471,10 @@ main.subjects {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--ink-mute);
-  display: block;
+  /* inline-block (not block) so the Deep dive link that follows can
+     share the slug's line. The name above is block, so the slug still
+     starts its own line. */
+  display: inline-block;
   line-height: 1.2;
 }
 .col-section {
