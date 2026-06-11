@@ -2945,6 +2945,16 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   font: italic 12px/1.4 var(--body);
   color: var(--ink-mute);
 }
+/* The chart's one-line contract: what the order means, what the line
+   weight means. Mode-dependent, set by company.js. */
+.dd-company-axis {
+  margin: 0 0 8px;
+  font-family: var(--ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+}
 .dd-company-stage { position: relative; }
 .dd-company-stage canvas {
   display: block;

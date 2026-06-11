@@ -28,6 +28,7 @@ const wrap = document.getElementById('dd-company');
 const canvas = document.getElementById('dd-company-canvas');
 const tipEl = document.getElementById('dd-company-tip');
 const nowEl = document.getElementById('dd-company-now');
+const axisEl = document.getElementById('dd-company-axis');
 const toggleBtns = wrap ? [...wrap.querySelectorAll('[data-co-mode]')] : [];
 const ctx = canvas ? canvas.getContext('2d') : null;
 
@@ -182,7 +183,12 @@ function build() {
         s = { id: e.id, name: _data.names.get(e.id) || e.id, points: new Map(), weight: 0 };
         seriesMap.set(e.id, s);
       }
-      s.points.set(y, { rank: i + 1, shared: e.shared, lift: e.lift });
+      s.points.set(y, {
+        rank: i + 1,
+        shared: e.shared,
+        lift: e.lift,
+        of: topicSums.get(y) || 0,  // topic's own article count that year — the tooltip's denominator
+      });
       s.weight += e.shared;
     });
   }
@@ -192,12 +198,30 @@ function build() {
 
   // Rows = deepest rank actually used, so the chart has no empty floor.
   const rows = Math.max(1, ...series.flatMap(s => [...s.points.values()].map(p => p.rank)));
-  _model = { years, series, rows };
+  // Scale anchor for line weight: the biggest shared count in the model.
+  const maxShared = Math.max(1, ...series.flatMap(s => [...s.points.values()].map(p => p.shared)));
+  _model = { years, series, rows, maxShared };
   _hover = null;
   if (tipEl) tipEl.hidden = true;
+  if (axisEl) {
+    axisEl.textContent = _mode === 'distinctive'
+      ? 'Ranked by how distinctively they shared articles · thicker line = more shared'
+      : 'Ranked by shared articles · thicker line = more shared';
+  }
   renderNowLine();
   updateAria();
   startDraw();
+}
+
+// Line weight carries the magnitude that rank alone hides: a top rank
+// earned on five shared articles in the topic's quietest year draws as
+// a hairline; a 394-article partnership draws as a rope. sqrt so the
+// mid-range stays differentiated.
+function weightFor(shared) {
+  return 1.25 + 5.5 * Math.sqrt(shared / _model.maxShared);
+}
+function dotFor(shared) {
+  return 1.75 + 3 * Math.sqrt(shared / _model.maxShared);
 }
 
 // ───────────────────────── Canvas drawing ─────────────────────────
@@ -284,31 +308,37 @@ function draw(progress) {
   const hoverId = _hover ? _model.series[_hover.seriesIdx]?.id : null;
   for (const s of _model.series) {
     const dim = hoverId && s.id !== hoverId;
+    const boost = hoverId === s.id ? 0.75 : 0;
     ctx.globalAlpha = dim ? 0.18 : 1;
     ctx.strokeStyle = s.color;
     ctx.fillStyle = s.color;
-    ctx.lineWidth = hoverId === s.id ? 3.25 : 2.25;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    // Polyline with pen-up over missing years.
-    ctx.beginPath();
-    let pen = false;
+    // Segment-by-segment so each stretch of line carries its own weight
+    // (canvas strokes can't vary width along a single path). Pen lifts
+    // over missing years.
+    let prev = null;
     _model.years.forEach((y, i) => {
       const pt = s.points.get(y);
-      if (!pt) { pen = false; return; }
+      if (!pt) { prev = null; return; }
       const x = L.xs(i), yy = L.ys(pt.rank);
-      if (pen) ctx.lineTo(x, yy); else ctx.moveTo(x, yy);
-      pen = true;
+      if (prev) {
+        ctx.lineWidth = (weightFor(prev.pt.shared) + weightFor(pt.shared)) / 2 + boost;
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(x, yy);
+        ctx.stroke();
+      }
+      prev = { x, y: yy, pt };
     });
-    ctx.stroke();
 
-    // Dots.
+    // Dots, sized with the same scale.
     _model.years.forEach((y, i) => {
       const pt = s.points.get(y);
       if (!pt) return;
       ctx.beginPath();
-      ctx.arc(L.xs(i), L.ys(pt.rank), hoverId === s.id ? 4 : 3, 0, Math.PI * 2);
+      ctx.arc(L.xs(i), L.ys(pt.rank), dotFor(pt.shared) + boost, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -396,7 +426,10 @@ function showTip(hit, ev) {
   const liftStr = _mode === 'distinctive' && pt.lift >= 1.05
     ? ` · ×${pt.lift >= 10 ? Math.round(pt.lift) : pt.lift.toFixed(1)} vs typical`
     : '';
-  tipEl.textContent = `${s.name} — ${pt.shared} shared article${pt.shared === 1 ? '' : 's'}, ${hit.year}${liftStr}`;
+  // The denominator is what explains a "surge" in a quiet year: shared
+  // 5 of 38 articles reads very differently from shared 5 of 600.
+  const topic = truncate(_current.label || 'the topic', 18);
+  tipEl.textContent = `${s.name} — shared ${pt.shared} of ${topic}'s ${pt.of} article${pt.of === 1 ? '' : 's'}, ${hit.year}${liftStr}`;
   tipEl.hidden = false;
   const stage = canvas.parentElement.getBoundingClientRect();
   const x = Math.min(ev.clientX - stage.left + 12, stage.width - tipEl.offsetWidth - 8);
