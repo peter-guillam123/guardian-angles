@@ -675,6 +675,7 @@ function resetReadingPanel() {
       for (let k = 1; k < s.values.length; k++) if (s.values[k] > s.values[peakIdx]) peakIdx = k;
       return {
         label: s.label,
+        query: s.query,
         value: mean,
         total,
         peakBucket: currentBuckets[peakIdx],
@@ -683,6 +684,8 @@ function resetReadingPanel() {
     })
     .sort((a, b) => b.value - a.value);
 
+  const ddParam = currentMode === 'tags' ? 'tag' : 'q';
+  const ddYears = `&from=${yearFromInput.value}&to=${yearToInput.value}`;
   readingValues.innerHTML = rows.map(r => `
     <div class="value-row dim">
       <span class="rule" style="background:${r.color}"></span>
@@ -690,6 +693,8 @@ function resetReadingPanel() {
       <span class="num">${formatReadingValue(r.value)}</span>
       <span class="sub">
         <span class="meta">${formatCountPlain(r.total)} total · peak ${formatBucketShort(r.peakBucket)}</span>
+        <a class="dd-link" href="./deepdive.html?${ddParam}=${encodeURIComponent(r.query)}${ddYears}"
+           aria-label="Deep dive on ${escapeAttr(r.label)}">Deep dive →</a>
       </span>
     </div>
   `).join('');

@@ -898,7 +898,32 @@ main {
   white-space: nowrap;
   overflow: hidden;
 }
-.reading-panel .value-row .sub .meta { color: var(--ink-mute); }
+.reading-panel .value-row .sub .meta {
+  color: var(--ink-mute);
+  /* If the row runs out of room, truncate the stats — never the
+     Deep dive link sitting after them. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Quiet per-term escape hatch into Deep dive. Tracked caps at 10.5px
+   (the tracked-caps floor) so it reads as a label, not body text. */
+.reading-panel .value-row .sub .dd-link {
+  flex: none;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--ink-mute);
+  /* 40px tap target without moving a pixel: pad the hitbox, pull the
+     layout back with negative margin. */
+  padding: 12px 0;
+  margin: -12px 0;
+}
+.reading-panel .value-row .sub .dd-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
 /* Delta is a magnitude, not a value judgement. A rise in "trump" coverage
    isn't good or bad — it's just news. Both directions share neutral ink;
    the arrow glyph carries the direction. Red is reserved for genuinely
