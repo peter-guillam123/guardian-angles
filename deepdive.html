@@ -141,7 +141,7 @@
         <div class="dd-company-head">
           <div>
             <p class="dd-eyebrow">The company it keeps</p>
-            <p class="dd-company-hint" data-touch-hint="Tap a line for the numbers">Hover a line for the numbers · click it to dive on that companion</p>
+            <p class="dd-company-hint" data-touch-hint="Tap a cell for the numbers">Hover a cell for the numbers · companion names link to their own dives</p>
           </div>
           <div class="mode-toggle dd-company-toggle" role="group" aria-label="Companion ranking">
             <button type="button" class="mode-btn active" data-co-mode="distinctive">Most distinctive</button>
@@ -150,12 +150,9 @@
         </div>
         <p class="dd-company-axis" id="dd-company-axis"></p>
         <div class="dd-company-stage">
-          <canvas id="dd-company-canvas" role="img" aria-label="Bump chart of companion tags per year.">
-            <p>Bump chart of the topic's top companion tags per year.</p>
-          </canvas>
+          <div class="dd-co-grid" id="dd-company-grid"></div>
           <div class="dd-company-tip" id="dd-company-tip" hidden></div>
         </div>
-        <p class="dd-company-now" id="dd-company-now"></p>
       </div>
 
       <!-- First / peak / latest dispatch — the shape of the story in three

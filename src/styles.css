@@ -2956,10 +2956,55 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   color: var(--ink-mute);
 }
 .dd-company-stage { position: relative; }
-.dd-company-stage canvas {
-  display: block;
-  width: 100%;
-  touch-action: pan-y; /* vertical page scroll stays free over the chart */
+/* The companion grid — same colour ramp and cell grammar as the weekly
+   heatmap above it, so the page speaks one visual language. */
+.dd-co-grid {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) repeat(var(--co-cols, 15), minmax(0, 1fr));
+  gap: 3px;
+  align-items: center;
+}
+.dd-co-year {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ink-mute);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.dd-co-name {
+  font-family: var(--ui);
+  font-size: 11.5px;
+  color: var(--ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
+  /* ~38px tap target without changing row height */
+  padding-top: 9px;
+  padding-bottom: 9px;
+  margin: -9px 0;
+}
+.dd-co-name:hover {
+  color: var(--guardian-blue);
+  text-decoration: underline dotted var(--ink-mute);
+  text-underline-offset: 3px;
+}
+.dd-co-cell {
+  height: 20px;
+  border-radius: 2px;
+  background: rgba(5, 41, 98, calc(var(--dd-i, 0) * 0.95));
+}
+.dd-co-cell[data-tip]:hover { box-shadow: 0 0 0 1.5px var(--ink-soft); }
+.dd-co-empty { background: var(--paper-rule); opacity: 0.35; }
+@media (max-width: 640px) {
+  .dd-co-grid {
+    grid-template-columns: minmax(84px, 112px) repeat(var(--co-cols, 15), minmax(0, 1fr));
+    gap: 2px;
+  }
+  .dd-co-cell { height: 16px; }
+  .dd-co-name { font-size: 10.5px; }
 }
 .dd-company-tip {
   position: absolute;
@@ -2973,15 +3018,8 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   white-space: nowrap;
   z-index: 3;
 }
-.dd-company-now {
-  margin: 12px 0 0;
-  font-family: var(--ui);
-  font-size: 12px;
-  color: var(--ink-mute);
-}
-.dd-company-now .dd-link { margin: 0 2px; }
-/* Touch devices: "hover" and "click a line" don't apply — swap the hint
-   for the touch wording, same pattern as the heatmap hint. */
+/* Touch devices: "hover" doesn't apply — swap the hint for the touch
+   wording, same pattern as the weekly heatmap hint. */
 @media (pointer: coarse) {
   .dd-company-hint { font-size: 0; }
   .dd-company-hint::after {
