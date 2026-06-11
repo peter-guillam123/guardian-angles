@@ -14,6 +14,7 @@ import {
 import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
 import { isUsefulTone, toneLabel, toneColor, getToneCatalog } from './tones.js';
+import { renderCompany, hideCompany } from './company.js';
 
 // ───────────────── State ─────────────────
 const state = {
@@ -52,7 +53,9 @@ s t re ve ll d
 `).trim().split(/\s+/));
 
 // ───────────────── Elements ─────────────────
-const modeBtns = document.querySelectorAll('.mode-toggle .mode-btn');
+// Scoped to the controls block — the "company it keeps" section has its
+// own mode-toggle (ranking mode) that must not drive the page mode.
+const modeBtns = document.querySelectorAll('.dd-controls .mode-toggle .mode-btn');
 const inputEl = document.getElementById('dd-input');
 const labelEl = document.getElementById('dd-label');
 const formEl = document.getElementById('dd-form');
@@ -310,6 +313,7 @@ function wireForm() {
     state.query = null;
     state.headlines = [];
     state.cotags.clear();
+    hideCompany();
     summaryEl.hidden = true;
     bodyEl.hidden = true;
     promptEl.hidden = false;
@@ -421,6 +425,20 @@ async function runDeepDive() {
   p.set('from', state.yearFrom);
   p.set('to', state.yearTo);
   history.replaceState(null, '', `?${p.toString()}`);
+
+  // ─── The company it keeps (tag mode only) ───
+  // Fire-and-forget: it lazy-loads the co-occurrence index and renders
+  // independently of the headline stream below.
+  if (state.query.kind === 'tag') {
+    renderCompany({
+      tagId: state.query.id,
+      label: state.query.label,
+      yearFrom: state.yearFrom,
+      yearTo: state.yearTo,
+    });
+  } else {
+    hideCompany();
+  }
 
   // ─── Instant summary ───
   await renderInstantSummary();

@@ -135,6 +135,28 @@
         <div class="dd-heatmap" id="dd-heatmap" role="img" aria-label="Heatmap of weekly article volume across the selected years. Each cell is one ISO week, shaded darker blue when the topic had more coverage that week."></div>
       </div>
 
+      <!-- The company it keeps — per-year companion tags from the
+           co-occurrence index. Tag mode only; hidden for words/tones. -->
+      <div class="dd-company" id="dd-company" hidden>
+        <div class="dd-company-head">
+          <div>
+            <p class="dd-eyebrow">The company it keeps</p>
+            <p class="dd-company-hint" data-touch-hint="Companion tags on the same articles, ranked per year · tap a line for the numbers">Companion tags on the same articles, ranked per year · hover a line for the numbers · click to re-dive</p>
+          </div>
+          <div class="mode-toggle dd-company-toggle" role="group" aria-label="Companion ranking">
+            <button type="button" class="mode-btn active" data-co-mode="distinctive">Most distinctive</button>
+            <button type="button" class="mode-btn" data-co-mode="count">Most articles</button>
+          </div>
+        </div>
+        <div class="dd-company-stage">
+          <canvas id="dd-company-canvas" role="img" aria-label="Bump chart of companion tags per year.">
+            <p>Bump chart of the topic's top companion tags per year.</p>
+          </canvas>
+          <div class="dd-company-tip" id="dd-company-tip" hidden></div>
+        </div>
+        <p class="dd-company-now" id="dd-company-now"></p>
+      </div>
+
       <!-- First / peak / latest dispatch — the shape of the story in three
            editorial moments. -->
       <div class="dd-dispatches" id="dd-dispatches" hidden>

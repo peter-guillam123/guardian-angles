@@ -9,6 +9,7 @@ const _tagIndexPromises = {};
 let _sectionsPromise = null;
 let _metaPromise = null;
 let _tagCatalogPromise = null;
+let _cooccurPromise = null;
 const _shardCache = new Map();
 
 // Build a headline matcher for a free-text query.
@@ -74,6 +75,16 @@ export function loadTagIndex(granularity = 'monthly') {
     ).then(idx => densifyIndex(idx, granularity));
   }
   return _tagIndexPromises[granularity];
+}
+
+// Per-year companion tags ({ years, ids, tags }) — see
+// build/build_cooccurrence.py for the schema. ~800KB gz, loaded lazily
+// the first time a Deep dive renders the "company it keeps" block.
+export function loadCooccur() {
+  if (!_cooccurPromise) {
+    _cooccurPromise = fetchJsonMaybeGz(`${DATA_BASE}/cooccur.json`);
+  }
+  return _cooccurPromise;
 }
 
 // ─── Dense bucket helpers ───

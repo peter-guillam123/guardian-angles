@@ -2926,6 +2926,60 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
    0.24, 0.43 etc. and wipe out every non-peak cell.) */
 .dd-hc-empty { background: var(--paper-rule); }
 
+/* ─── The company it keeps — companion bump chart ─── */
+.dd-company {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--paper-rule);
+}
+.dd-company-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.dd-company-hint {
+  margin: 4px 0 0;
+  font: italic 12px/1.4 var(--body);
+  color: var(--ink-mute);
+}
+.dd-company-stage { position: relative; }
+.dd-company-stage canvas {
+  display: block;
+  width: 100%;
+  touch-action: pan-y; /* vertical page scroll stays free over the chart */
+}
+.dd-company-tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--paper);
+  font: 11px/1.3 var(--ui);
+  letter-spacing: 0.02em;
+  padding: 5px 9px;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 3;
+}
+.dd-company-now {
+  margin: 12px 0 0;
+  font-family: var(--ui);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.dd-company-now .dd-link { margin: 0 2px; }
+/* Touch devices: "hover" and "click a line" don't apply — swap the hint
+   for the touch wording, same pattern as the heatmap hint. */
+@media (pointer: coarse) {
+  .dd-company-hint { font-size: 0; }
+  .dd-company-hint::after {
+    content: attr(data-touch-hint);
+    font: italic 12px/1.4 var(--body);
+  }
+}
+
 /* ─── First / peak / latest dispatch cards ─── */
 .dd-dispatches {
   display: grid;
