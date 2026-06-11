@@ -21,6 +21,11 @@ const state = {
   pageSize: DEFAULT_PAGE_SIZE,
 };
 
+// Data-derived year bounds, resolved in init(). Used to clamp URL params
+// and to keep default values out of the shared URL.
+let minYear = 2012;
+let maxYear = 2026;
+
 // ---------- DOM ----------
 const bodyEl = document.getElementById('subjects-body');
 const metaEl = document.getElementById('subjects-meta');
@@ -53,11 +58,11 @@ async function init() {
     // Resolve the actual year range from the buckets we have
     if (index.buckets.length) {
       const years = index.buckets.map(b => parseInt(b.slice(0, 4)));
-      const min = Math.min(...years);
-      const max = Math.max(...years);
-      [yearFromEl, yearToEl].forEach(el => { el.min = min; el.max = max; });
-      yearFromEl.value = min; yearToEl.value = max;
-      state.yearFrom = min; state.yearTo = max;
+      minYear = Math.min(...years);
+      maxYear = Math.max(...years);
+      [yearFromEl, yearToEl].forEach(el => { el.min = minYear; el.max = maxYear; });
+      yearFromEl.value = minYear; yearToEl.value = maxYear;
+      state.yearFrom = minYear; state.yearTo = maxYear;
       updateYearDisplay();
     }
 
@@ -66,11 +71,65 @@ async function init() {
     buildSectionChips();
     wireControls();
     wireTableSort();
+    applyURLState();
     render();
   } catch (e) {
     console.error(e);
     metaEl.textContent = 'Could not load subject data. Has the build run yet?';
   }
+}
+
+// ---------- URL state ----------
+// The other three search surfaces are shareable links; this page and
+// Newsroom were the holdouts. Defaults stay out of the URL so a fresh
+// visit keeps a clean address bar.
+function applyURLState() {
+  const p = new URLSearchParams(location.search);
+
+  const q = p.get('q');
+  if (q) {
+    nameFilterEl.value = q;
+    state.nameFilter = q.trim().toLowerCase();
+  }
+
+  const s = p.get('s');
+  if (s && [...sectionChipsEl.children].some(c => c.dataset.section === s)) {
+    state.sectionFilter = s;
+    [...sectionChipsEl.children].forEach(c =>
+      c.classList.toggle('active', c.dataset.section === s));
+  }
+
+  const from = parseInt(p.get('from'));
+  const to = parseInt(p.get('to'));
+  if (!isNaN(from)) state.yearFrom = Math.min(Math.max(from, minYear), maxYear);
+  if (!isNaN(to)) state.yearTo = Math.min(Math.max(to, state.yearFrom), maxYear);
+  yearFromEl.value = state.yearFrom;
+  yearToEl.value = state.yearTo;
+  updateYearDisplay();
+
+  const [sortKey, sortDir] = (p.get('sort') || '').split('.');
+  const validKeys = [...document.querySelectorAll('th.sortable')].map(t => t.dataset.sort);
+  if (validKeys.includes(sortKey) && ['asc', 'desc'].includes(sortDir)) {
+    state.sortKey = sortKey;
+    state.sortDir = sortDir;
+    document.querySelectorAll('th.sortable').forEach(t => {
+      t.classList.remove('sort-asc', 'sort-desc');
+      if (t.dataset.sort === sortKey) t.classList.add('sort-' + sortDir);
+    });
+  }
+}
+
+function syncURL() {
+  const p = new URLSearchParams();
+  if (state.nameFilter) p.set('q', state.nameFilter);
+  if (state.sectionFilter !== 'all') p.set('s', state.sectionFilter);
+  if (state.yearFrom !== minYear) p.set('from', state.yearFrom);
+  if (state.yearTo !== maxYear) p.set('to', state.yearTo);
+  if (state.sortKey !== 'count' || state.sortDir !== 'desc') {
+    p.set('sort', `${state.sortKey}.${state.sortDir}`);
+  }
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
 
 // ---------- Section chips ----------
@@ -282,6 +341,9 @@ function render() {
 
   updateCheckboxes();
   updateCompareBar();
+  // render() is the single choke point every state change passes
+  // through, so the URL can't drift from what's on screen.
+  syncURL();
 }
 
 function renderRow(r, inRange) {
