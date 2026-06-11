@@ -69,6 +69,11 @@ configured via Cloudflare DNS (DNS-only, grey cloud). Repo:
     this a design push would deploy a site missing the current month.
   - Fresh clones must run `build_index.py` + `build_tag_index.py`
     before the site works locally.
+  - **History was rewritten on 11 June 2026** (git-filter-repo,
+    data/ stripped from all prior commits, archive re-landed as one
+    commit; 588 → 116 commits, 4.7GB → ~128MB). Commit SHAs from
+    before that date no longer exist — don't trust old SHA references
+    in notes or conversations predating the rewrite.
 
 ## Conventions established (don't fight these)
 
