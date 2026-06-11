@@ -139,7 +139,9 @@ function renderWeek(weekIdx) {
     for (let i = 0; i < n; i++) if (counts[i] > counts[peakIdx]) peakIdx = i;
     const peakIsThisWeek = peakIdx === thisWeekIdx;
 
-    heroMeta.textContent = `${heroCount.toLocaleString('en-GB')} articles · ${pct}% of all Guardian output this week`;
+    heroMeta.innerHTML = `${heroCount.toLocaleString('en-GB')} articles · ${pct}% of all Guardian output this week
+      <a class="dd-link" href="./deepdive.html?tag=${encodeURIComponent(heroTag)}"
+         aria-label="Deep dive on ${esc(name)}">Deep dive →</a>`;
 
     // Stats block
     const prevWeekCount = counts[thisWeekIdx - 1] || 0;
