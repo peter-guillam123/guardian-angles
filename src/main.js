@@ -997,7 +997,10 @@ async function openHeadlines({ term: queryLabel, bucket, seriesIdx }) {
     : (currentMode === 'tags'
         ? await headlinesForTagInBucket(series.query, bucket)
         : await headlinesForTermInBucket(series.query, bucket));
-  headlinesMeta.textContent = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'}`;
+  const bucketYear = bucket.slice(0, 4);
+  headlinesMeta.innerHTML = `${list.length} ${list.length === 1 ? 'headline' : 'headlines'}
+    <a class="dd-link" href="./deepdive.html?${currentMode === 'tags' ? 'tag' : 'q'}=${encodeURIComponent(series.query)}&from=${bucketYear}&to=${bucketYear}"
+       aria-label="Deep dive on ${escapeAttr(series.label)} in ${bucketYear}">${escapeHtml(bucketYear)} in Deep dive →</a>`;
   renderSectionBreakdown(list);
   // Pass the display label as the highlighter for the headline explorer;
   // in tag mode there's no substring to highlight (but still pass nothing).
