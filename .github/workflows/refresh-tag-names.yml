@@ -25,6 +25,13 @@ jobs:
           python-version: '3.11'
       - run: pip install -r build/requirements.txt
 
+      # tag-catalog.json is a derived file (not in git since June 2026),
+      # but fetch_tag_names.py reads it to know which tags to look up —
+      # so materialise it from the committed shards first. Outputs of
+      # this step stay uncommitted; only tag-names.json is committed.
+      - name: Build tag catalogue (input for the fetch)
+        run: python build/build_tag_index.py
+
       - name: Fetch tag names from CAPI
         env:
           GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
