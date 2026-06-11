@@ -35,6 +35,12 @@ const state = {
   structuredFilter: null,          // { kind: 'tag'|'word'|'section', value, label } | null
 };
 
+// Render-scheduling counters (used by runDeepDive and scheduleRender).
+// Declared up here, before the init IIFE, deliberately — see the comment
+// at the Render scheduling section.
+let _renderTick = 0;
+let _lastHeatmapTick = 0;
+
 // Light stopword set for the headline-word-frequency block. Kept
 // small and boring — the goal is to surface content words, not tune
 // the list. Plus common Guardian headline verbs ("says", "said")
@@ -650,9 +656,14 @@ function drawToneBreakdown(perTone) {
 // Especially the heatmap (795 cells) and the headline list (up to
 // 500 DOM nodes) — rebuilding both dozens of times per second was
 // the thing bringing iOS Chrome down.
+//
+// (_renderTick and _lastHeatmapTick are declared near the state object
+// at the top of the module, not here — the init IIFE can call
+// runDeepDive synchronously for ?q=/?tone= URLs, which is before this
+// point of the module has been evaluated. let-declarations this far
+// down put those URL paths in the temporal dead zone and killed them
+// with a ReferenceError.)
 let _pendingRender = false;
-let _renderTick = 0;
-let _lastHeatmapTick = 0;
 
 function scheduleRender() {
   if (_pendingRender) return;
