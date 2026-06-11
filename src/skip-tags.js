@@ -1,7 +1,11 @@
 // Shared rules for tags that aren't editorially interesting as a "biggest
 // tag" signal — they'd win every time on sheer volume rather than because
-// anything specific happened. Used by This Week's hero picker and the
-// Trends page "Trending tag" insert in the reading panel.
+// anything specific happened. Used by This Week's hero picker, the
+// Trends page "Trending tag" insert, and (via build/skip_rules.py, which
+// parses the two literals below out of this file at build time) the
+// co-occurrence index builder. Keep SKIP_PREFIXES and SKIP_TAGS as plain
+// arrays of single-quoted strings — the Python parser reads exactly that
+// shape and fails the build if it can't.
 
 export const SKIP_PREFIXES = ['tone/', 'type/', 'publication/', 'tracking/'];
 export const SKIP_TAGS = new Set([
