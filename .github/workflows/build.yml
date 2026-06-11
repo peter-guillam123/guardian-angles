@@ -71,6 +71,7 @@ jobs:
         run: |
           python build/build_index.py
           python build/build_tag_index.py
+          python build/build_cooccurrence.py
 
       - name: Commit shard changes (closed months only)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

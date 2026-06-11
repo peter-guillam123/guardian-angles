@@ -38,6 +38,12 @@ configured via Cloudflare DNS (DNS-only, grey cloud). Repo:
   - `fetch_tag_names.py` — pulls authoritative webTitles from the
     Guardian `/tags` CAPI endpoint, writes `data/tag-names.json`.
     Run monthly via the `Refresh tag names from CAPI` workflow.
+  - `build_cooccurrence.py` — per-year companion tags for every
+    catalogued tag (top 12, ≥3 shared articles), for Deep dive's
+    "company it keeps" block. ~17s, ~800KB gz. Needs tag-catalog.json,
+    so it runs after build_tag_index.py. Applies the skip rules via
+    `skip_rules.py`, which parses src/skip-tags.js at build time —
+    that JS file stays the single source of truth.
   - `find_smooshes.py` — dictionary-decomposition detector for
     smooshed display names (e.g. "Margaretthatcher"). Run as needed.
 
