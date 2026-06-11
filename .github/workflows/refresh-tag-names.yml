@@ -30,16 +30,16 @@ jobs:
           GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
         run: python build/fetch_tag_names.py
 
-      - name: Rebuild catalogue with fresh names
-        env:
-          GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
-        run: python build/build_tag_index.py
-
+      # No catalogue rebuild here any more: tag-catalog.json and the tag
+      # indexes are derived files (gitignored since June 2026), rebuilt by
+      # the hourly build.yml run — which picks up the fresh names from the
+      # tag-names.json committed below. git add on the old derived paths
+      # would now be refused by .gitignore and fail the job.
       - name: Commit refreshed names
         run: |
           git config user.name "guardian-angles-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add data/tag-names.json data/tag-catalog.json data/tag-index-*.json.gz
+          git add data/tag-names.json
           if git diff --cached --quiet; then
             echo "No name changes to commit."
           else
