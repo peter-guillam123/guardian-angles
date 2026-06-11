@@ -100,6 +100,7 @@ async function init() {
   buildLegend();
   wireControls();
   initYearRange();
+  applyURLState();
   resize();
 
   const ro = new ResizeObserver(() => resize());
@@ -153,6 +154,7 @@ function buildLegend() {
         : null;
       refreshLegendState();
       draw();
+      syncURL();
     });
     legendEl.appendChild(btn);
   }
@@ -178,6 +180,7 @@ function wireControls() {
       state.mode = btn.dataset.mode;
       document.querySelectorAll('.nr-mode .mode-btn').forEach(b => b.classList.toggle('active', b === btn));
       draw();
+      syncURL();
     });
   });
 
@@ -235,9 +238,75 @@ function initYearRange() {
     draw();
   }
 
-  fromInput.addEventListener('input', apply);
-  toInput.addEventListener('input', apply);
+  fromInput.addEventListener('input', () => { apply(); syncURL(); });
+  toInput.addEventListener('input', () => { apply(); syncURL(); });
   updateFill();
+
+  // Restore a shared year range from the URL (clamped to the data).
+  const p = new URLSearchParams(location.search);
+  const uf = parseInt(p.get('from'));
+  const ut = parseInt(p.get('to'));
+  if (!isNaN(uf) || !isNaN(ut)) {
+    if (!isNaN(uf)) fromInput.value = String(Math.max(firstYear, Math.min(uf, lastYear)));
+    if (!isNaN(ut)) toInput.value = String(Math.max(parseInt(fromInput.value), Math.min(ut, lastYear)));
+    apply();
+  }
+}
+
+// ----- URL state -----
+// Same contract as the other views: defaults stay out of the URL, and
+// anything you've toggled — share-of-output mode, a year range, a
+// solo'd or hidden section, an open month drilldown — survives a share.
+function syncURL() {
+  const p = new URLSearchParams();
+  if (state.mode === 'normalised') p.set('m', 'normalised');
+  if (state.yearFilter) {
+    p.set('from', state.yearFilter.from);
+    p.set('to', state.yearFilter.to);
+  }
+  const hidden = state.stacks.filter(s => !s.visible).map(s => s.id);
+  const visibleCount = state.stacks.length - hidden.length;
+  if (visibleCount === 1 && !state.otherVisible) {
+    p.set('solo', state.stacks.find(s => s.visible).id);
+  } else if (hidden.length || !state.otherVisible) {
+    p.set('hide', [...hidden, ...(state.otherVisible ? [] : ['other'])].join(','));
+  }
+  if (state.selectedMonth != null && state.months[state.selectedMonth]) {
+    p.set('month', state.months[state.selectedMonth]);
+  }
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+function applyURLState() {
+  const p = new URLSearchParams(location.search);
+
+  if (p.get('m') === 'normalised') {
+    state.mode = 'normalised';
+    document.querySelectorAll('.nr-mode .mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === 'normalised'));
+  }
+
+  const solo = p.get('solo');
+  const hide = (p.get('hide') || '').split(',').filter(Boolean);
+  if (solo && state.stacks.some(s => s.id === solo)) {
+    state.stacks.forEach(st => { st.visible = (st.id === solo); });
+    state.otherVisible = false;
+    state.activeSoloId = solo;
+    refreshLegendState();
+  } else if (hide.length) {
+    state.stacks.forEach(st => { if (hide.includes(st.id)) st.visible = false; });
+    if (hide.includes('other')) state.otherVisible = false;
+    const vis = state.stacks.filter(st => st.visible);
+    state.activeSoloId = vis.length === 1 ? vis[0].id : null;
+    refreshLegendState();
+  }
+
+  const month = p.get('month');
+  if (month && state.months.includes(month)) {
+    state.selectedMonth = state.months.indexOf(month);
+    openDrilldown(month);
+  }
 }
 
 // ----- Stacked area drawing -----
@@ -440,6 +509,7 @@ function onClick() {
   const absoluteIdx = start + state.hoveredMonth.monthIdx;
   state.selectedMonth = absoluteIdx;
   openDrilldown(state.months[absoluteIdx]);
+  syncURL();
 }
 
 // ----- Drill-down -----
