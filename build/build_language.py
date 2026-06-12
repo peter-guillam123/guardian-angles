@@ -136,6 +136,32 @@ _RE = {
     "versus": re.compile(r"\s(?:v|vs)\s"),
     # The ", 34," construction — age, bracketed by commas.
     "age_comma": re.compile(r",\s\d{1,3},"),
+    # Words the Guardian's own style guide gently advises against in
+    # headlines. Tracked as ordinary markers — a record of usage drifting
+    # past a living rulebook, not a charge sheet. (The guide is funnier
+    # about itself than we would dare to be.)
+    "iconic": re.compile(r"\biconic\b", re.I),
+    "massive": re.compile(r"\bmassive\b", re.I),
+    "major": re.compile(r"\bmajor\b", re.I),
+    "very": re.compile(r"\bvery\b", re.I),
+    "controversial": re.compile(r"\bcontroversial\b", re.I),
+    "famous": re.compile(r"\bfamous(?:ly)?\b", re.I),
+    "basically": re.compile(r"\bbasically\b", re.I),
+    "ongoing": re.compile(r"\bongoing\b", re.I),
+    "upcoming": re.compile(r"\bupcoming\b", re.I),
+    "multiple": re.compile(r"\bmultiple\b", re.I),
+    "slam": re.compile(r"\bslam(?:s|med)?\b", re.I),
+    "unveil": re.compile(r"\bunveil(?:s|ed)?\b", re.I),
+    "hike": re.compile(r"\bhike\b", re.I),
+    "pledge": re.compile(r"\bpledges?\b", re.I),
+    "spiral": re.compile(r"\bspiral(?:s|led|ling)?\b", re.I),
+    "fuels": re.compile(r"\bfuels\b", re.I),
+    "downplay": re.compile(r"\bdownplay(?:s|ed)?\b", re.I),
+    "ramp_up": re.compile(r"\bramp(?:s|ed|ing)? up\b", re.I),
+    "right_now": re.compile(r"\bright now\b", re.I),
+    "perfect_storm": re.compile(r"\bperfect storm\b", re.I),
+    "fit_for_purpose": re.compile(r"\bfit for purpose\b", re.I),
+    "elephant_in_room": re.compile(r"\belephant in the room\b", re.I),
 }
 
 # "-gate" coinages, minus the places and people that end in -gate anyway.
