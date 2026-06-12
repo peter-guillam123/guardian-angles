@@ -43,6 +43,13 @@
 
   <main class="stylepage">
 
+    <!-- One fun fact — computed fresh from the data every build. -->
+    <section class="sp-fact-wrap sp-fact-top">
+      <p class="dd-eyebrow">One fun fact</p>
+      <p class="sp-fact" id="sp-fact" aria-live="polite">—</p>
+      <button type="button" class="sp-fact-btn" id="sp-fact-btn">Another →</button>
+    </section>
+
     <!-- Scope: count all headlines, or one section / tone's worth. -->
     <div class="sp-scope">
       <label class="sp-scope-label" for="sp-scope-select">Counting</label>
@@ -69,15 +76,6 @@
     <!-- The habit cards. -->
     <section class="sp-grid" id="sp-cards" aria-label="Headline habits"></section>
 
-    <!-- The full ledger — every marker, searchable. -->
-    <section class="sp-ledger" id="sp-ledger">
-      <p class="dd-eyebrow">The full ledger</p>
-      <p class="sp-section-dek">Every habit we count, biggest movers first. Click one for its chart.</p>
-      <input type="search" id="sp-ledger-filter" class="sp-ledger-filter"
-             placeholder="Filter — try swearing, amid, warns…" aria-label="Filter markers" />
-      <ul class="sp-ledger-list" id="sp-ledger-list"></ul>
-    </section>
-
     <!-- The first-name league. -->
     <section class="sp-names" id="sp-names">
       <p class="dd-eyebrow">The first-name league</p>
@@ -95,11 +93,17 @@
       </div>
     </section>
 
-    <!-- One more thing — the fact shuffle. -->
-    <section class="sp-fact-wrap">
-      <p class="dd-eyebrow">One more thing</p>
-      <p class="sp-fact" id="sp-fact" aria-live="polite">—</p>
-      <button type="button" class="sp-fact-btn" id="sp-fact-btn">Another →</button>
+    <!-- The full ledger — every marker, collapsed until asked for. -->
+    <section class="sp-ledger" id="sp-ledger">
+      <p class="dd-eyebrow">The full ledger</p>
+      <p class="sp-section-dek">Every habit we count, biggest movers first.</p>
+      <button type="button" class="sp-ledger-toggle" id="sp-ledger-toggle"
+              aria-expanded="false" aria-controls="sp-ledger-body">Browse them all ↓</button>
+      <div class="sp-ledger-body" id="sp-ledger-body" hidden>
+        <input type="search" id="sp-ledger-filter" class="sp-ledger-filter"
+               placeholder="Filter — try swearing, amid, warns…" aria-label="Filter markers" />
+        <ul class="sp-ledger-list" id="sp-ledger-list"></ul>
+      </div>
     </section>
 
     <!-- Small print. -->

@@ -3446,3 +3446,31 @@ main.stylepage {
   cursor: pointer;
   max-width: 260px;
 }
+
+/* ─── Style v4: fact at the top, collapsed ledger, league surnames ─── */
+.sp-fact-top {
+  border-top: none;
+  border-bottom: 1px solid var(--paper-rule);
+  padding: 6px 0 24px;
+  margin-bottom: 24px;
+}
+.sp-ledger-toggle {
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  min-height: 40px;
+  background: none;
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.sp-ledger-toggle:hover { border-color: var(--ink); color: var(--ink); }
+.sp-ledger-body { margin-top: 16px; }
+.sp-name-sur { color: var(--ink-mute); }
+.sp-name-link {
+  text-decoration: underline dotted var(--ink-mute);
+  text-underline-offset: 3px;
+}
+.sp-name-link:hover { color: var(--guardian-blue); }

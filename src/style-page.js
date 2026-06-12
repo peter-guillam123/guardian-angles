@@ -22,45 +22,53 @@ const statBig = document.getElementById('stat-big');
 const exclusiveEl = document.getElementById('sp-exclusive');
 const totalInlineEl = document.getElementById('sp-total-inline');
 
-// The habit cards, in editorial order. `fmt` renders the yearly value;
-// deks are the story each line actually tells in the data — if the
-// data changes out from under one, rewrite the dek, not the chart.
+// The habit cards, in editorial order. Deks are FUNCTIONS: the
+// editorial framing is written once, but every number in it is
+// computed from the live data at render time — observations can't
+// quietly go out of date as new months arrive. ctx gives them the
+// first/now values, the years, and a peak-month lookup.
+const oneIn = v => Math.max(1, Math.round(100 / v)).toLocaleString('en-GB');
+const times = (now, first) => {
+  const r = now / first;
+  return r >= 9.5 ? `${Math.round(r)} times` : r >= 1.95 && r < 2.5 ? 'twice' : `${r.toFixed(1)} times`;
+};
+
 const CARDS = [
   {
-    key: 'quote_start', title: 'The quote era', unit: '%',
-    dek: 'Headlines that open with someone talking. One in ten now; one in 160 in 2012.',
+    key: 'quote_start', title: 'The quote era',
+    dek: c => `Headlines that open with someone talking. One in ${oneIn(c.now)} now; one in ${oneIn(c.first)} in ${c.y0}.`,
   },
   {
-    key: 'first_person', title: 'First person', unit: '%',
-    dek: 'Headlines containing "I", "my" or "me" as a word. Twice as common as in 2012 — the age of the personal.',
+    key: 'first_person', title: 'First person',
+    dek: c => `Headlines containing "I", "my" or "me" as a word — ${times(c.now, c.first)} as common as in ${c.y0}. The age of the personal.`,
   },
   {
-    key: 'as_it_happened', title: '…as it happened', unit: '%',
-    dek: 'The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied.',
+    key: 'as_it_happened', title: '…as it happened',
+    dek: c => `The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied ${times(c.now, c.first)} over.`,
   },
   {
-    key: 'question', title: 'The question mark', unit: '%',
-    dek: 'Are headlines becoming questions? Barely — about one in thirteen, much as ever.',
+    key: 'question', title: 'The question mark',
+    dek: c => `Are headlines becoming questions? Barely — about one in ${oneIn(c.now)}, much as ever.`,
   },
   {
-    key: 'colon', title: 'The colon', unit: '%',
-    dek: 'Eternal. A third of all headlines, every year, forever.',
+    key: 'colon', title: 'The colon',
+    dek: c => `Eternal. About ${Math.round(c.now)}% of all headlines, every year, forever.`,
   },
   {
-    key: 'short5', title: 'Five words or fewer', unit: '%',
-    dek: 'One in seven in 2012; one in 31 now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.',
+    key: 'short5', title: 'Five words or fewer',
+    dek: c => `One in ${oneIn(c.first)} in ${c.y0}; one in ${oneIn(c.now)} now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.`,
   },
   {
-    key: 'digits', title: 'Numbers', unit: '%',
-    dek: 'Headlines containing a digit. Note 2020, when the news became counting.',
+    key: 'digits', title: 'Numbers',
+    dek: c => `Headlines containing a digit. Note the bump in ${c.peakYear('digits')}, when the news became counting.`,
   },
   {
-    key: 'amid', title: 'Amid', unit: '%',
-    dek: 'Journalism’s busiest preposition, six times more common than in 2012. Peak amid: March 2020.',
+    key: 'amid', title: 'Amid',
+    dek: c => `Journalism’s busiest preposition, ${times(c.now, c.first)} more common than in ${c.y0}. Peak amid: ${c.peakMonth('amid')}.`,
   },
   {
-    key: 'revealed', title: 'Revealed:', unit: '%',
-    dek: 'Rare — but several times less rare than it used to be.',
+    key: 'revealed', title: 'Revealed:',
+    dek: c => `Rare — but ${times(c.now, c.first)} less rare than it used to be.`,
   },
 ];
 
@@ -80,6 +88,7 @@ async function init() {
     if (totalInlineEl) totalInlineEl.textContent = total.toLocaleString('en-GB');
 
     buildScopeControl(lang);
+    initLedgerToggle();
     const wanted = new URLSearchParams(location.search).get('in') || '';
     applyScope(scopeExists(lang, wanted) ? wanted : '');
 
@@ -164,6 +173,21 @@ function syncStyleURL(marker) {
 }
 
 // ── The full ledger ──
+// Collapsed by default — sixty-two rows is a reference work, not a
+// front page. A ?marker= deep link opens it automatically.
+function initLedgerToggle() {
+  const btn = document.getElementById('sp-ledger-toggle');
+  const body = document.getElementById('sp-ledger-body');
+  if (!btn || !body) return;
+  const setOpen = (open) => {
+    body.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Tuck them away ↑' : 'Browse them all ↓';
+  };
+  btn.addEventListener('click', () => setOpen(body.hidden));
+  if (new URLSearchParams(location.search).get('marker')) setOpen(true);
+}
+
 // Every catalogued marker as a compact expandable row, biggest movers
 // first. Click a row for its full chart; ?marker=key deep-links one.
 function renderLedger(Y) {
@@ -204,13 +228,19 @@ function renderLedger(Y) {
     });
     if (!open) { syncStyleURL(null); return; }
     const { m, vals } = rows.find(r => r.m.key === li.dataset.key);
+    // Word-type markers link to a word-mode deep dive — the actual
+    // headlines behind the line. Punctuation and format markers can't
+    // be searched, so they don't pretend to be links.
+    const diveLink = m.q
+      ? ` <a class="dd-link" href="./deepdive.html?q=${encodeURIComponent(m.q)}">browse these headlines →</a>`
+      : '';
     panel.innerHTML = `
       ${lineSVG(Y.years, vals, { w: 600, h: 110, partialFinal: Y.partialFinal, fmt: fmtPct })}
       <div class="sp-card-years" aria-hidden="true">
         <span>${Y.years[0]}</span>
         <span>${Y.years[Y.years.length - 1]}${Y.partialFinal ? ' so far' : ''}</span>
       </div>
-      <p class="sp-card-dek">${escapeHtml(m.def)}</p>`;
+      <p class="sp-card-dek">${escapeHtml(m.def)}${diveLink}</p>`;
     panel.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
     syncStyleURL(m.key);
@@ -264,13 +294,22 @@ function renderNames(lang) {
     const listEl = document.getElementById(`sp-names-list-${gender}`);
     const top = (lang.names[gender][y] || []).slice(0, 8);
     const max = top.length ? top[0][1] : 1;
-    listEl.innerHTML = top.map(([name, count], i) => `
+    listEl.innerHTML = top.map(([name, count, surname, tagId], i) => {
+      // Dominant companion surname, when one genuinely dominates; the
+      // pair links into its person's deep dive when the tag exists.
+      const label = `${escapeHtml(name)}${surname ? ` <span class="sp-name-sur">${escapeHtml(surname)}</span>` : ''}`;
+      const nameCell = tagId
+        ? `<a class="sp-name sp-name-link" href="./deepdive.html?tag=${encodeURIComponent(tagId)}"
+             aria-label="Deep dive on ${escapeHtml(name)} ${escapeHtml(surname || '')}">${label}</a>`
+        : `<span class="sp-name">${label}</span>`;
+      return `
       <li class="sp-name-row">
         <span class="sp-name-rank">${i + 1}</span>
-        <span class="sp-name">${escapeHtml(name)}</span>
+        ${nameCell}
         <span class="sp-name-bar"><span style="width:${(100 * count / max).toFixed(1)}%"></span></span>
         <span class="sp-name-count">${count.toLocaleString('en-GB')}</span>
-      </li>`).join('');
+      </li>`;
+    }).join('');
     listEl.setAttribute('aria-label',
       `Top ${gender === 'm' ? 'male' : 'female'} first names in ${y} headlines`);
   };
@@ -353,12 +392,32 @@ function renderHero(Y, scopeLabel = '') {
 // ── Cards ──
 // The deks are written about all headlines; under a scope their claims
 // could lie, so they step aside for a plain statement of what's counted.
+function dekContext(Y) {
+  const y0 = Y.years[0];
+  const solid = _lang.totals.map((n, i) => n >= 1000 ? i : -1).filter(i => i >= 0);
+  const rate = (key, i) => _lang.metrics[key][i] / _lang.totals[i];
+  return {
+    y0,
+    peakMonth(key) {
+      const i = solid.reduce((a, b) => rate(key, a) >= rate(key, b) ? a : b);
+      const [y, m] = _lang.months[i].split('-');
+      return ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+        'August', 'September', 'October', 'November', 'December'][m - 1] + ' ' + y;
+    },
+    peakYear(key) {
+      const vals = Y.series[key];
+      return Y.years[vals.indexOf(Math.max(...vals))];
+    },
+  };
+}
+
 function renderCards(Y, scopeLabel = '') {
+  const ctx = scopeLabel ? null : dekContext(Y);
   cardsEl.innerHTML = CARDS.map(c => {
     const vals = Y.series[c.key];
     const now = vals[vals.length - 1];
     const first = vals[0];
-    const dek = scopeLabel ? `In ${scopeLabel}.` : c.dek;
+    const dek = scopeLabel ? `In ${scopeLabel}.` : c.dek({ ...ctx, now, first });
     return `
       <article class="sp-card">
         <h2 class="sp-card-title">${escapeHtml(c.title)}</h2>
