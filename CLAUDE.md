@@ -10,8 +10,11 @@ Five views plus an About page:
 - **Topics** (`subjects.html` / `src/subjects.js`) — full 3,000-tag
   index, ranked, filterable; tick four to launch onto Trends.
 - **Deep dive** (`deepdive.html` / `src/deepdive.js`) — single-topic
-  view: every headline in a chosen range, plus weekly heatmap, peak
-  drilldown, common-words block, dispatches, click-to-filter sidebars.
+  view: every headline in a chosen range, plus peak drilldown,
+  common-words block, dispatches, click-to-filter sidebars, the
+  "company it keeps" companion heatmap, and a clickable monthly
+  sparkline (click a month = filter the list). The weekly heatmap was
+  removed June 2026 as duplicative — don't reintroduce.
 - **This Week** (`thisweek.html` / `src/thisweek.js`) — auto-generated
   dashboard of the most recent complete week.
 - **Newsroom** (`newsroom.html` / `src/newsroom.js`) — stacked-area

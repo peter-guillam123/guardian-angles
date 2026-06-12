@@ -35,11 +35,10 @@ const state = {
   structuredFilter: null,          // { kind: 'tag'|'word'|'section', value, label } | null
 };
 
-// Render-scheduling counters (used by runDeepDive and scheduleRender).
+// Render-scheduling counter (used by runDeepDive and scheduleRender).
 // Declared up here, before the init IIFE, deliberately — see the comment
 // at the Render scheduling section.
 let _renderTick = 0;
-let _lastHeatmapTick = 0;
 
 // Light stopword set for the headline-word-frequency block. Kept
 // small and boring — the goal is to surface content words, not tune
@@ -92,7 +91,6 @@ const headlinesEl = document.getElementById('dd-headlines');
 const cotagsEl = document.getElementById('dd-cotags');
 const wordsEl = document.getElementById('dd-words');
 const statBig = document.getElementById('stat-big');
-const heatmapEl = document.getElementById('dd-heatmap');
 const dispatchesEl = document.getElementById('dd-dispatches');
 const dispatchFirstEl = document.querySelector('#dd-dispatch-first .dd-dispatch-body');
 const dispatchPeakEl = document.querySelector('#dd-dispatch-peak .dd-dispatch-body');
@@ -402,7 +400,6 @@ async function runDeepDive() {
   state._perToneActual = null;
   state.structuredFilter = null;
   _renderTick = 0;
-  _lastHeatmapTick = 0;
   promptEl.hidden = true;
   summaryEl.hidden = false;
   bodyEl.hidden = false;
@@ -413,7 +410,6 @@ async function runDeepDive() {
   dispatchFirstEl.innerHTML = '';
   dispatchPeakEl.innerHTML = '';
   dispatchLatestEl.innerHTML = '';
-  heatmapEl.innerHTML = '';
   peakDrill.hidden = true;
   peakBtn.setAttribute('aria-expanded', 'false');
   peakBtn.classList.remove('open');
@@ -657,7 +653,7 @@ function drawToneBreakdown(perTone) {
 // 500 DOM nodes) — rebuilding both dozens of times per second was
 // the thing bringing iOS Chrome down.
 //
-// (_renderTick and _lastHeatmapTick are declared near the state object
+// (_renderTick is declared near the state object
 // at the top of the module, not here — the init IIFE can call
 // runDeepDive synchronously for ?q=/?tone= URLs, which is before this
 // point of the module has been evaluated. let-declarations this far
@@ -687,14 +683,6 @@ function scheduleRender() {
     }
     if (state._perToneActual) {
       drawToneBreakdown(state._perToneActual);
-    }
-    // The heatmap is the heaviest block (795 inline-styled spans).
-    // Only rebuild it every ~6th render tick, unless it's the final
-    // pass — user still sees it filling in, but we're not murdering
-    // the DOM every frame.
-    if (_renderTick - _lastHeatmapTick >= 6 || state._streamDone) {
-      _lastHeatmapTick = _renderTick;
-      renderHeatmap();
     }
   });
 }
@@ -789,71 +777,6 @@ function dispatchCard(h) {
     ${url
       ? `<a class="dd-dispatch-title" href="${escapeAttr(url)}" target="_blank" rel="noopener">${title}</a>`
       : `<span class="dd-dispatch-title">${title}</span>`}`;
-}
-
-// ───────────────── Weekly heatmap ─────────────────
-function renderHeatmap() {
-  // Group matched headlines by ISO week key. Year by year.
-  const counts = new Map(); // "YYYY-WW" → count
-  for (const h of state.headlines) {
-    const key = isoWeekKey((h.d || '').slice(0, 10));
-    if (!key) continue;
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-  // Find the max to drive colour intensity.
-  let peak = 0;
-  for (const v of counts.values()) if (v > peak) peak = v;
-  if (peak === 0) { heatmapEl.innerHTML = ''; return; }
-
-  const years = [];
-  for (let y = state.yearFrom; y <= state.yearTo; y++) years.push(y);
-
-  // Active range (inclusive) from the structured filter, if one's set.
-  // String comparison on YYYY-WW sorts chronologically because both
-  // year and week are zero-padded.
-  const activeFrom = state.structuredFilter?.kind === 'week' ? state.structuredFilter.from : null;
-  const activeTo = state.structuredFilter?.kind === 'week' ? state.structuredFilter.to : null;
-
-  heatmapEl.innerHTML = years.map(y => {
-    const cells = [];
-    for (let w = 1; w <= 53; w++) {
-      const key = `${y}-${String(w).padStart(2, '0')}`;
-      const c = counts.get(key) || 0;
-      const intensity = c === 0 ? 0 : (0.15 + 0.85 * (c / peak));
-      const label = c === 0
-        ? `Week ${w} ${y} · 0 articles`
-        : `Week ${w} ${y} · ${c} article${c === 1 ? '' : 's'} · click to filter`;
-      const classes = ['dd-hc'];
-      if (c === 0) classes.push('dd-hc-empty');
-      const inRange = activeFrom && key >= activeFrom && key <= activeTo;
-      if (inRange) classes.push('dd-hc-active');
-      if (inRange && key === activeFrom) classes.push('dd-hc-active-start');
-      if (inRange && key === activeTo) classes.push('dd-hc-active-end');
-      // Only non-empty cells become buttons.
-      const attrs = c > 0
-        ? `role="button" tabindex="0" data-week="${key}" aria-label="${label}"`
-        : 'aria-hidden="true"';
-      cells.push(`<span class="${classes.join(' ')}" ${attrs} style="--dd-i:${intensity.toFixed(2)}" title="${label}"></span>`);
-    }
-    return `<div class="dd-hm-row">
-      <span class="dd-hm-year">${y}</span>
-      <div class="dd-hm-cells">${cells.join('')}</div>
-    </div>`;
-  }).join('');
-}
-
-// ISO week key (Thursday determines ISO year). Matches the format the
-// rest of the site uses ("YYYY-W##"). Returns null for empty inputs.
-function isoWeekKey(iso) {
-  if (!iso) return null;
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-  const dow = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dow);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-${String(weekNum).padStart(2, '0')}`;
 }
 
 // ───────────────── Peak month drilldown ─────────────────
@@ -1037,11 +960,8 @@ function applyActiveFilter(headlines) {
       filtered = filtered.filter(h => (h.g || []).includes(sf.value));
     } else if (sf.kind === 'section') {
       filtered = filtered.filter(h => h.s === sf.value);
-    } else if (sf.kind === 'week') {
-      filtered = filtered.filter(h => {
-        const k = isoWeekKey((h.d || '').slice(0, 10));
-        return k && k >= sf.from && k <= sf.to;
-      });
+    } else if (sf.kind === 'month') {
+      filtered = filtered.filter(h => (h.d || '').slice(0, 7) === sf.value);
     } else if (sf.kind === 'word') {
       const esc = sf.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(`\\b${esc}(?:'s)?\\b`, 'i');
@@ -1070,13 +990,8 @@ function renderHeadlines() {
       filtered = filtered.filter(h => re.test((h.t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
     } else if (sf.kind === 'tone') {
       filtered = filtered.filter(h => (h.g || []).includes(sf.value));
-    } else if (sf.kind === 'week') {
-      // Inclusive chronological range. For a single-week filter
-      // from === to, so both comparisons collapse to equality.
-      filtered = filtered.filter(h => {
-        const k = isoWeekKey((h.d || '').slice(0, 10));
-        return k && k >= sf.from && k <= sf.to;
-      });
+    } else if (sf.kind === 'month') {
+      filtered = filtered.filter(h => (h.d || '').slice(0, 7) === sf.value);
     }
   } else if (textFilter) {
     filtered = filtered.filter(h => (h.t || '').toLowerCase().includes(textFilter));
@@ -1180,7 +1095,7 @@ function setStructuredFilter(filter) {
   // Re-render the faceted blocks so the active row is highlighted.
   renderCotags();
   renderWords();
-  renderHeatmap();
+  redrawSpark();
   if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
   if (state._perToneActual) drawToneBreakdown(state._perToneActual);
 }
@@ -1215,39 +1130,6 @@ wordsEl.addEventListener('click', (e) => {
   setStructuredFilter({ kind: 'word', value: word, label: word });
 });
 
-function handleHeatmapActivation(cell, extend = false) {
-  const week = cell.dataset.week;
-  const sf = state.structuredFilter;
-
-  // Shift-click extends an existing week filter into a chronological
-  // range. If there's no existing week filter, shift-click falls
-  // through to single-cell behaviour.
-  if (extend && sf?.kind === 'week') {
-    const anchor = sf.from; // range always anchored from the first click
-    const [from, to] = anchor <= week ? [anchor, week] : [week, anchor];
-    setStructuredFilter({
-      kind: 'week',
-      from, to,
-      label: formatWeekRange(from, to),
-    });
-    scrollListIntoView();
-    return;
-  }
-
-  // Non-shift click on an already-active single-week cell toggles off.
-  if (sf?.kind === 'week' && sf.from === week && sf.to === week) {
-    clearStructuredFilter(); return;
-  }
-
-  setStructuredFilter({
-    kind: 'week',
-    from: week, to: week,
-    label: formatWeek(week),
-  });
-  scrollListIntoView();
-  return;
-}
-
 function scrollListIntoView() {
   requestAnimationFrame(() => {
     const listTop = document.getElementById('dd-body');
@@ -1257,16 +1139,24 @@ function scrollListIntoView() {
     if (!onScreen) listTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
-heatmapEl.addEventListener('click', (e) => {
-  const cell = e.target.closest('.dd-hc[data-week]');
-  if (cell) handleHeatmapActivation(cell, e.shiftKey);
-});
-heatmapEl.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  const cell = e.target.closest('.dd-hc[data-week]');
-  if (!cell) return;
-  e.preventDefault();
-  handleHeatmapActivation(cell, e.shiftKey);
+// Month filter via the sparkline: click a month to narrow the headline
+// list to it; click the same month again to clear. The filter box and
+// the peak drilldown remain the keyboard-reachable routes to the same
+// information — a canvas can't sensibly take 174 tab stops.
+sparkEl.addEventListener('click', (e) => {
+  const months = state._summaryMonths;
+  if (!months || !months.length) return;
+  const rect = sparkEl.getBoundingClientRect();
+  const i = Math.round(((e.clientX - rect.left) / rect.width) * (months.length - 1));
+  const month = months[Math.max(0, Math.min(months.length - 1, i))];
+  if (!month) return;
+  const sf = state.structuredFilter;
+  if (sf?.kind === 'month' && sf.value === month) {
+    clearStructuredFilter();
+    return;
+  }
+  setStructuredFilter({ kind: 'month', value: month, label: formatMonth(month) });
+  scrollListIntoView();
 });
 
 tonesEl.addEventListener('click', (e) => {
@@ -1333,7 +1223,15 @@ function exportCsv() {
 }
 
 // ───────────────── Sparkline ─────────────────
+// Redraw the sparkline from its last-drawn data — used when the month
+// filter toggles so the gold band appears/disappears without a recount.
+function redrawSpark() {
+  if (sparkEl._counts) drawSparkline(sparkEl, sparkEl._counts, sparkEl._peakIdx);
+}
+
 function drawSparkline(canvas, counts, highlightIdx) {
+  canvas._counts = counts;
+  canvas._peakIdx = highlightIdx;
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   const W = rect.width, H = rect.height;
@@ -1349,6 +1247,17 @@ function drawSparkline(canvas, counts, highlightIdx) {
   const pad = 4;
   const yFor = (c) => H - pad - (c / max) * (H - pad * 2);
   const xFor = (i) => (i / Math.max(1, counts.length - 1)) * W;
+
+  // Active month band — the yellow-highlight idiom from Trends.
+  const sf = state.structuredFilter;
+  if (sf?.kind === 'month' && state._summaryMonths) {
+    const ai = state._summaryMonths.indexOf(sf.value);
+    if (ai >= 0) {
+      const bw = Math.max(3, W / Math.max(1, counts.length - 1));
+      ctx.fillStyle = 'rgba(255, 229, 0, 0.45)';
+      ctx.fillRect(xFor(ai) - bw / 2, 0, bw, H);
+    }
+  }
 
   // Area fill
   ctx.beginPath();
@@ -1396,45 +1305,6 @@ function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-// ISO week key → that week's Monday, as a Date.
-function weekMonday(key) {
-  const m = key.match(/^(\d{4})-(\d{2})$/);
-  if (!m) return null;
-  const year = +m[1], week = +m[2];
-  // ISO week 1 contains Jan 4, by definition. Find that week's Monday.
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const dow = jan4.getUTCDay() || 7;
-  const mondayW1 = new Date(jan4);
-  mondayW1.setUTCDate(jan4.getUTCDate() - (dow - 1));
-  const monday = new Date(mondayW1);
-  monday.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
-  return monday;
-}
-
-// Pretty-print a YYYY-WW ISO week key as "Week of 4 May 2021". Used
-// as the label on the filter badge when a heatmap cell is clicked.
-function formatWeek(key) {
-  const monday = weekMonday(key);
-  if (!monday) return key;
-  return `Week of ${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-}
-
-// Pretty-print a week range as "4 May → 30 Aug 2021" when the years
-// match, or "4 May 2020 → 30 Aug 2021" when they don't.
-function formatWeekRange(fromKey, toKey) {
-  const a = weekMonday(fromKey);
-  const b = weekMonday(toKey);
-  if (!a || !b) return `${fromKey} → ${toKey}`;
-  const sameYear = a.getUTCFullYear() === b.getUTCFullYear();
-  const fmt = (d, withYear) => d.toLocaleDateString('en-GB',
-    withYear
-      ? { day: 'numeric', month: 'short', year: 'numeric' }
-      : { day: 'numeric', month: 'short' });
-  return sameYear
-    ? `${fmt(a, false)} → ${fmt(b, true)}`
-    : `${fmt(a, true)} → ${fmt(b, true)}`;
-}
-
 // Pretty-print an ISO YYYY-MM-DD as "4 May 2021".
 function formatFullDate(iso) {
   if (!iso) return '';
