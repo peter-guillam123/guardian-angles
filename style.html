@@ -73,8 +73,26 @@
       </div>
     </section>
 
-    <!-- The habit cards. -->
-    <section class="sp-grid" id="sp-cards" aria-label="Headline habits"></section>
+    <!-- The habit cards — a different nine dealt from the ledger each visit. -->
+    <section aria-label="Headline habits">
+      <div class="sp-cards-head">
+        <p class="dd-eyebrow">Nine at random</p>
+        <button type="button" class="sp-shuffle" id="sp-cards-shuffle"
+                aria-label="Show a different nine">Shuffle ↻</button>
+      </div>
+      <div class="sp-grid" id="sp-cards"></div>
+    </section>
+
+    <!-- The full ledger — five biggest movers up front, the rest a click away. -->
+    <section class="sp-ledger" id="sp-ledger">
+      <h2 class="sp-ledger-title">The full ledger</h2>
+      <p class="sp-section-dek">Every habit we count, biggest movers first. Search it, or click a row for its chart.</p>
+      <input type="search" id="sp-ledger-filter" class="sp-ledger-filter"
+             placeholder="Search — try swearing, amid, warns…" aria-label="Search markers" />
+      <ul class="sp-ledger-list" id="sp-ledger-list"></ul>
+      <button type="button" class="sp-ledger-toggle" id="sp-ledger-toggle"
+              aria-expanded="false">Show them all ↓</button>
+    </section>
 
     <!-- The first-name league. -->
     <section class="sp-names" id="sp-names">
@@ -91,17 +109,6 @@
           <ol class="sp-names-list" id="sp-names-list-f"></ol>
         </div>
       </div>
-    </section>
-
-    <!-- The full ledger — five biggest movers up front, the rest a click away. -->
-    <section class="sp-ledger" id="sp-ledger">
-      <h2 class="sp-ledger-title">The full ledger</h2>
-      <p class="sp-section-dek">Every habit we count, biggest movers first. Search it, or click a row for its chart.</p>
-      <input type="search" id="sp-ledger-filter" class="sp-ledger-filter"
-             placeholder="Search — try swearing, amid, warns…" aria-label="Search markers" />
-      <ul class="sp-ledger-list" id="sp-ledger-list"></ul>
-      <button type="button" class="sp-ledger-toggle" id="sp-ledger-toggle"
-              aria-expanded="false">Show them all ↓</button>
     </section>
 
     <!-- Small print. -->

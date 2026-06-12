@@ -3034,11 +3034,31 @@ main.stylepage {
 .sp-hero-chart { margin: 0; min-width: 0; }
 .sp-hero-chart svg { display: block; width: 100%; height: auto; }
 
+.sp-cards-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--paper-rule);
+  padding-top: 22px;
+}
+.sp-shuffle {
+  font-family: var(--ui);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 2px;
+}
+.sp-shuffle:hover { color: var(--guardian-blue); }
 .sp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 28px 36px;
-  padding: 28px 0;
+  padding: 22px 0 28px;
 }
 .sp-card { min-width: 0; }
 .sp-card-title {

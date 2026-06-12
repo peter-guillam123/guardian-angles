@@ -10,7 +10,7 @@
 // current (partial) year is drawn hollow.
 
 import { loadLanguage } from './data.js';
-import { MARKERS } from './markers.js';
+import { MARKERS, MARKER_BY_KEY } from './markers.js';
 import { sectionLabel } from './sections.js';
 import { toneLabel } from './tones.js';
 
@@ -33,44 +33,50 @@ const times = (now, first) => {
   return r >= 9.5 ? `${Math.round(r)} times` : r >= 1.95 && r < 2.5 ? 'twice' : `${r.toFixed(1)} times`;
 };
 
-const CARDS = [
-  {
-    key: 'quote_start', title: 'The quote era',
-    dek: c => `Headlines that open with someone talking. One in ${oneIn(c.now)} now; one in ${oneIn(c.first)} in ${c.y0}.`,
-  },
-  {
-    key: 'first_person', title: 'First person',
-    dek: c => `Headlines containing "I", "my" or "me" as a word — ${times(c.now, c.first)} as common as in ${c.y0}. The age of the personal.`,
-  },
-  {
-    key: 'as_it_happened', title: '…as it happened',
-    dek: c => `The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied ${times(c.now, c.first)} over.`,
-  },
-  {
-    key: 'question', title: 'The question mark',
-    dek: c => `Are headlines becoming questions? Barely — about one in ${oneIn(c.now)}, much as ever.`,
-  },
-  {
-    key: 'colon', title: 'The colon',
-    dek: c => `Eternal. About ${Math.round(c.now)}% of all headlines, every year, forever.`,
-  },
-  {
-    key: 'short5', title: 'Five words or fewer',
-    dek: c => `One in ${oneIn(c.first)} in ${c.y0}; one in ${oneIn(c.now)} now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.`,
-  },
-  {
-    key: 'digits', title: 'Numbers',
-    dek: c => `Headlines containing a digit. Note the bump in ${c.peakYear('digits')}, when the news became counting.`,
-  },
-  {
-    key: 'amid', title: 'Amid',
-    dek: c => `Journalism’s busiest preposition, ${times(c.now, c.first)} more common than in ${c.y0}. Peak amid: ${c.peakMonth('amid')}.`,
-  },
-  {
-    key: 'revealed', title: 'Revealed:',
-    dek: c => `Rare — but ${times(c.now, c.first)} less rare than it used to be.`,
-  },
-];
+// The cards are now dealt at random from the whole ledger each visit.
+// These are RICH-dek overrides: when one of these markers is dealt, it
+// uses the hand-written, live-computed caption below instead of its
+// plain ledger definition. Everything else falls back to its def. An
+// optional `title` overrides the catalogue title (e.g. "The quote era").
+const RICH_DEK = {
+  quote_start: { title: 'The quote era',
+    dek: c => `Headlines that open with someone talking. One in ${oneIn(c.now)} now; one in ${oneIn(c.first)} in ${c.y0}.` },
+  first_person: {
+    dek: c => `Headlines containing "I", "my" or "me" as a word — ${times(c.now, c.first)} as common as in ${c.y0}. The age of the personal.` },
+  as_it_happened: {
+    dek: c => `The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied ${times(c.now, c.first)} over.` },
+  question: {
+    dek: c => `Are headlines becoming questions? Barely — about one in ${oneIn(c.now)}, much as ever.` },
+  colon: {
+    dek: c => `Eternal. About ${Math.round(c.now)}% of all headlines, every year, forever.` },
+  short5: {
+    dek: c => `One in ${oneIn(c.first)} in ${c.y0}; one in ${oneIn(c.now)} now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.` },
+  digits: { title: 'Numbers',
+    dek: c => `Headlines containing a digit. Note the bump in ${c.peakYear('digits')}, when the news became counting.` },
+  amid: {
+    dek: c => `Journalism’s busiest preposition, ${times(c.now, c.first)} more common than in ${c.y0}. Peak amid: ${c.peakMonth('amid')}.` },
+  revealed: {
+    dek: c => `Rare — but ${times(c.now, c.first)} less rare than it used to be.` },
+  quotes_anywhere: {
+    dek: c => `Quotation somewhere in the headline — ${times(c.now, c.first)} more common than in ${c.y0}. The headline used to describe the news; now it lets you hear it.` },
+};
+
+// Markers too structural to make a good hero card — a bare "contains %"
+// has no story. Everything else in the ledger is fair game.
+const CARD_DENY = new Set(['brackets', 'percent', 'money']);
+const CARD_COUNT = 9;
+let _cardKeys = null;   // the nine dealt this visit, frozen across scope changes
+
+function dealCards() {
+  const pool = MARKERS
+    .map(m => m.key)
+    .filter(k => !CARD_DENY.has(k) && _lang.metrics[k]);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  _cardKeys = pool.slice(0, CARD_COUNT);
+}
 
 let _lang = null;
 let _scope = '';   // '' = all · section id · 'tone/<id>'
@@ -89,6 +95,13 @@ async function init() {
 
     buildScopeControl(lang);
     initLedgerToggle();
+
+    // Shuffle re-deals the nine cards at the current scope.
+    document.getElementById('sp-cards-shuffle')?.addEventListener('click', () => {
+      dealCards();
+      renderCards(toYearly(sliceFor(_lang, _scope)), scopeLabelFor(_scope));
+    });
+
     const wanted = new URLSearchParams(location.search).get('in') || '';
     applyScope(scopeExists(lang, wanted) ? wanted : '');
 
@@ -441,18 +454,26 @@ function dekContext(Y) {
 }
 
 function renderCards(Y, scopeLabel = '') {
+  if (!_cardKeys) dealCards();
   const ctx = scopeLabel ? null : dekContext(Y);
-  cardsEl.innerHTML = CARDS.map(c => {
-    const vals = Y.series[c.key];
+  cardsEl.innerHTML = _cardKeys.map(key => {
+    const marker = MARKER_BY_KEY.get(key);
+    const vals = Y.series[key];
+    if (!marker || !vals) return '';
     const now = vals[vals.length - 1];
     const first = vals[0];
-    // Scoped views drop the dek entirely — the captions are written
-    // about all headlines, and the scope control already says what's
-    // being counted.
-    const dek = scopeLabel ? '' : `<p class="sp-card-dek">${escapeHtml(c.dek({ ...ctx, now, first }))}</p>`;
+    const rich = RICH_DEK[key];
+    const title = (rich && rich.title) || marker.title;
+    // Scoped views drop the caption — the lines are written about all
+    // headlines, and the scope control already says what's counted.
+    let dek = '';
+    if (!scopeLabel) {
+      const text = rich ? rich.dek({ ...ctx, now, first }) : marker.def;
+      dek = `<p class="sp-card-dek">${escapeHtml(text)}</p>`;
+    }
     return `
       <article class="sp-card">
-        <h2 class="sp-card-title">${escapeHtml(c.title)}</h2>
+        <h2 class="sp-card-title">${escapeHtml(title)}</h2>
         <p class="sp-card-now">${fmtPct(now)}<span class="sp-card-then"> · ${fmtPct(first)} in ${Y.years[0]}</span></p>
         ${lineSVG(Y.years, vals, { w: 300, h: 84, partialFinal: Y.partialFinal, fmt: fmtPct })}
         <div class="sp-card-years" aria-hidden="true">
