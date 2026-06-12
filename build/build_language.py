@@ -190,15 +190,23 @@ def classify(t: str, words: int) -> dict:
 METRIC_KEYS = sorted(classify("probe", 1).keys())
 
 
-def tracked_forenames() -> dict[str, str]:
+def tracked_forenames() -> tuple[dict[str, str], dict[str, str]]:
+    """Returns (forename → gender, lowercased full tag name → tag id).
+
+    The second map lets the league link a (forename, dominant surname)
+    pair back to its person tag, when one exists.
+    """
     derived = set()
+    name_to_tag: dict[str, str] = {}
     if CATALOG_PATH.exists():
         for tag in json.loads(CATALOG_PATH.read_text()):
-            tokens = (tag.get("name") or "").split()
+            name = tag.get("name") or ""
+            tokens = name.split()
             if 2 <= len(tokens) <= 3 and all(t[:1].isupper() for t in tokens):
                 derived.add(tokens[0])
+                name_to_tag.setdefault(name.lower(), tag["id"])
     keep = (derived & set(FORENAMES)) | FORENAME_SEEDS
-    return {n: FORENAMES[n] for n in keep if n in FORENAMES}
+    return {n: FORENAMES[n] for n in keep if n in FORENAMES}, name_to_tag
 
 
 def month_label(ym: str) -> str:
@@ -214,10 +222,12 @@ def main() -> int:
         print("ERROR: no shards in data/shards/", file=sys.stderr)
         return 1
 
-    names_tracked = tracked_forenames()
+    names_tracked, name_to_tag = tracked_forenames()
     print(f"tracking {len(names_tracked)} first names, {len(METRIC_KEYS)} markers",
           file=sys.stderr)
     token_re = re.compile(r"[^\W\d_]+(?:'[^\W\d_]+)?", re.UNICODE)
+    # year → forename → {next token: count} — the companion-surname tally.
+    surname_pairs: dict[str, dict[str, dict[str, int]]] = {}
 
     months: list[str] = []
     totals: list[int] = []
@@ -292,10 +302,30 @@ def main() -> int:
                 for k, v in cls.items():
                     if v:
                         sm[k][-1] += 1
-            for tok in set(token_re.findall(t)):
+            # Names are matched against the working part of the headline
+            # only — the " | Columnist" signature is furniture, not a
+            # mention, and counting it would hand every diffuse forename
+            # to whichever columnist signs most often.
+            tokens = token_re.findall(t.split(" | ")[0])
+            seen_names = set()
+            sp = surname_pairs.setdefault(year, {})
+            for ti, tok in enumerate(tokens):
                 g = names_tracked.get(tok)
-                if g:
-                    ny[g][tok] = ny[g].get(tok, 0) + 1
+                if not g or tok in seen_names:
+                    continue
+                seen_names.add(tok)
+                ny[g][tok] = ny[g].get(tok, 0) + 1
+                # The token that follows, if it looks like a surname —
+                # capitalised, alphabetic, with any possessive stripped.
+                if ti + 1 < len(tokens):
+                    nxt = tokens[ti + 1]
+                    if nxt.endswith("'s"):
+                        nxt = nxt[:-2]
+                    elif nxt.endswith("'"):
+                        nxt = nxt[:-1]
+                    if len(nxt) >= 2 and nxt[0].isupper():
+                        d = sp.setdefault(tok, {})
+                        d[nxt] = d.get(nxt, 0) + 1
             if len(t) > (longest[-1]["chars"] if len(longest) == 3 else 0):
                 longest.append({"t": t, "d": h.get("d"), "u": h.get("u"), "chars": len(t)})
                 longest.sort(key=lambda e: -e["chars"])
@@ -331,8 +361,29 @@ def main() -> int:
     }
 
     years = sorted(name_years)
+
+    # League entries: [forename, count, dominantSurname|None, tagId|None].
+    # The surname only counts as "dominant" when it follows the forename
+    # in at least a fifth of its headlines — diffuse names (every Emma,
+    # every John) get no misleading partner. The tag id rides along when
+    # "Forename Surname" matches a real person tag, so the league can
+    # link straight into a deep dive.
+    def league_entry(y, name, count):
+        pairs = surname_pairs.get(y, {}).get(name, {})
+        surname, tag_id = None, None
+        if pairs:
+            best, best_n = max(pairs.items(), key=lambda kv: kv[1])
+            if best_n >= max(3, count * 0.2):
+                surname = best
+                tag_id = name_to_tag.get(f"{name} {best}".lower())
+        return [name, count, surname, tag_id]
+
     names_top = {
-        g: {y: sorted(name_years[y][g].items(), key=lambda kv: -kv[1])[:10] for y in years}
+        g: {
+            y: [league_entry(y, n, c)
+                for n, c in sorted(name_years[y][g].items(), key=lambda kv: -kv[1])[:10]]
+            for y in years
+        }
         for g in ("m", "f")
     }
 
