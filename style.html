@@ -43,6 +43,14 @@
 
   <main class="stylepage">
 
+    <!-- Scope: count all headlines, or one section / tone's worth. -->
+    <div class="sp-scope">
+      <label class="sp-scope-label" for="sp-scope-select">Counting</label>
+      <select id="sp-scope-select" aria-label="Choose which headlines to count">
+        <option value="">All headlines</option>
+      </select>
+    </div>
+
     <!-- Hero: the length of a headline, the steadiest line on the site. -->
     <section class="sp-hero" id="sp-hero">
       <p class="dd-eyebrow">The headline became a sentence</p>
@@ -102,6 +110,7 @@
         <li>A "colon" means a colon followed by a space — so 3:30pm doesn't count. A "quote opening" is a headline whose first character is a quotation mark.</li>
         <li>Closed live blogs are retitled "…as it happened", so that suffix — not the word "live" — is how the archive remembers live coverage.</li>
         <li>The current year is drawn hollow: it's the year so far, not the year.</li>
+        <li>The "Counting" control re-counts the cards and the ledger within one section or tone. The first-name league and the facts always count everything.</li>
         <li>"First person" means the headline contains "I", "my" or "me" as a whole word.</li>
         <li>First names are matched as whole words against a tracked list derived from the people the Guardian tags — so "Boris" is everyone called Boris, and John's eternal podium place owes a little to John Lewis. Ambiguous names (Jordan, Will, Bill, Amber…) aren't counted at all, and nor are Kim or Xi — surnames first, in the league's defence. The male/female split follows each name's dominant bearers in Guardian coverage.</li>
         <li>And the word the Guardian famously won't use: <em>Exclusive:</em> opens <span id="sp-exclusive">—</span> headlines out of <span id="sp-total-inline">—</span>. Almost none of them recent.</li>

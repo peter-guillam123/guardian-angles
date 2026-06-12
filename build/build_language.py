@@ -228,6 +228,25 @@ def main() -> int:
     # year → gender → {name: headline count}
     name_years: dict[str, dict[str, dict[str, int]]] = {}
 
+    # Per-scope accumulation: every marker counted again within each
+    # section and each tone, so the Style page can answer "do Sport
+    # headlines swear more than Opinion?". Scopes appear mid-archive
+    # (sections launch, tones get coined), so a new scope is backfilled
+    # with zeros to stay month-aligned.
+    scope_data: dict[str, dict] = {}
+
+    def get_scope(key: str) -> dict:
+        sd = scope_data.get(key)
+        if sd is None:
+            done = len(months) - 1   # months already fully processed
+            sd = {
+                "totals": [0] * (done + 1),
+                "word_sum": [0] * (done + 1),
+                "metrics": {k: [0] * (done + 1) for k in METRIC_KEYS},
+            }
+            scope_data[key] = sd
+        return sd
+
     for p in shard_paths:
         with gzip.open(p, "rb") as fh:
             shard = json.loads(fh.read())
@@ -239,6 +258,13 @@ def main() -> int:
         totals.append(n)
         ny = name_years.setdefault(year, {"m": {}, "f": {}})
 
+        # Open the month in every scope already seen, keeping arrays aligned.
+        for sd in scope_data.values():
+            sd["totals"].append(0)
+            sd["word_sum"].append(0)
+            for arr in sd["metrics"].values():
+                arr.append(0)
+
         word_sum = 0
         char_sum = 0
         c = {k: 0 for k in METRIC_KEYS}
@@ -247,9 +273,25 @@ def main() -> int:
             words = len(t.split())
             word_sum += words
             char_sum += len(t)
-            for k, v in classify(t, words).items():
+            cls = classify(t, words)
+            for k, v in cls.items():
                 if v:
                     c[k] += 1
+            # Scope increments: the headline's section, plus any tone tags.
+            dims = []
+            if h.get("s"):
+                dims.append("sec:" + h["s"])
+            for tag in (h.get("g") or []):
+                if tag.startswith("tone/"):
+                    dims.append("tone:" + tag[5:])
+            for d in dims:
+                sd = get_scope(d)
+                sd["totals"][-1] += 1
+                sd["word_sum"][-1] += words
+                sm = sd["metrics"]
+                for k, v in cls.items():
+                    if v:
+                        sm[k][-1] += 1
             for tok in set(token_re.findall(t)):
                 g = names_tracked.get(tok)
                 if g:
@@ -264,6 +306,29 @@ def main() -> int:
         for k in METRIC_KEYS:
             counts[k].append(c[k])
         print(f"  {p.stem} ({n})", file=sys.stderr)
+
+    # Keep only the biggest scopes — the page offers a dropdown, not an
+    # encyclopaedia. Sections and tones ranked by total headline volume.
+    SCOPE_SECTIONS_N, SCOPE_TONES_N = 12, 8
+
+    def top_scopes(prefix, n_keep):
+        ranked = sorted(
+            ((k, sum(sd["totals"])) for k, sd in scope_data.items() if k.startswith(prefix)),
+            key=lambda kv: -kv[1])
+        return [k for k, _ in ranked[:n_keep]]
+
+    def pack_scope(key):
+        sd = scope_data[key]
+        return {
+            "totals": sd["totals"],
+            "avg_words": [round(w / t, 2) if t else 0 for w, t in zip(sd["word_sum"], sd["totals"])],
+            "metrics": sd["metrics"],
+        }
+
+    scopes_out = {
+        "sections": {k[4:]: pack_scope(k) for k in top_scopes("sec:", SCOPE_SECTIONS_N)},
+        "tones": {k[5:]: pack_scope(k) for k in top_scopes("tone:", SCOPE_TONES_N)},
+    }
 
     years = sorted(name_years)
     names_top = {
@@ -354,6 +419,7 @@ def main() -> int:
         "longest": longest,
         "names": names_top,
         "facts": facts,
+        "scopes": scopes_out,
     }
     blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     # Deterministic gzip, same reasoning as write_shard in fetch_guardian.py.

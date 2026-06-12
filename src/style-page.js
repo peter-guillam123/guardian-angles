@@ -11,6 +11,8 @@
 
 import { loadLanguage } from './data.js';
 import { MARKERS } from './markers.js';
+import { sectionLabel } from './sections.js';
+import { toneLabel } from './tones.js';
 
 const heroNowEl = document.getElementById('sp-hero-now');
 const heroThenEl = document.getElementById('sp-hero-then');
@@ -62,27 +64,103 @@ const CARDS = [
   },
 ];
 
+let _lang = null;
+let _scope = '';   // '' = all · section id · 'tone/<id>'
+
 init();
 
 async function init() {
   try {
     const lang = await loadLanguage();
-    const Y = toYearly(lang);
+    _lang = lang;
 
     const total = lang.totals.reduce((a, b) => a + b, 0);
     if (statBig) statBig.textContent = formatCount(total);
     if (exclusiveEl) exclusiveEl.textContent = lang.metrics.exclusive.reduce((a, b) => a + b, 0);
     if (totalInlineEl) totalInlineEl.textContent = total.toLocaleString('en-GB');
 
-    renderHero(Y);
-    renderCards(Y);
-    renderLedger(Y);
+    buildScopeControl(lang);
+    const wanted = new URLSearchParams(location.search).get('in') || '';
+    applyScope(scopeExists(lang, wanted) ? wanted : '');
+
+    // All-headlines by design, whatever the scope — see the small print.
     renderNames(lang);
     renderFacts(lang);
   } catch (e) {
     console.error(e);
     if (heroChartEl) heroChartEl.textContent = 'Could not load data. Has the build run yet?';
   }
+}
+
+// ── Scopes ──
+function scopeExists(lang, scope) {
+  if (!scope) return true;
+  if (scope.startsWith('tone/')) return !!lang.scopes?.tones?.[scope.slice(5)];
+  return !!lang.scopes?.sections?.[scope];
+}
+
+function scopeLabelFor(scope) {
+  if (!scope) return '';
+  return scope.startsWith('tone/') ? toneLabel(scope) : sectionLabel(scope);
+}
+
+function sliceFor(lang, scope) {
+  if (!scope) return lang;
+  const s = scope.startsWith('tone/')
+    ? lang.scopes.tones[scope.slice(5)]
+    : lang.scopes.sections[scope];
+  return {
+    months: lang.months,
+    totals: s.totals,
+    metrics: { ...s.metrics, avg_words: s.avg_words },
+  };
+}
+
+function buildScopeControl(lang) {
+  const sel = document.getElementById('sp-scope-select');
+  if (!sel || !lang.scopes) return;
+  const group = (label, entries, prefix) => {
+    const og = document.createElement('optgroup');
+    og.label = label;
+    for (const [id, name] of entries) {
+      const o = document.createElement('option');
+      o.value = prefix + id;
+      o.textContent = name;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  };
+  const secs = Object.keys(lang.scopes.sections)
+    .map(id => [id, sectionLabel(id)]).sort((a, b) => a[1].localeCompare(b[1]));
+  const tones = Object.keys(lang.scopes.tones)
+    .map(id => [id, toneLabel('tone/' + id)]).sort((a, b) => a[1].localeCompare(b[1]));
+  group('Sections', secs, '');
+  group('Tones', tones, 'tone/');
+  sel.addEventListener('change', () => applyScope(sel.value));
+}
+
+function applyScope(scope) {
+  _scope = scope;
+  const sel = document.getElementById('sp-scope-select');
+  if (sel && sel.value !== scope) sel.value = scope;
+  const Y = toYearly(sliceFor(_lang, scope));
+  const label = scopeLabelFor(scope);
+  renderHero(Y, label);
+  renderCards(Y, label);
+  renderLedger(Y);
+  // URL reflects reality: whatever ledger panel is open right now (the
+  // deep-linked one on first render; none after a scope change).
+  const openKey = document.querySelector('.sp-led-panel:not([hidden])')?.parentElement?.dataset.key || null;
+  syncStyleURL(openKey);
+}
+
+// One URL writer for the page's two params, so neither clobbers the other.
+function syncStyleURL(marker) {
+  const p = new URLSearchParams();
+  if (_scope) p.set('in', _scope);
+  if (marker) p.set('marker', marker);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
 
 // ── The full ledger ──
@@ -124,7 +202,7 @@ function renderLedger(Y) {
       p.hidden = true;
       p.parentElement.querySelector('.sp-led-row').setAttribute('aria-expanded', 'false');
     });
-    if (!open) { history.replaceState(null, '', location.pathname); return; }
+    if (!open) { syncStyleURL(null); return; }
     const { m, vals } = rows.find(r => r.m.key === li.dataset.key);
     panel.innerHTML = `
       ${lineSVG(Y.years, vals, { w: 600, h: 110, partialFinal: Y.partialFinal, fmt: fmtPct })}
@@ -135,26 +213,34 @@ function renderLedger(Y) {
       <p class="sp-card-dek">${escapeHtml(m.def)}</p>`;
     panel.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
-    history.replaceState(null, '', `?marker=${encodeURIComponent(m.key)}`);
+    syncStyleURL(m.key);
     if (scroll) li.scrollIntoView({ block: 'center' });
   };
 
-  listEl.addEventListener('click', (e) => {
+  // Assignment, not addEventListener — renderLedger re-runs on every
+  // scope change and must not stack handlers.
+  listEl.onclick = (e) => {
     const li = e.target.closest('.sp-led');
     if (li) expand(li);
-  });
+  };
 
-  filterEl.addEventListener('input', () => {
+  filterEl.oninput = () => {
     const q = filterEl.value.trim().toLowerCase();
     listEl.querySelectorAll('.sp-led').forEach(li => {
       li.hidden = q && !li.dataset.text.includes(q);
     });
-  });
+  };
+  if (filterEl.value) filterEl.oninput();
 
-  const wanted = new URLSearchParams(location.search).get('marker');
-  if (wanted) {
-    const li = listEl.querySelector(`.sp-led[data-key="${CSS.escape(wanted)}"]`);
-    if (li) expand(li, true);
+  // Deep-linked marker: honoured on first render only — later renders
+  // are scope changes, which deliberately start the list closed.
+  if (!renderLedger._initDone) {
+    renderLedger._initDone = true;
+    const wanted = new URLSearchParams(location.search).get('marker');
+    if (wanted) {
+      const li = listEl.querySelector(`.sp-led[data-key="${CSS.escape(wanted)}"]`);
+      if (li) expand(li, true);
+    }
   }
 }
 
@@ -245,12 +331,19 @@ function toYearly(lang) {
 }
 
 // ── Hero ──
-function renderHero(Y) {
+function renderHero(Y, scopeLabel = '') {
   const words = Y.series.avg_words;
   const now = words[words.length - 1];
   const first = words[0];
+  const eyebrow = document.querySelector('#sp-hero .dd-eyebrow');
+  const unit = document.querySelector('.sp-hero-unit');
+  if (eyebrow) eyebrow.textContent = scopeLabel ? 'Headline length' : 'The headline became a sentence';
+  if (unit) unit.textContent = scopeLabel
+    ? `words in an average ${scopeLabel} headline now`
+    : 'words in an average headline now';
   heroNowEl.textContent = now.toFixed(1);
-  heroThenEl.textContent = `it was ${first.toFixed(1)} in ${Y.years[0]} — the headline stopped being a label`;
+  heroThenEl.textContent = `it was ${first.toFixed(1)} in ${Y.years[0]}` +
+    (scopeLabel ? '' : ' — the headline stopped being a label');
   heroChartEl.innerHTML = lineSVG(Y.years, words, {
     w: 720, h: 200, partialFinal: Y.partialFinal,
     fmt: v => v.toFixed(1), big: true,
@@ -258,11 +351,14 @@ function renderHero(Y) {
 }
 
 // ── Cards ──
-function renderCards(Y) {
+// The deks are written about all headlines; under a scope their claims
+// could lie, so they step aside for a plain statement of what's counted.
+function renderCards(Y, scopeLabel = '') {
   cardsEl.innerHTML = CARDS.map(c => {
     const vals = Y.series[c.key];
     const now = vals[vals.length - 1];
     const first = vals[0];
+    const dek = scopeLabel ? `In ${scopeLabel}.` : c.dek;
     return `
       <article class="sp-card">
         <h2 class="sp-card-title">${escapeHtml(c.title)}</h2>
@@ -272,7 +368,7 @@ function renderCards(Y) {
           <span>${Y.years[0]}</span>
           <span>${Y.years[Y.years.length - 1]}${Y.partialFinal ? ' so far' : ''}</span>
         </div>
-        <p class="sp-card-dek">${escapeHtml(c.dek)}</p>
+        <p class="sp-card-dek">${escapeHtml(dek)}</p>
       </article>`;
   }).join('');
 }

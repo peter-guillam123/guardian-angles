@@ -3419,3 +3419,30 @@ main.stylepage {
 @media (max-width: 640px) {
   .sp-led-group { display: none; }
 }
+
+/* ─── Style page: scope control ─── */
+.sp-scope {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.sp-scope-label {
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+#sp-scope-select {
+  font: 15px var(--body);
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ink-mute);
+  padding: 6px 2px;
+  min-height: 40px;
+  cursor: pointer;
+  max-width: 260px;
+}
