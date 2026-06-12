@@ -329,10 +329,13 @@ def main() -> int:
                     if v:
                         sm[k][-1] += 1
             # Names are matched against the working part of the headline
-            # only — the " | Columnist" signature is furniture, not a
+            # only — the "| Columnist" signature is furniture, not a
             # mention, and counting it would hand every diffuse forename
-            # to whichever columnist signs most often.
-            tokens = token_re.findall(t.split(" | ")[0])
+            # to whichever columnist signs most often. Split on a pipe
+            # followed by a space (not the literal " | "), so a signature
+            # that hugs the punctuation — "…care?| Marina Hyde" — is
+            # stripped too.
+            tokens = token_re.findall(re.split(r"\|\s", t, maxsplit=1)[0])
             seen_names = set()
             sp = surname_pairs.setdefault(year, {})
             for ti, tok in enumerate(tokens):
