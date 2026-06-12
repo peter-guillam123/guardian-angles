@@ -33,44 +33,117 @@ const times = (now, first) => {
   return r >= 9.5 ? `${Math.round(r)} times` : r >= 1.95 && r < 2.5 ? 'twice' : `${r.toFixed(1)} times`;
 };
 
-// The cards are now dealt at random from the whole ledger each visit.
-// These are RICH-dek overrides: when one of these markers is dealt, it
-// uses the hand-written, live-computed caption below instead of its
-// plain ledger definition. Everything else falls back to its def. An
-// optional `title` overrides the catalogue title (e.g. "The quote era").
-const RICH_DEK = {
+// A hand-written caption for every marker, so whatever the deal serves
+// up reads like a chosen hero rather than a dictionary entry. An entry
+// may be a plain string, a function (given the live first/now values),
+// or { title, dek } to also override the catalogue title. Functions keep
+// any cited multiple honest as the data grows — never hardcode "tenfold".
+const CARD_DEK = {
+  // Quotation & voice
   quote_start: { title: 'The quote era',
     dek: c => `Headlines that open with someone talking. One in ${oneIn(c.now)} now; one in ${oneIn(c.first)} in ${c.y0}.` },
-  first_person: {
-    dek: c => `Headlines containing "I", "my" or "me" as a word — ${times(c.now, c.first)} as common as in ${c.y0}. The age of the personal.` },
-  as_it_happened: {
-    dek: c => `The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied ${times(c.now, c.first)} over.` },
-  question: {
-    dek: c => `Are headlines becoming questions? Barely — about one in ${oneIn(c.now)}, much as ever.` },
-  colon: {
-    dek: c => `Eternal. About ${Math.round(c.now)}% of all headlines, every year, forever.` },
-  short5: {
-    dek: c => `One in ${oneIn(c.first)} in ${c.y0}; one in ${oneIn(c.now)} now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.` },
+  quotes_anywhere: c => `Quotation somewhere in the headline — ${times(c.now, c.first)} more common than in ${c.y0}. The headline used to describe the news; now it lets you hear it.`,
+  first_person: c => `“I”, “my”, “me” — ${times(c.now, c.first)} as common as in ${c.y0}. The age of the personal.`,
+  second_person: 'The headline talking straight to you — “you”, “your” — the way service journalism learned to.',
+  says_word: c => `Plain old “says”, doing ${times(c.now, c.first)} the work it did in ${c.y0}. The verb that gets out of the quote’s way.`,
+  warns: 'Attribution with the hazard lights on. Someone, somewhere, is always warning.',
+  insists: 'Attribution standing its ground — the subject digging in, in a single verb.',
+  admits: 'Attribution with a wince. The little concession a headline can’t resist.',
+  according_to: 'The careful sourcing formula, spelled out in full. Caution you can count.',
+
+  // Punctuation
+  question: c => `Are headlines becoming questions? Barely — about one in ${oneIn(c.now)}, much as ever.`,
+  colon: c => `Eternal. About ${Math.round(c.now)}% of all headlines, every year, forever.`,
+  exclamation: c => `The Guardian’s least Guardian punctuation mark — and ${times(c.now, c.first)} more common than in ${c.y0}.`,
+  ellipsis: 'The trailing dot-dot-dot, forever promising a little more just around the corner…',
+  dash: 'The spaced dash — the hinge a Guardian headline swings on. Two clauses, one breath.',
+  semicolon: 'The boldest punctuation a sub will risk in a headline; rare, and quietly proud of it.',
+  brackets: 'The aside in mid-headline (where the second thought lives).',
+  pipe: 'The “ | ” that signs off a comment piece — less punctuation than a desk stamp.',
+
+  // Shape
+  short5: c => `One in ${oneIn(c.first)} in ${c.y0}; one in ${oneIn(c.now)} now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story is.`,
+  words20: c => `The headline that is fully a sentence, sometimes two — up ${times(c.now, c.first)} since ${c.y0}, as headlines learned to stand on their own.`,
+  single_word: 'One word, carrying the whole story. The headline as a single deep breath.',
   digits: { title: 'Numbers',
-    dek: c => `Headlines containing a digit. Note the bump in ${c.peakYear('digits')}, when the news became counting.` },
-  amid: {
-    dek: c => `Journalism’s busiest preposition, ${times(c.now, c.first)} more common than in ${c.y0}. Peak amid: ${c.peakMonth('amid')}.` },
-  revealed: {
-    dek: c => `Rare — but ${times(c.now, c.first)} less rare than it used to be.` },
-  quotes_anywhere: {
-    dek: c => `Quotation somewhere in the headline — ${times(c.now, c.first)} more common than in ${c.y0}. The headline used to describe the news; now it lets you hear it.` },
+    dek: c => `Headlines with a digit in them. Note the bump in ${c.peakYear('digits')}, when the news became counting.` },
+  digit_start: '“10 things…”, “7 ways…” — the listicle, announcing itself from the very first character.',
+  money: 'Money makes the world go round, and a fair few business and politics headlines besides — £, $ and € in the furniture.',
+  percent: 'The per cent sign: economics, opinion polls and pay disputes, all in a single character.',
+  age_comma: 'The “, 34,” — a person, neatly aged and bracketed, the way the news has always made introductions.',
+  versus: 'The bare “v” of a contest — sport’s grammar, borrowed by politics, the courts and everything between.',
+
+  // Journalese
+  amid: c => `Journalism’s busiest preposition, ${times(c.now, c.first)} more common than in ${c.y0}. Peak amid: ${c.peakMonth('amid')}.`,
+  set_to: 'The future tense of news — “set to” happen, when we’re fairly sure but not quite ready to promise.',
+  row_word: 'The great British disagreement, compressed to three letters. A headline’s favourite spat.',
+  sparks: 'Where a row begins. Something is always sparking something.',
+  fears: 'Rarely singular, often found amid. The headline’s quiet background hum of worry.',
+  boost: 'Political reporting’s sunshine — the good-news verb, claimed by all sides.',
+  blow: 'Political reporting’s bad weather. For every boost, a blow.',
+  hedge: 'Could, may, might — the speculation index, where the headline keeps its options open.',
+  crisis: c => `The word itself, in the headline — ${times(c.now, c.first)} more common than in ${c.y0}. Always, it seems, a crisis somewhere.`,
+  chaos: 'Crisis’s louder sibling, for when a mere crisis simply won’t do.',
+  urges: 'Someone urging someone else to act. The headline’s standing call to action.',
+  u_turn: 'The manoeuvre, hyphenated — politics’s most-photographed reverse.',
+  so_called: 'Distance, in a hyphen. The guide finds the air-quotes heavy-handed; the headlines keep reaching for them.',
+  gate: 'Every scandal gets the suffix in the end — Southgate and Margate excepted, on appeal.',
+  woke: 'A word that has done a remarkable number of jobs in a very short decade.',
+  viral: 'Mostly a metaphor; briefly, in 2020, alarmingly literal.',
+  slam: 'The verb the guide would rather we didn’t. Headlines do love a good slam.',
+  unveil: 'Best saved for statues; increasingly spent on policies, phones and price lists.',
+  hike: 'A rise with a metaphor attached — though “petrol hike” does rather suggest a long walk to the garage.',
+  pledge: 'A promise, in headline dialect. Used all the time by journalists, the guide notes, and rarely by anyone else.',
+  spiral: 'Costs do it, situations do it — always, somehow, downwards.',
+  fuels: 'As in “fuels fears” — the headline’s verb for pouring petrol on a worry.',
+  downplay: 'To wave a thing away in a single word. The newsroom’s favourite under-reaction.',
+  ramp_up: c => `“Increase”, in a hurry — up ${times(c.now, c.first)} since ${c.y0}. The guide hasn’t caught it; the headlines have.`,
+  right_now: 'Adds nothing and should normally be deleted, says the guide. It is, right now, climbing regardless.',
+  perfect_storm: '“A perfect cliché, best avoided,” says the guide — rather pleased with the line.',
+  fit_for_purpose: 'A phrase that, per the guide, “quickly proved itself unfit for the purpose of good writing”.',
+  elephant_in_room: 'The metaphor everyone agreed to retire, and didn’t. Mercifully rare in a headline.',
+
+  // Words & registers
+  why_start: 'The headline that opens with a question it fully intends to answer. “Why…”, then the explainer.',
+  how_to: 'The service promise, front and centre. Six minutes to a better roast.',
+  best: 'The lifestyle superlative — the best fifty of anything you care to name.',
+  worst: 'Its shadow. Rarer than “best”, and somehow more fun.',
+  swears: 'A headline with a swear word in it — which, since the Guardian prints them in full, means business.',
+  iconic: c => `The word the guide pleads for restraint on, “even if our own writers rarely follow” the advice — up ${times(c.now, c.first)} since ${c.y0}.`,
+  massive: '“Massively overused,” says the guide — and, massively, still climbing.',
+  major: '“A major case of overuse,” per the guide, which gently offers big, main and leading instead.',
+  very: 'The intensifier the old advice says to swap for “damn”, so your editor deletes it. Still very much here.',
+  controversial: 'A word that, the guide notes, “can normally be safely removed to let readers make up their own minds”.',
+  famous: 'If you have to say it’s famous, the guide observes, it probably isn’t.',
+  basically: '“This word is unnecessary, basically” — the guide’s entry, quoted in full.',
+  ongoing: 'Bureaucracy’s favourite adjective, of which “even some journalists are oddly fond”, the guide sighs.',
+  upcoming: 'A word whose style-guide entry works itself up to mentioning corporal punishment. We’ll leave it there.',
+  multiple: 'The guide prefers the plain plural — “gunshots were heard”, not “multiple gunshots”. Creeping up anyway.',
+
+  // Formats & furniture
+  as_it_happened: c => `The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied ${times(c.now, c.first)} over.`,
+  revealed: c => `Rare — but ${times(c.now, c.first)} less rare than it used to be.`,
+  exclusive: 'The word the Guardian famously won’t use — and, true to form, almost never does.',
+  guardian_view: 'The leader column’s standing introduction — the paper, speaking as itself.',
+  letters: 'The readers’ turn. Headlines opening or closing the letters page.',
+  in_pictures: 'The gallery suffix, once everywhere, now effectively extinct. The slideshow’s headstone.',
+  video_suffix: '“– video”: the format tag that ruled the mid-2010s, then vanished without trace.',
+  podcast: 'The word that arrived mid-decade and never left. Usually furniture, occasionally the story.',
+  review_word: 'Stars out of five, mostly; the inquiry kind, occasionally. The word that judges.',
+  obituary: 'The label on a life. Almost always exactly what it says.',
+  recipe: '“Recipe”, “recipes” — the Feast era, made countable. The Guardian’s appetite, charted.',
+  quiz: 'A promise of one, usually. Ten questions and a smug share score.',
+  qanda: 'The Q&A label — a format that has quietly faded from the furniture.',
+  factcheck: 'The verb of the misinformation age, arriving in headlines right on cue.',
+  cartoon: 'The labelled cartoon, once a daily fixture in the headline, now nearly gone from it.',
 };
 
-// Markers too structural to make a good hero card — a bare "contains %"
-// has no story. Everything else in the ledger is fair game.
-const CARD_DENY = new Set(['brackets', 'percent', 'money']);
 const CARD_COUNT = 9;
 let _cardKeys = null;   // the nine dealt this visit, frozen across scope changes
 
 function dealCards() {
-  const pool = MARKERS
-    .map(m => m.key)
-    .filter(k => !CARD_DENY.has(k) && _lang.metrics[k]);
+  // Every displayable marker is fair game — each has a written caption.
+  const pool = MARKERS.map(m => m.key).filter(k => _lang.metrics[k]);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -462,13 +535,16 @@ function renderCards(Y, scopeLabel = '') {
     if (!marker || !vals) return '';
     const now = vals[vals.length - 1];
     const first = vals[0];
-    const rich = RICH_DEK[key];
-    const title = (rich && rich.title) || marker.title;
+    // A CARD_DEK entry may be a string, a function, or { title, dek }.
+    const raw = CARD_DEK[key];
+    const entry = (typeof raw === 'string' || typeof raw === 'function') ? { dek: raw } : (raw || {});
+    const title = entry.title || marker.title;
     // Scoped views drop the caption — the lines are written about all
     // headlines, and the scope control already says what's counted.
     let dek = '';
     if (!scopeLabel) {
-      const text = rich ? rich.dek({ ...ctx, now, first }) : marker.def;
+      const d = entry.dek;
+      const text = typeof d === 'function' ? d({ ...ctx, now, first }) : (d || marker.def);
       dek = `<p class="sp-card-dek">${escapeHtml(text)}</p>`;
     }
     return `
