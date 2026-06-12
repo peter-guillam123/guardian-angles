@@ -10,6 +10,7 @@
 // current (partial) year is drawn hollow.
 
 import { loadLanguage } from './data.js';
+import { MARKERS } from './markers.js';
 
 const heroNowEl = document.getElementById('sp-hero-now');
 const heroThenEl = document.getElementById('sp-hero-then');
@@ -75,11 +76,85 @@ async function init() {
 
     renderHero(Y);
     renderCards(Y);
+    renderLedger(Y);
     renderNames(lang);
     renderFacts(lang);
   } catch (e) {
     console.error(e);
     if (heroChartEl) heroChartEl.textContent = 'Could not load data. Has the build run yet?';
+  }
+}
+
+// ── The full ledger ──
+// Every catalogued marker as a compact expandable row, biggest movers
+// first. Click a row for its full chart; ?marker=key deep-links one.
+function renderLedger(Y) {
+  const listEl = document.getElementById('sp-ledger-list');
+  const filterEl = document.getElementById('sp-ledger-filter');
+  if (!listEl) return;
+
+  const rows = MARKERS
+    .filter(m => Y.series[m.key])
+    .map(m => {
+      const vals = Y.series[m.key];
+      const first = vals[0];
+      const now = vals[vals.length - 1];
+      // log-ratio movement, with a floor so dead-vs-dead doesn't explode
+      const move = Math.abs(Math.log((now + 0.01) / (first + 0.01)));
+      return { m, vals, first, now, move };
+    })
+    .sort((a, b) => b.move - a.move);
+
+  listEl.innerHTML = rows.map(({ m, first, now }) => `
+    <li class="sp-led" data-key="${m.key}" data-text="${escapeHtml((m.title + ' ' + m.def + ' ' + m.group).toLowerCase())}">
+      <button type="button" class="sp-led-row" aria-expanded="false">
+        <span class="sp-led-title">${escapeHtml(m.title)}</span>
+        <span class="sp-led-group">${escapeHtml(m.group)}</span>
+        <span class="sp-led-nums">${fmtPct(first)} <span class="sp-led-arrow">→</span> ${fmtPct(now)}</span>
+      </button>
+      <div class="sp-led-panel" hidden></div>
+    </li>`).join('');
+
+  const expand = (li, scroll = false) => {
+    const btn = li.querySelector('.sp-led-row');
+    const panel = li.querySelector('.sp-led-panel');
+    const open = panel.hidden;
+    // Close any other open row — one chart at a time keeps the list calm.
+    listEl.querySelectorAll('.sp-led-panel:not([hidden])').forEach(p => {
+      p.hidden = true;
+      p.parentElement.querySelector('.sp-led-row').setAttribute('aria-expanded', 'false');
+    });
+    if (!open) { history.replaceState(null, '', location.pathname); return; }
+    const { m, vals } = rows.find(r => r.m.key === li.dataset.key);
+    panel.innerHTML = `
+      ${lineSVG(Y.years, vals, { w: 600, h: 110, partialFinal: Y.partialFinal, fmt: fmtPct })}
+      <div class="sp-card-years" aria-hidden="true">
+        <span>${Y.years[0]}</span>
+        <span>${Y.years[Y.years.length - 1]}${Y.partialFinal ? ' so far' : ''}</span>
+      </div>
+      <p class="sp-card-dek">${escapeHtml(m.def)}</p>`;
+    panel.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    history.replaceState(null, '', `?marker=${encodeURIComponent(m.key)}`);
+    if (scroll) li.scrollIntoView({ block: 'center' });
+  };
+
+  listEl.addEventListener('click', (e) => {
+    const li = e.target.closest('.sp-led');
+    if (li) expand(li);
+  });
+
+  filterEl.addEventListener('input', () => {
+    const q = filterEl.value.trim().toLowerCase();
+    listEl.querySelectorAll('.sp-led').forEach(li => {
+      li.hidden = q && !li.dataset.text.includes(q);
+    });
+  });
+
+  const wanted = new URLSearchParams(location.search).get('marker');
+  if (wanted) {
+    const li = listEl.querySelector(`.sp-led[data-key="${CSS.escape(wanted)}"]`);
+    if (li) expand(li, true);
   }
 }
 

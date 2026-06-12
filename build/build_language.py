@@ -115,6 +115,35 @@ _RE = {
     "u_turn": re.compile(r"u-turn", re.I),
     "woke": re.compile(r"\bwoke\b", re.I),
     "viral": re.compile(r"\bviral\b", re.I),
+    # The journalese drawer.
+    "set_to": re.compile(r"\bset to\b", re.I),
+    "boost": re.compile(r"\bboost(?:s|ed)?\b", re.I),
+    "blow": re.compile(r"\bblow\b", re.I),
+    "sparks": re.compile(r"\bspark(?:s|ed)\b", re.I),
+    "fears": re.compile(r"\bfears?\b", re.I),
+    "according_to": re.compile(r"\baccording to\b", re.I),
+    "hedge": re.compile(r"\b(?:could|may|might)\b", re.I),
+    # Attribution verbs — what people do in headlines.
+    "says_word": re.compile(r"\bsays\b", re.I),
+    "warns": re.compile(r"\bwarn(?:s|ed)\b", re.I),
+    "insists": re.compile(r"\binsist(?:s|ed)\b", re.I),
+    "admits": re.compile(r"\badmit(?:s|ted)\b", re.I),
+    # Formats and shapes.
+    "qanda": re.compile(r"\bq&a\b", re.I),
+    "factcheck": re.compile(r"\bfact ?check", re.I),
+    "obituary": re.compile(r"\bobituary\b", re.I),
+    "cartoon": re.compile(r"\bcartoon\b", re.I),
+    "versus": re.compile(r"\s(?:v|vs)\s"),
+    # The ", 34," construction — age, bracketed by commas.
+    "age_comma": re.compile(r",\s\d{1,3},"),
+}
+
+# "-gate" coinages, minus the places and people that end in -gate anyway.
+_GATE = re.compile(r"\b(\w{3,}gate)\b", re.I)
+_GATE_STOP = {
+    "southgate", "margate", "harrogate", "ramsgate", "billingsgate",
+    "colgate", "applegate", "aldgate", "highgate", "bathgate", "reigate",
+    "westgate", "eastgate", "northgate", "norgate", "lydgate", "holgate",
 }
 
 
@@ -144,9 +173,17 @@ def classify(t: str, words: int) -> dict:
         "in_pictures": "in pictures" in tl,
         "guardian_view": tl.startswith("the guardian view"),
         "letters": tl.endswith("letters") or tl.startswith("letters:"),
+        "semicolon": ";" in t,
+        "brackets": "(" in t,
+        "digit_start": t[:1].isdigit(),
+        # A quote mark beyond the first character, at least a pair of them
+        # in total — quotation somewhere in the headline, not just opening it.
+        "quotes_anywhere": sum(t.count(q) for q in "'’‘\"“”") >= 2,
     }
     for k, rx in _RE.items():
         out[k] = bool(rx.search(t))
+    m = _GATE.search(t)
+    out["gate"] = bool(m and m.group(1).lower() not in _GATE_STOP)
     return out
 
 
