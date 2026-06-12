@@ -45,7 +45,7 @@ const CARDS = [
   },
   {
     key: 'short5', title: 'Five words or fewer', unit: '%',
-    dek: 'The dying art of the terse headline: one in seven in 2012, one in 31 now. Most of the collapse was over by 2015.',
+    dek: 'One in seven in 2012; one in 31 now. Less a dying art than a change of job — a headline that travels alone in a feed has to say what the story actually is.',
   },
   {
     key: 'digits', title: 'Numbers', unit: '%',
