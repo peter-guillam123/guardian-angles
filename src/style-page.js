@@ -28,6 +28,10 @@ const CARDS = [
     dek: 'Headlines that open with someone talking. One in ten now; one in 160 in 2012.',
   },
   {
+    key: 'first_person', title: 'First person', unit: '%',
+    dek: 'Headlines containing "I", "my" or "me" as a word. Twice as common as in 2012 — the age of the personal.',
+  },
+  {
     key: 'as_it_happened', title: '…as it happened', unit: '%',
     dek: 'The liveblog, as the archive remembers it — closed live blogs are retitled, and they have multiplied.',
   },
@@ -38,6 +42,10 @@ const CARDS = [
   {
     key: 'colon', title: 'The colon', unit: '%',
     dek: 'Eternal. A third of all headlines, every year, forever.',
+  },
+  {
+    key: 'short5', title: 'Five words or fewer', unit: '%',
+    dek: 'The dying art of the terse headline: one in seven in 2012, one in 31 now. Most of the collapse was over by 2015.',
   },
   {
     key: 'digits', title: 'Numbers', unit: '%',
@@ -67,10 +75,67 @@ async function init() {
 
     renderHero(Y);
     renderCards(Y);
+    renderNames(lang);
+    renderFacts(lang);
   } catch (e) {
     console.error(e);
     if (heroChartEl) heroChartEl.textContent = 'Could not load data. Has the build run yet?';
   }
+}
+
+// ── The first-name league ──
+// Year chips select a year; the list shows its top first names with a
+// bar scaled to the year's leader. Names methodology is in the small
+// print — the short version is that "Boris" means everyone called Boris.
+function renderNames(lang) {
+  const wrap = document.getElementById('sp-names');
+  if (!wrap || !lang.names) return;
+  const years = Object.keys(lang.names).sort();
+  const chipsEl = document.getElementById('sp-names-years');
+  const listEl = document.getElementById('sp-names-list');
+  let selected = years[years.length - 1];
+
+  chipsEl.innerHTML = years.map(y =>
+    `<button type="button" class="sp-year-chip${y === selected ? ' active' : ''}" data-year="${y}">'${y.slice(2)}</button>`
+  ).join('');
+
+  const show = (y) => {
+    selected = y;
+    [...chipsEl.children].forEach(b => b.classList.toggle('active', b.dataset.year === y));
+    const top = lang.names[y] || [];
+    const max = top.length ? top[0][1] : 1;
+    listEl.innerHTML = top.map(([name, count], i) => `
+      <li class="sp-name-row">
+        <span class="sp-name-rank">${i + 1}</span>
+        <span class="sp-name">${escapeHtml(name)}</span>
+        <span class="sp-name-bar"><span style="width:${(100 * count / max).toFixed(1)}%"></span></span>
+        <span class="sp-name-count">${count.toLocaleString('en-GB')}</span>
+      </li>`).join('');
+    listEl.setAttribute('aria-label', `Top first names in ${y} headlines`);
+  };
+
+  chipsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-year]');
+    if (b) show(b.dataset.year);
+  });
+  show(selected);
+}
+
+// ── One more thing — the fact shuffle ──
+function renderFacts(lang) {
+  const factEl = document.getElementById('sp-fact');
+  const btn = document.getElementById('sp-fact-btn');
+  if (!factEl || !btn || !lang.facts?.length) return;
+  // Fisher–Yates once, then cycle — every fact appears before any repeats.
+  const pool = [...lang.facts];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  let i = 0;
+  const show = () => { factEl.textContent = pool[i % pool.length]; i++; };
+  btn.addEventListener('click', show);
+  show();
 }
 
 // ── Yearly aggregation ──

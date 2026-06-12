@@ -3234,3 +3234,107 @@ main.stylepage {
   .sp-hero-big { font-size: 64px; }
   .sp-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
 }
+
+/* ─── Style page: first-name league ─── */
+.sp-names {
+  border-top: 1px solid var(--paper-rule);
+  padding: 24px 0 28px;
+}
+.sp-section-dek {
+  margin: 4px 0 14px;
+  font: italic 13px/1.5 var(--body);
+  color: var(--ink-mute);
+}
+.sp-names-years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.sp-year-chip {
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 9px 12px;
+  min-height: 38px;
+  background: none;
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.sp-year-chip:hover { border-color: var(--ink-soft); color: var(--ink); }
+.sp-year-chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.sp-names-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 560px;
+}
+.sp-name-row {
+  display: grid;
+  grid-template-columns: 24px minmax(90px, 140px) minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.sp-name-rank {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+.sp-name { font: 15px/1.2 var(--body); color: var(--ink); }
+.sp-name-bar {
+  height: 10px;
+  background: none;
+}
+.sp-name-bar span {
+  display: block;
+  height: 100%;
+  background: rgba(5, 41, 98, 0.55);
+  border-radius: 1px;
+}
+.sp-name-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Style page: one more thing ─── */
+.sp-fact-wrap {
+  border-top: 1px solid var(--paper-rule);
+  padding: 24px 0 28px;
+  max-width: 720px;
+}
+.sp-fact {
+  margin: 10px 0 14px;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.sp-fact-btn {
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  min-height: 40px;
+  background: none;
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.sp-fact-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+@media (max-width: 720px) {
+  .sp-fact { font-size: 18px; }
+  .sp-name-row { grid-template-columns: 20px minmax(80px, 110px) minmax(0, 1fr) 50px; }
+}
