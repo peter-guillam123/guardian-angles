@@ -312,22 +312,29 @@ function renderNames(lang) {
     const top = (lang.names[gender][y] || []).slice(0, 8);
     const max = top.length ? top[0][1] : 1;
     listEl.innerHTML = top.map(([name, count, surname, tagId], i) => {
-      // Dominant companion surname, when one genuinely dominates. The
-      // pair links to its person's deep dive when a tag exists; without
-      // one, the forename links to a word-mode dive — every headline
-      // containing it, which is exactly what the row counts.
-      const label = `${escapeHtml(name)}${surname ? ` <span class="sp-name-sur">${escapeHtml(surname)}</span>` : ''}`;
-      const href = tagId
-        ? `./deepdive.html?tag=${encodeURIComponent(tagId)}`
-        : `./deepdive.html?q=${encodeURIComponent(name)}`;
-      const aria = tagId
-        ? `Deep dive on ${escapeHtml(name)} ${escapeHtml(surname || '')}`
-        : `Every headline containing ${escapeHtml(name)}`;
-      const nameCell = `<a class="sp-name sp-name-link" href="${href}" aria-label="${aria}">${label}</a>`;
+      // Two independent links per row. The forename always dives on the
+      // word — every headline containing it, which is what the row
+      // counts. The surname, when one dominates, dives on the person:
+      // their tag if "Forename Surname" matched one, otherwise the full
+      // name as a phrase ("emma raducanu" appearing in a headline).
+      const fore = `<a class="sp-name-fore" href="./deepdive.html?q=${encodeURIComponent(name)}"`
+        + ` title="Headlines with the word “${escapeAttr(name)}”"`
+        + ` aria-label="Headlines containing ${escapeAttr(name)}">${escapeHtml(name)}</a>`;
+      let sur = '';
+      if (surname) {
+        const surHref = tagId
+          ? `./deepdive.html?tag=${encodeURIComponent(tagId)}`
+          : `./deepdive.html?q=${encodeURIComponent(name + ' ' + surname)}`;
+        const surTitle = tagId
+          ? `Deep dive: ${escapeAttr(name)} ${escapeAttr(surname)}`
+          : `Headlines naming “${escapeAttr(name)} ${escapeAttr(surname)}”`;
+        sur = ` <a class="sp-name-sur" href="${surHref}" title="${surTitle}"`
+          + ` aria-label="${surTitle}">${escapeHtml(surname)}</a>`;
+      }
       return `
       <li class="sp-name-row">
         <span class="sp-name-rank">${i + 1}</span>
-        ${nameCell}
+        <span class="sp-name">${fore}${sur}</span>
         <span class="sp-name-bar"><span style="width:${(100 * count / max).toFixed(1)}%"></span></span>
         <span class="sp-name-count">${count.toLocaleString('en-GB')}</span>
       </li>`;
@@ -507,6 +514,7 @@ function formatCount(n) {
   return n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
 }
 
+function escapeAttr(s) { return escapeHtml(s); }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

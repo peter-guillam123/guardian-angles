@@ -3339,12 +3339,22 @@ main.stylepage {
 }
 .sp-ledger-toggle:hover { border-color: var(--ink); color: var(--ink); }
 .sp-ledger-body { margin-top: 16px; }
-.sp-name-sur { color: var(--ink-mute); }
-.sp-name-link {
+/* Two independent links per league row: the forename (word dive) and,
+   when present, the surname (tag or phrase dive). Both dotted so they
+   read as links; the surname stays muted. A little vertical padding
+   gives each its own tap target without changing the row height. */
+.sp-name-fore, .sp-name-sur {
   text-decoration: underline dotted var(--ink-mute);
   text-underline-offset: 3px;
+  padding: 6px 0;
+  margin: -6px 0;
 }
-.sp-name-link:hover { color: var(--guardian-blue); }
+.sp-name-fore { color: var(--ink); }
+.sp-name-sur { color: var(--ink-mute); }
+.sp-name-fore:hover, .sp-name-sur:hover {
+  color: var(--guardian-blue);
+  text-decoration-color: var(--guardian-blue);
+}
 
 /* ─── Style v4.1: house-styled scope select, surfaced ledger ─── */
 #sp-scope-select {
