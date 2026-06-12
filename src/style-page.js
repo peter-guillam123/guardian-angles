@@ -52,8 +52,8 @@ const CARDS = [
     dek: 'Headlines containing a digit. Note 2020, when the news became counting.',
   },
   {
-    key: 'pipe', title: 'The opinion signature', unit: '%',
-    dek: 'The " | " that ends a comment headline. It peaked in 2017–19.',
+    key: 'amid', title: 'Amid', unit: '%',
+    dek: 'Journalism’s busiest preposition, six times more common than in 2012. Peak amid: March 2020.',
   },
   {
     key: 'revealed', title: 'Revealed:', unit: '%',
@@ -84,25 +84,24 @@ async function init() {
 }
 
 // ── The first-name league ──
-// Year chips select a year; the list shows its top first names with a
-// bar scaled to the year's leader. Names methodology is in the small
-// print — the short version is that "Boris" means everyone called Boris.
+// Year chips select a year; two lists — male and female — show its top
+// first names, each bar scaled to its own list's leader. Methodology is
+// in the small print — the short version is that "Boris" means everyone
+// called Boris.
 function renderNames(lang) {
   const wrap = document.getElementById('sp-names');
-  if (!wrap || !lang.names) return;
-  const years = Object.keys(lang.names).sort();
+  if (!wrap || !lang.names?.m) return;
+  const years = Object.keys(lang.names.m).sort();
   const chipsEl = document.getElementById('sp-names-years');
-  const listEl = document.getElementById('sp-names-list');
   let selected = years[years.length - 1];
 
   chipsEl.innerHTML = years.map(y =>
     `<button type="button" class="sp-year-chip${y === selected ? ' active' : ''}" data-year="${y}">'${y.slice(2)}</button>`
   ).join('');
 
-  const show = (y) => {
-    selected = y;
-    [...chipsEl.children].forEach(b => b.classList.toggle('active', b.dataset.year === y));
-    const top = lang.names[y] || [];
+  const renderList = (gender, y) => {
+    const listEl = document.getElementById(`sp-names-list-${gender}`);
+    const top = (lang.names[gender][y] || []).slice(0, 8);
     const max = top.length ? top[0][1] : 1;
     listEl.innerHTML = top.map(([name, count], i) => `
       <li class="sp-name-row">
@@ -111,7 +110,15 @@ function renderNames(lang) {
         <span class="sp-name-bar"><span style="width:${(100 * count / max).toFixed(1)}%"></span></span>
         <span class="sp-name-count">${count.toLocaleString('en-GB')}</span>
       </li>`).join('');
-    listEl.setAttribute('aria-label', `Top first names in ${y} headlines`);
+    listEl.setAttribute('aria-label',
+      `Top ${gender === 'm' ? 'male' : 'female'} first names in ${y} headlines`);
+  };
+
+  const show = (y) => {
+    selected = y;
+    [...chipsEl.children].forEach(b => b.classList.toggle('active', b.dataset.year === y));
+    renderList('m', y);
+    renderList('f', y);
   };
 
   chipsEl.addEventListener('click', (e) => {

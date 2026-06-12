@@ -66,7 +66,16 @@
       <p class="dd-eyebrow">The first-name league</p>
       <p class="sp-section-dek">The first names appearing in the most headlines each year. Davids and Johns are eternal; everyone else takes turns.</p>
       <div class="sp-names-years" id="sp-names-years" role="group" aria-label="Choose a year"></div>
-      <ol class="sp-names-list" id="sp-names-list"></ol>
+      <div class="sp-names-cols">
+        <div>
+          <h3 class="sp-names-h">Male</h3>
+          <ol class="sp-names-list" id="sp-names-list-m"></ol>
+        </div>
+        <div>
+          <h3 class="sp-names-h">Female</h3>
+          <ol class="sp-names-list" id="sp-names-list-f"></ol>
+        </div>
+      </div>
     </section>
 
     <!-- One more thing — the fact shuffle. -->
@@ -85,7 +94,7 @@
         <li>Closed live blogs are retitled "…as it happened", so that suffix — not the word "live" — is how the archive remembers live coverage.</li>
         <li>The current year is drawn hollow: it's the year so far, not the year.</li>
         <li>"First person" means the headline contains "I", "my" or "me" as a whole word.</li>
-        <li>First names are matched as whole words against a tracked list derived from the people the Guardian tags — so "Boris" is everyone called Boris, and John's eternal podium place owes a little to John Lewis. Ambiguous names (Jordan, Will, Bill, Amber…) aren't counted at all.</li>
+        <li>First names are matched as whole words against a tracked list derived from the people the Guardian tags — so "Boris" is everyone called Boris, and John's eternal podium place owes a little to John Lewis. Ambiguous names (Jordan, Will, Bill, Amber…) aren't counted at all, and nor are Kim or Xi — surnames first, in the league's defence. The male/female split follows each name's dominant bearers in Guardian coverage.</li>
         <li>And the word the Guardian famously won't use: <em>Exclusive:</em> opens <span id="sp-exclusive">—</span> headlines out of <span id="sp-total-inline">—</span>. Almost none of them recent.</li>
       </ul>
     </section>

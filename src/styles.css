@@ -3338,3 +3338,23 @@ main.stylepage {
   .sp-fact { font-size: 18px; }
   .sp-name-row { grid-template-columns: 20px minmax(80px, 110px) minmax(0, 1fr) 50px; }
 }
+
+/* Two-column first-name league */
+.sp-names-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 48px;
+  max-width: 980px;
+}
+.sp-names-h {
+  margin: 0 0 4px;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+@media (max-width: 720px) {
+  .sp-names-cols { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
