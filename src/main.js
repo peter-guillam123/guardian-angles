@@ -73,8 +73,6 @@ let yearFilter = null; // { from: year, to: year } or null for full range
 const breakdownEl = document.getElementById('breakdown');
 const breakdownBarsEl = document.getElementById('breakdown-bars');
 const searchLabelEl = document.getElementById('search-label');
-const examplesWordsEl = document.getElementById('examples-words');
-const examplesTagsEl = document.getElementById('examples-tags');
 const risingPanelEl = document.getElementById('rising-panel');
 const risingTagsListEl = document.querySelector('#rising-tags .rising-list');
 const risingWordsListEl = document.querySelector('#rising-words .rising-list');
@@ -112,31 +110,6 @@ async function init() {
   }
 
   setReadingIdle('Hover the chart.');
-
-  // Example links — words
-  document.querySelectorAll('#examples-words a[data-query]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (currentMode !== 'words') setMode('words');
-      const terms = a.dataset.query.split(',');
-      inputs().forEach((inp, i) => { inp.value = terms[i] || ''; delete inp.dataset.tagId; });
-      runSearch();
-    });
-  });
-
-  // Example links — tags
-  document.querySelectorAll('#examples-tags a[data-tag-query]').forEach(a => {
-    a.addEventListener('click', async (e) => {
-      e.preventDefault();
-      if (currentMode !== 'tags') await setMode('tags');
-      const tagIds = a.dataset.tagQuery.split(',');
-      inputs().forEach((inp, i) => {
-        if (tagIds[i] && tagCatalog) seedInput(inp, tagIds[i], tagCatalog);
-        else { inp.value = ''; delete inp.dataset.tagId; }
-      });
-      runSearch();
-    });
-  });
 
   // "I feel lucky" — 80% pure random (always 4 fresh items from the top
   // index), 20% curated easter-egg recipe. Either way, always fills all
@@ -312,8 +285,6 @@ async function setMode(mode) {
   currentMode = mode;
 
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  examplesWordsEl.hidden = mode !== 'words';
-  examplesTagsEl.hidden = mode !== 'tags';
 
   // Reset state — but only clear inputs on a real user-driven mode swap,
   // not on the very first init where setMode() applies the default.
@@ -328,17 +299,17 @@ async function setMode(mode) {
 
   if (mode === 'tags') {
     searchLabelEl.textContent = 'Search tags';
-    setChartTitle('prompt', 'Pick up to four Guardian tags to compare their coverage.');
+    setChartTitle('prompt', 'Pick a topic above to begin.');
     inputs().forEach((inp, i) => {
-      inp.placeholder = i === 0 ? 'e.g. donald trump, climate…' : 'add another tag…';
+      inp.placeholder = i === 0 ? 'e.g. donald trump, climate…' : '+ add another tag…';
     });
     if (!tagCatalog) tagCatalog = await loadTagCatalog();
     inputs().forEach(inp => attachAutocomplete(inp, tagCatalog));
   } else {
     searchLabelEl.textContent = 'Search headlines';
-    setChartTitle('prompt', 'Type a word — or four — to plot a decade of Guardian coverage.');
+    setChartTitle('prompt', 'Type a word above to begin.');
     inputs().forEach((inp, i) => {
-      inp.placeholder = [ 'e.g. starmer', 'add another…', 'and another…', 'and one more' ][i];
+      inp.placeholder = [ 'e.g. starmer', '+ add another…', '+ and another…', '+ one more' ][i];
       detachAutocomplete(inp);
     });
   }
@@ -356,8 +327,8 @@ clearBtn.addEventListener('click', () => {
   chartActionsEl.hidden = true;
   if (yearRangeEl) yearRangeEl.hidden = true;
   const placeholder = currentMode === 'tags'
-    ? 'Pick up to four Guardian tags to compare their coverage.'
-    : 'Type a word — or four — to plot a decade of Guardian coverage.';
+    ? 'Pick a topic above to begin.'
+    : 'Type a word above to begin.';
   setChartTitle('prompt', placeholder);
   headlinesSection.hidden = true;
   currentQueries = []; currentLabels = []; currentSeries = [];

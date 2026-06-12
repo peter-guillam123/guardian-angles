@@ -1,15 +1,3 @@
-/* Guardian Trends — "Newsroom Dataroom" aesthetic
-   Typography: Guardian Egyptian (serif display), Guardian Text Sans (UI),
-   Guardian Agate Sans (numbers/data). Loaded from Guardian's public CDN.
-   Warm newsprint palette instead of cold grays. */
-
-@font-face {
-  font-family: 'GH Guardian Headline';
-  src: url('https://assets.guim.co.uk/static/frontend/fonts/guardian-headline/noalts-not-hinted/GHGuardianHeadline-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
 @font-face {
   font-family: 'GH Guardian Headline';
   src: url('https://assets.guim.co.uk/static/frontend/fonts/guardian-headline/noalts-not-hinted/GHGuardianHeadline-Bold.woff2') format('woff2');
@@ -231,18 +219,27 @@ body {
 main {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 28px 48px 48px;
+  padding: 24px 48px 48px;
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
-  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px 32px;
   align-items: start;
 }
 
-/* Left: search + examples (editorial sidebar) */
-.controls {
-  position: sticky;
-  top: 20px;
+/* Top: the search band. Reading order is the instruction — type, add
+   up to three more, Compare. The chart below gets the full width. */
+.search-band {
+  grid-column: 1 / -1;
   font-family: var(--ui);
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .mode-toggle {
   display: inline-flex;
@@ -268,17 +265,14 @@ main {
   background: var(--ink);
   color: var(--paper);
 }
-.controls .label {
-  font-family: var(--ui);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  margin: 0 0 10px;
+/* One row: slot one leads, three quieter slots follow, Compare ends it. */
+.search-band form {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.25fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
 }
-.controls form { display: flex; flex-direction: column; gap: 8px; }
-.controls input[type=text] {
+.search-band input[type=text] {
   font: 400 16px/1.3 var(--body);
   padding: 10px 12px;
   border: none;
@@ -291,20 +285,15 @@ main {
   width: 100%;
   min-width: 0;
 }
-.controls input[type=text]:focus {
+.search-band input[type=text]:focus {
   outline: none;
   border-bottom-color: var(--guardian-blue);
 }
-.controls input[type=text]::placeholder {
+.search-band input[type=text]::placeholder {
   color: var(--ink-mute);
   font-style: italic;
 }
-.controls .actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.controls button {
+.search-band button {
   font: 700 12px/1 var(--ui);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -313,27 +302,58 @@ main {
   cursor: pointer;
   transition: transform 120ms, background 120ms;
 }
-.controls button[type=submit] {
+/* Compare is the page's verb — the only blue object in the band. */
+.search-band .compare-btn {
   background: var(--guardian-blue);
   color: var(--paper);
-  flex: 1;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  padding: 14px 30px;
 }
-.controls button[type=submit]:hover { background: var(--ink); }
-.controls button.ghost {
+.search-band .compare-btn:hover { background: var(--ink); }
+.search-band button.ghost {
   background: transparent;
   color: var(--ink-mute);
   border: 1px solid var(--paper-rule);
 }
-.controls button.ghost:hover { color: var(--ink); border-color: var(--ink); }
+.search-band button.ghost:hover { color: var(--ink); border-color: var(--ink); }
+
+/* Beneath the inputs: mode + section on the left, the quieter actions
+   on the right. Lucky keeps its delight but loses the megaphone. */
+.band-sub {
+  display: flex;
+  flex-wrap: wrap;          /* wraps whenever the row runs out of road */
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 12px;
+}
+.band-sub-left, .band-sub-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.band-sub .mode-toggle { margin-bottom: 0; }
+.lucky-quiet {
+  white-space: nowrap;
+  font: 700 11px/1 var(--ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 11px 16px;
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px dotted var(--ink-mute);
+  cursor: pointer;
+}
+.lucky-quiet:hover { color: var(--guardian-blue); border-color: var(--guardian-blue); }
 
 .section-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dotted var(--paper-rule);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
+.section-filter-label { white-space: nowrap; }
 .section-filter-label {
   font-family: var(--ui);
   font-weight: 700;
@@ -374,56 +394,8 @@ main {
   border-bottom-color: var(--guardian-blue);
 }
 
-.controls .examples {
-  margin-top: 28px;
-  padding-top: 16px;
-  border-top: 1px solid var(--paper-rule);
-}
-.controls .examples ul { list-style: none; padding: 0; margin: 8px 0 0; }
-.controls .examples li {
-  font: 400 14px/1.45 var(--body);
-  margin: 0 0 6px;
-}
-.controls .examples a {
-  color: var(--ink);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--ink-mute);
-  cursor: pointer;
-  padding: 1px 0;
-}
-.controls .examples a:hover {
-  border-bottom-style: solid;
-  border-bottom-color: var(--guardian-blue);
-  color: var(--guardian-blue);
-}
-.controls .examples a.lucky {
-  font-weight: 700;
-  color: var(--guardian-blue);
-  border-bottom-color: var(--guardian-blue);
-  border-bottom-style: dashed;
-}
-.controls .examples a.lucky:hover {
-  border-bottom-style: solid;
-}
 
 /* "I feel lucky" button — same family as Compare, yellow sub-text for zing */
-.lucky-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  width: 100%;
-  margin: 4px 0 14px;
-  padding: 9px 14px;
-  background: var(--guardian-blue);
-  color: var(--paper);
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--ui);
-  transition: background 120ms;
-}
-.lucky-card:hover { background: var(--ink); }
 .lucky-main {
   font: 700 12px/1 var(--ui);
   letter-spacing: 0.1em;
@@ -436,7 +408,6 @@ main {
   letter-spacing: 0;
   text-transform: none;
 }
-.controls .examples em { color: var(--ink-mute); font-style: italic; }
 
 /* Middle: chart */
 .chart-stage {
@@ -1626,7 +1597,11 @@ main.subjects {
     grid-template-columns: 1fr;
     padding: 24px 28px 40px;
   }
-  .controls, .reading-panel { position: static; }
+  .reading-panel { position: static; }
+  .search-band form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .search-band .compare-btn { grid-column: 1 / -1; }
   .reading-panel { border-left: none; border-top: 1px solid var(--paper-rule); padding-left: 0; padding-top: 20px; }
 }
 @media (max-width: 640px) {
@@ -1662,11 +1637,10 @@ main.subjects {
   main { padding: 16px 16px 32px; }
   .headlines-section { padding: 20px 16px 40px; }
 
-  /* Sidebar controls: tighter */
-  /* Hide the "Try" suggestion list on mobile — "I feel lucky" covers
-     the same need and the list otherwise pushes the chart below the fold */
-  .controls .examples { display: none; }
-  .controls .examples li { font-size: 13px; }
+  /* Search band stacks to a single column — same flow as before. */
+  .search-band form { grid-template-columns: minmax(0, 1fr); }
+  .search-band .compare-btn { grid-column: auto; width: 100%; }
+  .band-sub { flex-wrap: wrap; gap: 10px 16px; }
 
   /* Chart area */
   .chart-stage .chart-head { flex-direction: column; gap: 8px; align-items: flex-start; }
@@ -3420,3 +3394,7 @@ main.stylepage {
 @media (max-width: 720px) {
   .sp-fact-top .sp-fact { font-size: 19px; }
 }
+
+/* [hidden] must win over the class's display: grid — without this the
+   year slider haunts the empty state. */
+.chart-year-range[hidden] { display: none; }

@@ -234,11 +234,9 @@ export class TrendChart extends EventTarget {
     ctx.lineTo(p.x + p.w, p.y + p.h);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = INK_MUTE;
-    ctx.font = "italic 15px 'GuardianTextEgyptian', Georgia, serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Waiting for a search…', p.x + p.w / 2, p.y + p.h / 2);
+    // No text here — the chart-prompt line above the stage is the
+    // empty state's one voice ("Pick a topic above to begin."); two
+    // captions saying the same thing read as indecision.
   }
 
   _drawGrid(p, yMax) {

@@ -42,57 +42,37 @@
   </nav>
 
   <main>
-    <!-- LEFT: editorial sidebar with search + examples -->
-    <aside class="controls">
-      <div class="mode-toggle" role="group" aria-label="Search mode">
-        <button type="button" class="mode-btn" data-mode="words">Words</button>
-        <button type="button" class="mode-btn active" data-mode="tags">Tags</button>
-      </div>
-      <p class="label" id="search-label">Search tags</p>
-      <button type="button" id="lucky-btn" class="lucky-card">
-        <span class="lucky-main">I feel lucky</span>
-        <span class="lucky-sub">Surprise me with a comparison</span>
-      </button>
+    <!-- TOP: the search band. Reading order is the instruction —
+         type, add up to three more, Compare. -->
+    <section class="search-band" aria-label="Build a comparison">
+      <p class="label visually-hidden" id="search-label">Search tags</p>
       <form id="search-form" autocomplete="off">
         <input type="text" id="q1" placeholder="e.g. donald trump, climate…" />
-        <input type="text" id="q2" placeholder="add another tag…" />
-        <input type="text" id="q3" placeholder="add another tag…" />
-        <input type="text" id="q4" placeholder="add another tag…" />
-        <label class="section-filter">
-          <span class="section-filter-label">In section</span>
-          <select id="section-filter">
-            <option value="">All sections</option>
-          </select>
-        </label>
-        <div class="actions">
-          <button type="submit">Compare</button>
+        <input type="text" id="q2" placeholder="+ add another…" />
+        <input type="text" id="q3" placeholder="+ add another…" />
+        <input type="text" id="q4" placeholder="+ add another…" />
+        <button type="submit" class="compare-btn">Compare</button>
+      </form>
+      <div class="band-sub">
+        <div class="band-sub-left">
+          <div class="mode-toggle" role="group" aria-label="Search mode">
+            <button type="button" class="mode-btn" data-mode="words">Words</button>
+            <button type="button" class="mode-btn active" data-mode="tags">Tags</button>
+          </div>
+          <label class="section-filter">
+            <span class="section-filter-label">In section</span>
+            <select id="section-filter">
+              <option value="">All sections</option>
+            </select>
+          </label>
+        </div>
+        <div class="band-sub-right">
+          <button type="button" id="lucky-btn" class="lucky-quiet"
+                  title="Surprise me with a comparison">I feel lucky</button>
           <button type="button" id="clear-btn" class="ghost">Clear</button>
         </div>
-      </form>
-
-      <div class="examples" id="examples-words" hidden>
-        <p class="label">Try</p>
-        <ul>
-          <li><a data-query="corbyn,starmer">Corbyn <em>vs.</em> Starmer</a></li>
-          <li><a data-query="brexit,covid,ukraine">Brexit, covid &amp; Ukraine</a></li>
-          <li><a data-query="climate,inflation">climate <em>vs.</em> inflation</a></li>
-          <li><a data-query="trump,johnson,sunak,badenoch">Four leaders</a></li>
-          <li><a data-query="russia,china">Russia <em>vs.</em> China</a></li>
-          <li><a data-query="ai,crypto">AI <em>vs.</em> crypto</a></li>
-        </ul>
       </div>
-
-      <div class="examples" id="examples-tags">
-        <p class="label">Try</p>
-        <ul>
-          <li><a data-tag-query="us-news/donaldtrump,politics/keir-starmer">Trump <em>vs.</em> Starmer</a></li>
-          <li><a data-tag-query="environment/climate-crisis,business/cost-of-living-crisis">Climate <em>vs.</em> cost of living</a></li>
-          <li><a data-tag-query="world/ukraine,world/israel-hamas-war,world/gaza">Three conflicts</a></li>
-          <li><a data-tag-query="technology/artificialintelligenceai,technology/cryptocurrencies">AI <em>vs.</em> crypto</a></li>
-          <li><a data-tag-query="politics/conservatives,politics/labour,politics/reformuk">Three parties</a></li>
-        </ul>
-      </div>
-    </aside>
+    </section>
 
     <!-- MIDDLE: chart -->
     <section class="chart-stage">
