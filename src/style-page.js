@@ -151,7 +151,10 @@ function buildScopeControl(lang) {
 function applyScope(scope) {
   _scope = scope;
   const sel = document.getElementById('sp-scope-select');
-  if (sel && sel.value !== scope) sel.value = scope;
+  if (sel) {
+    if (sel.value !== scope) sel.value = scope;
+    sel.classList.toggle('active', !!scope);   // blue = filtered, as on Trends
+  }
   const Y = toYearly(sliceFor(_lang, scope));
   const label = scopeLabelFor(scope);
   renderHero(Y, label);
@@ -173,19 +176,37 @@ function syncStyleURL(marker) {
 }
 
 // ── The full ledger ──
-// Collapsed by default — sixty-two rows is a reference work, not a
-// front page. A ?marker= deep link opens it automatically.
+// The five biggest movers show by default; search sees everything; the
+// button reveals the rest. A ?marker= deep link or an open row always
+// stays visible regardless.
+const LEDGER_TEASER = 5;
+let _ledgerExpanded = false;
+
+function applyLedgerVisibility() {
+  const listEl = document.getElementById('sp-ledger-list');
+  const filterEl = document.getElementById('sp-ledger-filter');
+  const q = (filterEl?.value || '').trim().toLowerCase();
+  listEl.querySelectorAll('.sp-led').forEach((li, i) => {
+    const matches = !q || li.dataset.text.includes(q);
+    const open = !!li.querySelector('.sp-led-panel:not([hidden])');
+    li.hidden = !(matches && (q || _ledgerExpanded || open || i < LEDGER_TEASER));
+  });
+  const btn = document.getElementById('sp-ledger-toggle');
+  if (btn) {
+    btn.hidden = !!q;   // searching shows everything that matches anyway
+    const total = listEl.querySelectorAll('.sp-led').length;
+    btn.textContent = _ledgerExpanded ? 'Show the top five ↑' : `Show all ${total} ↓`;
+    btn.setAttribute('aria-expanded', String(_ledgerExpanded));
+  }
+}
+
 function initLedgerToggle() {
   const btn = document.getElementById('sp-ledger-toggle');
-  const body = document.getElementById('sp-ledger-body');
-  if (!btn || !body) return;
-  const setOpen = (open) => {
-    body.hidden = !open;
-    btn.setAttribute('aria-expanded', String(open));
-    btn.textContent = open ? 'Tuck them away ↑' : 'Browse them all ↓';
-  };
-  btn.addEventListener('click', () => setOpen(body.hidden));
-  if (new URLSearchParams(location.search).get('marker')) setOpen(true);
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    _ledgerExpanded = !_ledgerExpanded;
+    applyLedgerVisibility();
+  });
 }
 
 // Every catalogued marker as a compact expandable row, biggest movers
@@ -226,7 +247,7 @@ function renderLedger(Y) {
       p.hidden = true;
       p.parentElement.querySelector('.sp-led-row').setAttribute('aria-expanded', 'false');
     });
-    if (!open) { syncStyleURL(null); return; }
+    if (!open) { syncStyleURL(null); applyLedgerVisibility(); return; }
     const { m, vals } = rows.find(r => r.m.key === li.dataset.key);
     // Word-type markers link to a word-mode deep dive — the actual
     // headlines behind the line. Punctuation and format markers can't
@@ -244,6 +265,7 @@ function renderLedger(Y) {
     panel.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
     syncStyleURL(m.key);
+    applyLedgerVisibility();
     if (scroll) li.scrollIntoView({ block: 'center' });
   };
 
@@ -254,13 +276,7 @@ function renderLedger(Y) {
     if (li) expand(li);
   };
 
-  filterEl.oninput = () => {
-    const q = filterEl.value.trim().toLowerCase();
-    listEl.querySelectorAll('.sp-led').forEach(li => {
-      li.hidden = q && !li.dataset.text.includes(q);
-    });
-  };
-  if (filterEl.value) filterEl.oninput();
+  filterEl.oninput = applyLedgerVisibility;
 
   // Deep-linked marker: honoured on first render only — later renders
   // are scope changes, which deliberately start the list closed.
@@ -272,6 +288,7 @@ function renderLedger(Y) {
       if (li) expand(li, true);
     }
   }
+  applyLedgerVisibility();
 }
 
 // ── The first-name league ──
@@ -295,13 +312,18 @@ function renderNames(lang) {
     const top = (lang.names[gender][y] || []).slice(0, 8);
     const max = top.length ? top[0][1] : 1;
     listEl.innerHTML = top.map(([name, count, surname, tagId], i) => {
-      // Dominant companion surname, when one genuinely dominates; the
-      // pair links into its person's deep dive when the tag exists.
+      // Dominant companion surname, when one genuinely dominates. The
+      // pair links to its person's deep dive when a tag exists; without
+      // one, the forename links to a word-mode dive — every headline
+      // containing it, which is exactly what the row counts.
       const label = `${escapeHtml(name)}${surname ? ` <span class="sp-name-sur">${escapeHtml(surname)}</span>` : ''}`;
-      const nameCell = tagId
-        ? `<a class="sp-name sp-name-link" href="./deepdive.html?tag=${encodeURIComponent(tagId)}"
-             aria-label="Deep dive on ${escapeHtml(name)} ${escapeHtml(surname || '')}">${label}</a>`
-        : `<span class="sp-name">${label}</span>`;
+      const href = tagId
+        ? `./deepdive.html?tag=${encodeURIComponent(tagId)}`
+        : `./deepdive.html?q=${encodeURIComponent(name)}`;
+      const aria = tagId
+        ? `Deep dive on ${escapeHtml(name)} ${escapeHtml(surname || '')}`
+        : `Every headline containing ${escapeHtml(name)}`;
+      const nameCell = `<a class="sp-name sp-name-link" href="${href}" aria-label="${aria}">${label}</a>`;
       return `
       <li class="sp-name-row">
         <span class="sp-name-rank">${i + 1}</span>
@@ -417,7 +439,10 @@ function renderCards(Y, scopeLabel = '') {
     const vals = Y.series[c.key];
     const now = vals[vals.length - 1];
     const first = vals[0];
-    const dek = scopeLabel ? `In ${scopeLabel}.` : c.dek({ ...ctx, now, first });
+    // Scoped views drop the dek entirely — the captions are written
+    // about all headlines, and the scope control already says what's
+    // being counted.
+    const dek = scopeLabel ? '' : `<p class="sp-card-dek">${escapeHtml(c.dek({ ...ctx, now, first }))}</p>`;
     return `
       <article class="sp-card">
         <h2 class="sp-card-title">${escapeHtml(c.title)}</h2>
@@ -427,7 +452,7 @@ function renderCards(Y, scopeLabel = '') {
           <span>${Y.years[0]}</span>
           <span>${Y.years[Y.years.length - 1]}${Y.partialFinal ? ' so far' : ''}</span>
         </div>
-        <p class="sp-card-dek">${escapeHtml(dek)}</p>
+        ${dek}
       </article>`;
   }).join('');
 }
