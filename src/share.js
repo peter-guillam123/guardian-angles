@@ -1,112 +1,157 @@
-// PNG export: composites chart + branding into a downloadable image.
+// Chart image export — composites the live chart into a branded PNG that
+// matches the site masthead (paper ground, navy "Guardian Angles" serif
+// wordmark, the navy→yellow rule), then downloads it or copies it to the
+// clipboard. The clipboard path is the one that matters for dropping a
+// chart straight into an email or doc.
 //
-// Renders an offscreen Canvas at 2x resolution with:
-//   1. Guardian blue header bar with "Guardian Angles" + title
-//   2. Legend row
-//   3. The live chart (pixel-copied from the on-screen Canvas)
-//   4. Footer with the page URL
+// Canvas does NOT trigger webfont loading, so we await the Guardian faces
+// before drawing — otherwise the text silently falls back to Georgia.
 
 const EXPORT_SCALE = 2;     // retina-quality export
-const HEADER_H = 64;
-const LEGEND_H = 36;
-const FOOTER_H = 40;
-const PAD = 24;
 
 const BLUE = '#052962';
 const YELLOW = '#FFE500';
 const PAPER = '#F4EFE6';
+const PAPER_DEEP = '#E8DFD0';
 const INK = '#121212';
 const INK_MUTE = '#5f5c55';
+const RULE = '#D0C4AE';
 
-export function exportChartAsPNG({ chartCanvas, title, legendItems, url }) {
-  const chartW = chartCanvas.width;
-  const chartH = chartCanvas.height;
-  const dpr = EXPORT_SCALE;
+const DISPLAY = "'GH Guardian Headline', Georgia, 'Times New Roman', serif";
+const SANS = "'GuardianTextSans', 'Helvetica Neue', Arial, sans-serif";
+const MONO = "'JetBrains Mono', 'Menlo', monospace";
 
-  const totalW = chartW; // keep chart's buffer width (already DPR-scaled)
-  const totalH = (HEADER_H + LEGEND_H + chartH / (chartCanvas.height / chartCanvas.getBoundingClientRect().height) + FOOTER_H) * dpr;
+let _fontsReady = null;
+function ensureFonts() {
+  if (_fontsReady) return _fontsReady;
+  const faces = [
+    "700 24px 'GH Guardian Headline'",
+    "400 16px 'GH Guardian Headline'",
+    "400 13px 'GuardianTextSans'",
+    "400 11px 'JetBrains Mono'",
+  ];
+  _fontsReady = Promise.all(
+    faces.map(f => document.fonts.load(f).catch(() => {})),
+  ).then(() => document.fonts.ready);
+  return _fontsReady;
+}
 
-  // Use logical coords × dpr for everything
-  const W = Math.round(chartCanvas.getBoundingClientRect().width * dpr);
-  const H_header = HEADER_H * dpr;
-  const H_legend = LEGEND_H * dpr;
-  const H_chart = Math.round(chartCanvas.getBoundingClientRect().height * dpr);
-  const H_footer = FOOTER_H * dpr;
-  const H_total = H_header + H_legend + H_chart + H_footer;
-  const pad = PAD * dpr;
+// Build the composited canvas (async: waits for fonts). Returns the canvas.
+export async function composeChart({ chartCanvas, title, legendItems, url }) {
+  await ensureFonts();
 
+  const s = EXPORT_SCALE;
+  const px = (n) => Math.round(n * s);
+  const rect = chartCanvas.getBoundingClientRect();
+  const LW = rect.width, LH = rect.height;
+
+  // Layout, in logical px.
+  const PAD = 26;
+  const WORDMARK = 24, TITLE = 16, RULE_H = 5;
+  const wordmarkBase = PAD + WORDMARK;
+  const titleBase = wordmarkBase + 12 + TITLE;
+  const ruleY = titleBase + 14;
+  const HEADER_H = ruleY + RULE_H + 8;
+  const LEGEND_H = 36;
+  const FOOTER_H = 34;
+  const totalLogicalH = HEADER_H + LEGEND_H + LH + FOOTER_H;
+
+  const W = px(LW);
+  const H = px(totalLogicalH);
   const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H_total;
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
+  ctx.textBaseline = 'alphabetic';
 
-  // Scale text consistently
-  const s = dpr;
+  // Ground.
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, W, H);
 
-  // 1. Header bar
+  // Header: wordmark + title.
   ctx.fillStyle = BLUE;
-  ctx.fillRect(0, 0, W, H_header);
-  // Yellow rule at bottom of header
+  ctx.font = `700 ${px(WORDMARK)}px ${DISPLAY}`;
+  ctx.fillText('Guardian Angles', px(PAD), px(wordmarkBase));
+  ctx.fillStyle = INK;
+  ctx.font = `400 ${px(TITLE)}px ${DISPLAY}`;
+  ctx.fillText(truncate(title || '', ctx, W - px(PAD) * 2), px(PAD), px(titleBase));
+
+  // The navy→yellow rule, full bleed (the masthead's signature).
+  ctx.fillStyle = BLUE;
+  ctx.fillRect(0, px(ruleY), Math.round(W * 0.62), px(RULE_H));
   ctx.fillStyle = YELLOW;
-  ctx.fillRect(0, H_header - 4 * s, W * 0.33, 4 * s);
-  ctx.fillStyle = BLUE;
-  ctx.fillRect(W * 0.33, H_header - 4 * s, W * 0.67, 4 * s);
-  // "Guardian Angles" text
-  ctx.fillStyle = PAPER;
-  ctx.font = `700 ${18 * s}px Georgia, 'Times New Roman', serif`;
-  ctx.textBaseline = 'middle';
-  ctx.fillText('Guardian Angles', pad, H_header * 0.35);
-  // Title
-  ctx.font = `400 ${12 * s}px Georgia, serif`;
-  ctx.fillStyle = 'rgba(244,239,230,0.85)';
-  const maxTitleW = W - pad * 2 - 200 * s;
-  ctx.fillText(truncate(title, ctx, maxTitleW), pad, H_header * 0.7);
+  ctx.fillRect(Math.round(W * 0.62), px(ruleY), W - Math.round(W * 0.62), px(RULE_H));
 
-  // 2. Legend row
-  const legendY = H_header;
-  ctx.fillStyle = PAPER;
-  ctx.fillRect(0, legendY, W, H_legend);
-  ctx.fillStyle = '#D0C4AE';
-  ctx.fillRect(0, legendY + H_legend - 1, W, 1);
-
-  let lx = pad;
+  // Legend.
+  const legendY = px(HEADER_H);
+  let lx = px(PAD);
   ctx.textBaseline = 'middle';
-  for (const item of legendItems) {
-    // Swatch
+  for (const item of legendItems || []) {
     ctx.fillStyle = item.color;
-    ctx.fillRect(lx, legendY + (H_legend - 10 * s) / 2, 14 * s, 10 * s);
-    lx += 18 * s;
-    // Label
+    ctx.fillRect(lx, legendY + px(LEGEND_H / 2) - px(5), px(14), px(10));
+    lx += px(20);
     ctx.fillStyle = INK;
-    ctx.font = `400 ${11 * s}px 'Helvetica Neue', Arial, sans-serif`;
-    ctx.fillText(item.label, lx, legendY + H_legend / 2);
-    lx += ctx.measureText(item.label).width + 20 * s;
+    ctx.font = `400 ${px(13)}px ${SANS}`;
+    ctx.fillText(item.label, lx, legendY + px(LEGEND_H / 2));
+    lx += ctx.measureText(item.label).width + px(22);
   }
+  ctx.textBaseline = 'alphabetic';
 
-  // 3. Chart (pixel copy from live canvas)
-  const chartY = H_header + H_legend;
-  ctx.fillStyle = PAPER;
-  ctx.fillRect(0, chartY, W, H_chart);
-  ctx.drawImage(chartCanvas, 0, 0, chartCanvas.width, chartCanvas.height, 0, chartY, W, H_chart);
+  // Chart (high-res pixel copy from the live canvas).
+  const chartY = px(HEADER_H + LEGEND_H);
+  ctx.drawImage(chartCanvas, 0, 0, chartCanvas.width, chartCanvas.height, 0, chartY, W, px(LH));
 
-  // 4. Footer
-  const footerY = chartY + H_chart;
-  ctx.fillStyle = '#E8DFD0';
-  ctx.fillRect(0, footerY, W, H_footer);
+  // Footer: the shareable URL, in mono.
+  const footerY = chartY + px(LH);
+  ctx.fillStyle = PAPER_DEEP;
+  ctx.fillRect(0, footerY, W, px(FOOTER_H));
   ctx.fillStyle = INK_MUTE;
-  ctx.font = `400 ${9 * s}px 'Helvetica Neue', Arial, sans-serif`;
+  ctx.font = `400 ${px(11)}px ${MONO}`;
   ctx.textBaseline = 'middle';
-  ctx.fillText(url || 'Guardian Angles — guardian-angles.com', pad, footerY + H_footer / 2);
+  ctx.fillText(truncate(url || 'guardian-angles.com', ctx, W - px(PAD) * 2),
+    px(PAD), footerY + px(FOOTER_H / 2));
 
-  // Trigger download
-  c.toBlob((blob) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    const safeName = (title || 'guardian-angles').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60);
-    a.download = `${safeName}.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  }, 'image/png');
+  // Hairline frame.
+  ctx.strokeStyle = RULE;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+  return c;
+}
+
+function toBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+function fileName(title) {
+  return (title || 'guardian-angles').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60) + '.png';
+}
+
+function download(blob, title) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName(title);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+export async function downloadChartImage(opts) {
+  const blob = await toBlob(await composeChart(opts));
+  download(blob, opts.title);
+}
+
+// Copy the PNG to the clipboard; falls back to a download where the
+// browser won't allow image-clipboard writes (older Firefox, say).
+// Returns 'copied' | 'downloaded'.
+export async function copyChartImage(opts) {
+  const blob = await toBlob(await composeChart(opts));
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) throw new Error('no clipboard image support');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    return 'copied';
+  } catch (e) {
+    download(blob, opts.title);
+    return 'downloaded';
+  }
 }
 
 function truncate(text, ctx, maxW) {

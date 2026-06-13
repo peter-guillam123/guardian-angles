@@ -546,24 +546,30 @@ main {
 .chart-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
 }
-.share-btn {
-  font: 700 11px/1 var(--ui);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 8px 16px;
-  background: var(--paper-deep);
-  border: 1px solid var(--paper-rule);
-  color: var(--ink-soft);
+/* Compact chart tools — copy image, download, copy link. Icon-led with
+   tooltips; a 40px hit area for thumbs without a heavy visual footprint. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--ink-mute);
   cursor: pointer;
-  transition: all 120ms;
+  border-radius: 3px;
+  transition: color 120ms, background 120ms;
 }
-.share-btn:hover {
-  background: var(--guardian-blue);
-  color: var(--paper);
-  border-color: var(--guardian-blue);
-}
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { color: var(--guardian-blue); background: var(--paper-deep); }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.icon-btn.done { color: var(--guardian-blue); }
 .chart-hint {
   font: 12px/1.5 var(--body);
   color: var(--ink-soft);
@@ -1675,8 +1681,7 @@ main.subjects {
   .chart-hint strong { font-size: 12px; }
 
   /* Share as image — full-width on mobile so the label never truncates */
-  .chart-actions { justify-content: stretch; }
-  .share-btn { width: 100%; font-size: 10px; padding: 10px; }
+  /* Icon cluster stays compact and right-aligned on mobile too. */
 
   /* Reading panel on mobile */
   .reading-panel { padding-left: 0; border-left: none; border-top: 1px solid var(--paper-rule); padding-top: 16px; }
