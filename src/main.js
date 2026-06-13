@@ -15,7 +15,7 @@ import { sectionLabel } from './sections.js';
 import { attachAutocomplete, detachAutocomplete, seedInput } from './autocomplete.js';
 import { computeRising } from './trending.js';
 import { isUsefulTag } from './skip-tags.js';
-import { downloadChartImage, copyChartImage } from './share.js';
+import { attachShareTools } from './share.js';
 import { pickWordRecipe, pickTagRecipe } from './lucky.js';
 
 const MAX_TERMS = 4;
@@ -191,32 +191,13 @@ async function init() {
     btn.addEventListener('click', () => setMode(btn.dataset.mode));
   });
 
-  // Share icons — copy image, download image, copy link.
-  function shareOpts() {
+  // Share icons (copy image / download / copy link) — shared helper.
+  attachShareTools(chartActionsEl, () => {
     const legendItems = [...document.querySelectorAll('#legend .item')].map(el => ({
       color: el.querySelector('.swatch')?.style.background || '#052962',
       label: el.querySelector('.term')?.textContent || '',
     }));
     return { chartCanvas: chartEl, title: currentChartTitle(), legendItems, url: location.href };
-  }
-  const shareStatus = document.getElementById('share-status');
-  const flashDone = (btn) => { btn.classList.add('done'); setTimeout(() => btn.classList.remove('done'), 1200); };
-  function announce(msg) { if (shareStatus) shareStatus.textContent = msg; }
-
-  document.getElementById('copy-img-btn')?.addEventListener('click', async (e) => {
-    e.currentTarget.disabled = true;
-    const r = await copyChartImage(shareOpts());
-    announce(r === 'copied' ? 'Chart image copied to clipboard' : 'Chart image downloaded');
-    flashDone(e.currentTarget); e.currentTarget.disabled = false;
-  });
-  document.getElementById('dl-img-btn')?.addEventListener('click', async (e) => {
-    e.currentTarget.disabled = true;
-    await downloadChartImage(shareOpts());
-    announce('Chart image downloaded'); flashDone(e.currentTarget); e.currentTarget.disabled = false;
-  });
-  document.getElementById('copy-link-btn')?.addEventListener('click', async (e) => {
-    try { await navigator.clipboard.writeText(location.href); announce('Link copied'); flashDone(e.currentTarget); }
-    catch { announce('Could not copy link'); }
   });
 
   // View toggle (Timeline / Year-on-year)

@@ -15,6 +15,7 @@ import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
 import { isUsefulTone, toneLabel, toneColor, getToneCatalog } from './tones.js';
 import { renderCompany, hideCompany } from './company.js';
+import { attachShareTools } from './share.js';
 
 // ───────────────── State ─────────────────
 const state = {
@@ -122,6 +123,13 @@ const filterClearEl = document.getElementById('dd-filter-clear');
   wireFilter();
   wireExport();
   applyModeUI();
+  // Share tools on the monthly sparkline (single navy series = the topic).
+  attachShareTools(document.getElementById('dd-actions'), () => ({
+    chartCanvas: sparkEl,
+    title: headlineEl.textContent || 'Guardian coverage',
+    legendItems: state.query ? [{ color: '#052962', label: state.query.label }] : [],
+    url: location.href,
+  }));
   // Pull query from URL so the page is deep-linkable.
   const params = new URLSearchParams(location.search);
   const tag = params.get('tag');

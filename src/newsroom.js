@@ -3,6 +3,7 @@
 
 import { loadSections, loadShard, loadTagCatalog } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
+import { attachShareTools } from './share.js';
 
 let tagCatalogMap = null;  // tag id → display name, loaded on first drill-down
 
@@ -102,6 +103,16 @@ async function init() {
   initYearRange();
   applyURLState();
   resize();
+
+  // Share tools — the visible bands become the legend; mode + range
+  // inform the title. Read at click time so the share matches the view.
+  attachShareTools(document.getElementById('nr-actions'), () => {
+    const legendItems = state.stacks.filter(s => s.visible).map(s => ({ color: s.color, label: s.label }));
+    if (state.otherVisible) legendItems.push({ color: '#ccc', label: 'Other' });
+    const span = state.yearFilter ? ` (${state.yearFilter.from}–${state.yearFilter.to})` : '';
+    const title = `Guardian output by section${state.mode === 'normalised' ? ', share of total' : ', articles a month'}${span}`;
+    return { chartCanvas: chartEl, title, legendItems, url: location.href };
+  });
 
   const ro = new ResizeObserver(() => resize());
   ro.observe(chartEl);

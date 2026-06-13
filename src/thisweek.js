@@ -3,6 +3,7 @@
 import { loadTagIndex, loadTagCatalog, loadShard } from './data.js';
 import { sectionLabel } from './sections.js';
 import { isUsefulTag as isUseful } from './skip-tags.js';
+import { attachShareTools } from './share.js';
 import { prepareWithSegments, layoutWithLines } from 'https://esm.sh/@chenglou/pretext@0.0.3';
 
 const statBig = document.getElementById('stat-big');
@@ -60,6 +61,14 @@ async function init() {
     const rand = Math.floor(Math.random() * (maxInclusive + 1));
     goToWeek(rand);
   });
+
+  // Share tools on the story-of-the-week coverage sparkline.
+  attachShareTools(document.getElementById('tw-actions'), () => ({
+    chartCanvas: heroSpark,
+    title: `${heroTitle.textContent || 'Story of the week'} — Guardian coverage over time`,
+    legendItems: heroTitle.textContent ? [{ color: '#052962', label: heroTitle.textContent }] : [],
+    url: location.href,
+  }));
 
   // Delegated click handler on history grid — click a year card to jump to it
   historyGrid.addEventListener('click', (e) => {

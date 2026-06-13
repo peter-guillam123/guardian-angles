@@ -37,6 +37,8 @@ function ensureFonts() {
 }
 
 // Build the composited canvas (async: waits for fonts). Returns the canvas.
+// The legend wraps to as many rows as it needs, so a 16-section Newsroom
+// chart works as well as a one-line Trends comparison.
 export async function composeChart({ chartCanvas, title, legendItems, url }) {
   await ensureFonts();
 
@@ -45,29 +47,42 @@ export async function composeChart({ chartCanvas, title, legendItems, url }) {
   const rect = chartCanvas.getBoundingClientRect();
   const LW = rect.width, LH = rect.height;
 
-  // Layout, in logical px.
   const PAD = 26;
-  const WORDMARK = 24, TITLE = 16, RULE_H = 5;
+  const WORDMARK = 24, TITLE = 16, RULE_H = 5, FOOTER_H = 34;
   const wordmarkBase = PAD + WORDMARK;
   const titleBase = wordmarkBase + 12 + TITLE;
   const ruleY = titleBase + 14;
   const HEADER_H = ruleY + RULE_H + 8;
-  const LEGEND_H = 36;
-  const FOOTER_H = 34;
-  const totalLogicalH = HEADER_H + LEGEND_H + LH + FOOTER_H;
-
   const W = px(LW);
-  const H = px(totalLogicalH);
+  const items = legendItems || [];
+
+  // Lay the legend out into rows first (measuring on a throwaway ctx),
+  // so the canvas can be sized to fit however many rows it needs.
+  const SW = px(14), GAP = px(6), TRAIL = px(22), LINEH = px(22);
+  const maxLegW = W - px(PAD) * 2;
+  const mctx = document.createElement('canvas').getContext('2d');
+  mctx.font = `400 ${px(13)}px ${SANS}`;
+  const rows = [[]];
+  let cursor = 0;
+  for (const it of items) {
+    const w = SW + GAP + mctx.measureText(it.label).width + TRAIL;
+    if (cursor > 0 && cursor + w > maxLegW) { rows.push([]); cursor = 0; }
+    rows[rows.length - 1].push({ it, x: cursor });
+    cursor += w;
+  }
+  const legendH = items.length ? rows.length * LINEH + px(14) : px(8);
+
+  const H = px(HEADER_H) + legendH + px(LH) + px(FOOTER_H);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.textBaseline = 'alphabetic';
 
   // Ground.
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, W, H);
 
   // Header: wordmark + title.
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = BLUE;
   ctx.font = `700 ${px(WORDMARK)}px ${DISPLAY}`;
   ctx.fillText('Guardian Angles', px(PAD), px(wordmarkBase));
@@ -81,23 +96,24 @@ export async function composeChart({ chartCanvas, title, legendItems, url }) {
   ctx.fillStyle = YELLOW;
   ctx.fillRect(Math.round(W * 0.62), px(ruleY), W - Math.round(W * 0.62), px(RULE_H));
 
-  // Legend.
-  const legendY = px(HEADER_H);
-  let lx = px(PAD);
+  // Legend, wrapped.
+  ctx.font = `400 ${px(13)}px ${SANS}`;
   ctx.textBaseline = 'middle';
-  for (const item of legendItems || []) {
-    ctx.fillStyle = item.color;
-    ctx.fillRect(lx, legendY + px(LEGEND_H / 2) - px(5), px(14), px(10));
-    lx += px(20);
-    ctx.fillStyle = INK;
-    ctx.font = `400 ${px(13)}px ${SANS}`;
-    ctx.fillText(item.label, lx, legendY + px(LEGEND_H / 2));
-    lx += ctx.measureText(item.label).width + px(22);
-  }
+  const legTop = px(HEADER_H) + px(10);
+  rows.forEach((row, ri) => {
+    const ly = legTop + ri * LINEH + LINEH / 2;
+    for (const { it, x } of row) {
+      const lx = px(PAD) + x;
+      ctx.fillStyle = it.color;
+      ctx.fillRect(lx, ly - px(5), SW, px(10));
+      ctx.fillStyle = INK;
+      ctx.fillText(it.label, lx + SW + GAP, ly);
+    }
+  });
   ctx.textBaseline = 'alphabetic';
 
   // Chart (high-res pixel copy from the live canvas).
-  const chartY = px(HEADER_H + LEGEND_H);
+  const chartY = px(HEADER_H) + legendH;
   ctx.drawImage(chartCanvas, 0, 0, chartCanvas.width, chartCanvas.height, 0, chartY, W, px(LH));
 
   // Footer: the shareable URL, in mono.
@@ -159,4 +175,46 @@ function truncate(text, ctx, maxW) {
   let t = text;
   while (t.length > 3 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
   return t + '…';
+}
+
+// ── Shared share-tools cluster ──
+// One implementation for every chart: copy image, download image, copy
+// link. Each view calls attachShareTools(container, getOpts) where
+// getOpts() returns { chartCanvas, title, legendItems, url } at click time.
+const ICONS = {
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>',
+};
+
+export function attachShareTools(container, getOpts) {
+  if (!container || container.dataset.shareWired) return;
+  container.dataset.shareWired = '1';
+  container.innerHTML =
+    `<button type="button" class="icon-btn" data-act="copy" title="Copy chart image" aria-label="Copy chart image to clipboard">${ICONS.copy}</button>` +
+    `<button type="button" class="icon-btn" data-act="download" title="Download chart image" aria-label="Download chart image">${ICONS.download}</button>` +
+    `<button type="button" class="icon-btn" data-act="link" title="Copy link to this view" aria-label="Copy link to this view">${ICONS.link}</button>` +
+    `<span class="visually-hidden" aria-live="polite"></span>`;
+  const status = container.querySelector('[aria-live]');
+  const flash = (b) => { b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200); };
+
+  container.querySelector('[data-act="copy"]').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try {
+      const r = await copyChartImage(getOpts());
+      status.textContent = r === 'copied' ? 'Chart image copied to clipboard' : 'Chart image downloaded';
+      flash(b);
+    } catch { status.textContent = 'Could not create image'; }
+    b.disabled = false;
+  });
+  container.querySelector('[data-act="download"]').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { await downloadChartImage(getOpts()); status.textContent = 'Chart image downloaded'; flash(b); }
+    catch { status.textContent = 'Could not create image'; }
+    b.disabled = false;
+  });
+  container.querySelector('[data-act="link"]').addEventListener('click', async (e) => {
+    try { await navigator.clipboard.writeText(getOpts().url || location.href); status.textContent = 'Link copied'; flash(e.currentTarget); }
+    catch { status.textContent = 'Could not copy link'; }
+  });
 }
