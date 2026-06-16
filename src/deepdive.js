@@ -1106,6 +1106,11 @@ document.getElementById('dd-company')?.addEventListener('company:pick', (e) => {
     year: year ?? undefined,
     label: year ? `${label} · ${year}` : label,
   });
+  // The chart sits well above the list, so a click would otherwise look
+  // like nothing happened. Bring the list into view — its head carries
+  // the filter chip and the "N matching" count, so the scroll lands on
+  // the reason the list just changed. (Same move as the sparkline.)
+  scrollListIntoView();
 });
 
 wordsEl.addEventListener('click', (e) => {
@@ -1120,11 +1125,16 @@ wordsEl.addEventListener('click', (e) => {
 
 function scrollListIntoView() {
   requestAnimationFrame(() => {
-    const listTop = document.getElementById('dd-body');
-    if (!listTop) return;
-    const rect = listTop.getBoundingClientRect();
+    // Target the list HEAD, not dd-body: at narrow-desktop widths the
+    // common-words aside stacks above the list inside dd-body, so
+    // scrolling dd-body to the top lands on the aside, not the filter.
+    // The head carries the count and the filter chip — the explanation
+    // for why the list just changed — so it's the right landing spot.
+    const head = document.querySelector('.dd-list-head');
+    if (!head) return;
+    const rect = head.getBoundingClientRect();
     const onScreen = rect.top >= 0 && rect.top < window.innerHeight * 0.5;
-    if (!onScreen) listTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!onScreen) head.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 // Month filter via the sparkline: click a month to narrow the headline
