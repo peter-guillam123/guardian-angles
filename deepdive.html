@@ -117,13 +117,15 @@
         <ol class="dd-peak-list" id="dd-peak-list"></ol>
       </div>
 
-      <!-- The company it keeps — per-year companion tags from the
-           co-occurrence index. Tag mode only; hidden for words/tones. -->
+      <!-- The company it keeps — per-year companion tags. Tags read the
+           co-occurrence index; words and tones tally them from the matched
+           headlines. Doubles as a filter: clicking a companion (or, on
+           desktop, a single cell) filters the page to that overlap. -->
       <div class="dd-company" id="dd-company" hidden>
         <div class="dd-company-head">
           <div>
             <p class="dd-eyebrow">The company it keeps</p>
-            <p class="dd-company-hint" data-touch-hint="Tap a cell for the numbers">Hover a cell for the numbers · companion names link to their own dives</p>
+            <p class="dd-company-hint" data-touch-hint="Tap a companion to filter the headlines">Click a companion to filter the headlines — or a cell for a single year</p>
           </div>
           <div class="mode-toggle dd-company-toggle" role="group" aria-label="Companion ranking">
             <button type="button" class="mode-btn active" data-co-mode="distinctive">Most distinctive</button>
@@ -189,11 +191,6 @@
       </div>
 
       <aside class="dd-side">
-        <div class="rising-block">
-          <p class="rising-eyebrow">Travels with <span>top co-occurring tags</span></p>
-          <ol class="rising-list" id="dd-cotags"></ol>
-        </div>
-
         <div class="rising-block">
           <p class="rising-eyebrow">In these headlines <span>common words</span></p>
           <ol class="rising-list" id="dd-words"></ol>

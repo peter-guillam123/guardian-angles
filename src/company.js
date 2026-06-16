@@ -90,7 +90,10 @@ export async function renderCompany({ tagId, label, yearFrom, yearTo }) {
 // Word (or tone) dive: there's no precomputed entry, but the matched
 // headlines are already in memory — each carries its tags and date — so
 // we tally a word's companion tags per year on the fly. Same renderer.
-export async function renderCompanyForHeadlines({ headlines, label, yearFrom, yearTo }) {
+// excludeId drops the dive's own tag from its companions — needed for a
+// tone dive, where every headline carries the tone tag (it'd otherwise
+// sit at the top as its own 100% companion).
+export async function renderCompanyForHeadlines({ headlines, label, yearFrom, yearTo, excludeId = null }) {
   if (!wrap) return;
   _current = { label, yearFrom, yearTo };
   const token = ++_renderToken;
@@ -110,7 +113,7 @@ export async function renderCompanyForHeadlines({ headlines, label, yearFrom, ye
       topicSums.set(y, topicSums.get(y) + 1);
       const seen = new Set();
       for (const t of (h.g || [])) {
-        if (seen.has(t) || !isUsefulTag(t)) continue;
+        if (t === excludeId || seen.has(t) || !isUsefulTag(t)) continue;
         seen.add(t);
         m.set(t, (m.get(t) || 0) + 1);
       }
@@ -285,17 +288,24 @@ function renderGrid({ years, rows, maxVal, narrow }) {
         ? ` · ×${c.lift >= 10 ? Math.round(c.lift) : c.lift.toFixed(1)} vs typical`
         : '';
       const tip = `${r.name} — shared ${c.shared} of ${truncate(_current.label || 'the topic', 18)}'s ${c.of} article${c.of === 1 ? '' : 's'}, ${y}${liftStr}`;
-      return `<span class="dd-co-cell" style="--dd-i:${i}" data-tip="${escapeAttr(tip)}" aria-hidden="true"></span>`;
+      // data-id/-year make the cell a filter trigger (desktop only — see
+      // the click handler). Cells stay aria-hidden; the row-label button
+      // is the keyboard/screen-reader path to the same filter.
+      return `<span class="dd-co-cell" style="--dd-i:${i}" data-tip="${escapeAttr(tip)}" data-id="${escapeAttr(r.id)}" data-year="${y}" aria-hidden="true"></span>`;
     }).join('');
+    // The name is a button, not a link: clicking filters this page to the
+    // overlap (it used to navigate to that tag's own deep dive — the
+    // in-place filter is the more useful action when you're already here).
     return `
-      <a class="dd-co-name" href="./deepdive.html?tag=${encodeURIComponent(r.id)}&from=${yearFrom}&to=${yearTo}"
-         title="${escapeAttr(r.name)} — deep dive"
-         aria-label="Deep dive on ${escapeAttr(r.name)}">${escapeHtml(r.name)}</a>
+      <button type="button" class="dd-co-name" data-id="${escapeAttr(r.id)}"
+         title="${escapeAttr(r.name)} — filter to where it overlaps"
+         aria-label="Filter to headlines also tagged ${escapeAttr(r.name)}">${escapeHtml(r.name)}</button>
       ${cells}`;
   }).join('');
 
   gridEl.style.setProperty('--co-cols', n);
   gridEl.innerHTML = `<span class="dd-co-corner" aria-hidden="true"></span>${head}${rowsHtml}`;
+  applyActiveHighlight();
 }
 
 function truncate(s, max) {
@@ -318,6 +328,57 @@ if (gridEl) {
     tipEl.style.top = Math.max(0, y) + 'px';
   });
   gridEl.addEventListener('mouseleave', () => { tipEl.hidden = true; });
+}
+
+// ───────────────────────── Filter triggers ─────────────────────────
+// The chart is the page's companion filter. Clicking a row-label button
+// filters to every headline also carrying that tag; clicking a single
+// cell narrows that to one year — but only on desktop, where the cells
+// are big enough to hit precisely (on mobile the row label is the way
+// in). company.js stays ignorant of the page's filter state: it emits a
+// "company:pick" event and deepdive.js drives the actual filter, then
+// calls setCompanyActive() to tell us what to highlight.
+
+let _activeFilter = null;   // { value, year|null } | null
+
+if (gridEl) {
+  gridEl.addEventListener('click', (ev) => {
+    const desktop = window.matchMedia('(min-width: 641px)').matches;
+    const cell = desktop ? ev.target.closest('.dd-co-cell[data-id]') : null;
+    if (cell) { emitPick(cell.dataset.id, +cell.dataset.year); return; }
+    const name = ev.target.closest('.dd-co-name[data-id]');
+    if (name) emitPick(name.dataset.id, null);
+  });
+}
+
+function emitPick(id, year) {
+  const label = (_data && _data.names.get(id)) || id;
+  gridEl.dispatchEvent(new CustomEvent('company:pick', {
+    bubbles: true,
+    detail: { tagId: id, label, year },
+  }));
+}
+
+export function setCompanyActive(sf) {
+  _activeFilter = (sf && sf.kind === 'tag')
+    ? { value: sf.value, year: sf.year ?? null }
+    : null;
+  applyActiveHighlight();
+}
+
+function applyActiveHighlight() {
+  if (!gridEl) return;
+  const af = _activeFilter;
+  gridEl.querySelectorAll('.dd-co-name').forEach(el => {
+    el.classList.toggle('dd-co-name-active', !!af && el.dataset.id === af.value);
+  });
+  gridEl.querySelectorAll('.dd-co-cell[data-id]').forEach(el => {
+    // Only a year-specific (cell) filter rings a cell; a whole-companion
+    // filter just bolds the name, to keep the grid from lighting up a row.
+    const on = !!af && af.year != null
+      && el.dataset.id === af.value && +el.dataset.year === af.year;
+    el.classList.toggle('dd-co-cell-active', on);
+  });
 }
 
 toggleBtns.forEach(b => b.addEventListener('click', () => {

@@ -2851,10 +2851,18 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   overflow: hidden;
 }
 .dd-co-name {
+  /* a real <button> reset back to looking like the label it replaced */
+  appearance: none;
+  background: none;
+  border: 0;
+  display: block;
+  width: 100%;
   font-family: var(--ui);
   font-size: 11.5px;
   color: var(--ink);
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2869,13 +2877,19 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   text-decoration: underline dotted var(--ink-mute);
   text-underline-offset: 3px;
 }
+.dd-co-name-active { color: var(--guardian-blue); font-weight: 600; }
 .dd-co-cell {
   height: 20px;
   border-radius: 2px;
   background: rgba(5, 41, 98, calc(var(--dd-i, 0) * 0.95));
 }
 .dd-co-cell[data-tip]:hover { box-shadow: 0 0 0 1.5px var(--ink-soft); }
+.dd-co-cell-active { box-shadow: 0 0 0 2px var(--guardian-blue); }
 .dd-co-empty { background: var(--paper-rule); opacity: 0.35; }
+/* Cells are a desktop-only filter trigger — only hint clickability there. */
+@media (min-width: 641px) {
+  .dd-co-cell[data-id] { cursor: pointer; }
+}
 @media (max-width: 640px) {
   .dd-co-grid {
     grid-template-columns: minmax(84px, 112px) repeat(var(--co-cols, 15), minmax(0, 1fr));
@@ -2883,6 +2897,8 @@ a.dd-peak-title:hover { color: var(--guardian-blue); border-bottom-color: var(--
   }
   .dd-co-cell { height: 16px; }
   .dd-co-name { font-size: 10.5px; }
+  /* Desktop shows 20 common words; keep the mobile column to 10. */
+  #dd-words li:nth-child(n+11) { display: none; }
 }
 .dd-company-tip {
   position: absolute;

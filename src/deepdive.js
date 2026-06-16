@@ -12,9 +12,8 @@ import {
   evictShard, makeWordMatcher,
 } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
-import { isUsefulTag } from './skip-tags.js';
 import { isUsefulTone, toneLabel, toneColor, getToneCatalog } from './tones.js';
-import { renderCompany, renderCompanyForHeadlines, hideCompany } from './company.js';
+import { renderCompany, renderCompanyForHeadlines, hideCompany, setCompanyActive } from './company.js';
 import { attachShareTools } from './share.js';
 
 // ───────────────── State ─────────────────
@@ -26,7 +25,6 @@ const state = {
   headlines: [],                   // accumulated results, newest-first
   cancelToken: 0,                  // increment to cancel in-flight streams
   tagCatalog: null,                // lazy-loaded when tags mode is active
-  cotags: new Map(),               // tag id → count, live
   words: new Map(),                // word → count of *headlines* containing it
   peakMonth: null,                 // YYYY-MM of the current peak
   peakExpanded: false,             // whether the peak drilldown is open
@@ -89,7 +87,6 @@ const filterEl = document.getElementById('dd-filter');
 const exportEl = document.getElementById('dd-export');
 const progressEl = document.getElementById('dd-progress');
 const headlinesEl = document.getElementById('dd-headlines');
-const cotagsEl = document.getElementById('dd-cotags');
 const wordsEl = document.getElementById('dd-words');
 const statBig = document.getElementById('stat-big');
 const dispatchesEl = document.getElementById('dd-dispatches');
@@ -324,7 +321,6 @@ function wireForm() {
     delete inputEl.dataset.tagId;
     state.query = null;
     state.headlines = [];
-    state.cotags.clear();
     hideCompany();
     summaryEl.hidden = true;
     bodyEl.hidden = true;
@@ -344,9 +340,9 @@ function wireFilter() {
       state.structuredFilter = null;
       filterKindEl.hidden = true;
       filterWrapEl.classList.remove('has-filter');
-      // Refresh the sidebar active-row highlight.
-      renderCotags();
+      // Refresh the dependent blocks now the filter's gone.
       renderWords();
+      setCompanyActive(null);
       if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
     }
     // Show / hide the × button based on whether the field has content.
@@ -399,7 +395,6 @@ async function runDeepDive() {
   state.cancelToken++;
   const myToken = state.cancelToken;
   state.headlines = [];
-  state.cotags.clear();
   state.words.clear();
   state.peakMonth = null;
   state.peakExpanded = false;
@@ -412,7 +407,6 @@ async function runDeepDive() {
   summaryEl.hidden = false;
   bodyEl.hidden = false;
   headlinesEl.innerHTML = '';
-  cotagsEl.innerHTML = '';
   wordsEl.innerHTML = '';
   dispatchesEl.hidden = true;
   dispatchFirstEl.innerHTML = '';
@@ -437,10 +431,10 @@ async function runDeepDive() {
   history.replaceState(null, '', `?${p.toString()}`);
 
   // ─── The company it keeps ───
-  // Tags render instantly from the precomputed index. Words have no
-  // index entry, so their companion tags are tallied from the matched
-  // headlines once the stream completes (see streamHeadlines). Hide it
-  // for now; it (re)appears below.
+  // Tags render instantly from the precomputed index. Words and tones
+  // have no index entry, so their companion tags are tallied from the
+  // matched headlines once the stream completes (see streamHeadlines).
+  // Hide it for now; it (re)appears below.
   if (state.query.kind === 'tag') {
     renderCompany({
       tagId: state.query.id,
@@ -684,7 +678,6 @@ function scheduleRender() {
     state.headlines.sort((a, b) => (b.d || '').localeCompare(a.d || ''));
 
     renderHeadlines();
-    renderCotags();
     renderWords();
     renderDispatches();
     updateSummaryFromHeadlines();
@@ -728,7 +721,9 @@ function renderWords() {
   const top = entries
     .filter(([, n]) => n >= 2)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+    // 20 now the companion sidebar's gone and this block owns the column;
+    // the mobile breakpoint hides past 10 (see styles.css).
+    .slice(0, 20);
   // Highlighting the word matching an active 'word' structured filter
   // is no longer possible from this list (typing wipes the filter),
   // but kept for completeness in case it ever returns.
@@ -897,15 +892,14 @@ async function streamHeadlines(myToken) {
         perSectionActual[h.s] = (perSectionActual[h.s] || 0) + 1;
         if (h.g) for (const g of h.g) {
           if (g === tagId) continue;
-          // Tones get their own per-tone counter — they're noise in
-          // the keyword-tag cotag flow but useful as their own
-          // dimension (the "tone mix" panel below the section mix).
+          // Tones feed their own per-tone counter (the "tone mix" panel
+          // below the section mix). Companion tags used to be tallied
+          // here too, for a "Travels with" sidebar — that's now the job
+          // of the "company it keeps" chart, which reads the headlines
+          // directly.
           if (isUsefulTone(g)) {
             perToneActual[g] = (perToneActual[g] || 0) + 1;
-            continue;
           }
-          if (!isUsefulTag(g)) continue;
-          state.cotags.set(g, (state.cotags.get(g) || 0) + 1);
         }
         const seen = new Set();
         for (const w of tokenise(h.t || '')) {
@@ -955,20 +949,22 @@ async function streamHeadlines(myToken) {
   state._streamDone = true;
   scheduleRender();
 
-  // Word dives now have every matching headline in memory — tally their
-  // companion tags into the same "company it keeps" chart. (Tags drew it
-  // instantly from the index up top; tones stay out for now.)
-  if (state.query && state.query.kind === 'word') {
+  // Word and tone dives now have every matching headline in memory —
+  // tally their companion tags into the same "company it keeps" chart.
+  // (Tags drew it instantly from the index up top.) A tone dive excludes
+  // its own tag, which every matched headline carries.
+  if (state.query && (state.query.kind === 'word' || state.query.kind === 'tone')) {
     renderCompanyForHeadlines({
       headlines: state.headlines,
       label: state.query.label,
       yearFrom: state.yearFrom,
       yearTo: state.yearTo,
+      excludeId: state.query.kind === 'tone' ? state.query.id : null,
     });
   }
 }
 
-// ───────────────── Render: headlines + cotags ─────────────────
+// ───────────────── Render: headlines ─────────────────
 // Returns the current matched-headlines set narrowed by the active
 // filter (structured OR text — they're mutually exclusive in the UI).
 // Used by the headline list AND by Travels-with / common-words so all
@@ -979,7 +975,10 @@ function applyActiveFilter(headlines) {
   let filtered = headlines;
   if (sf) {
     if (sf.kind === 'tag' || sf.kind === 'tone') {
-      filtered = filtered.filter(h => (h.g || []).includes(sf.value));
+      // sf.year (set only by a company-chart cell click) narrows a tag
+      // filter to a single year of the overlap.
+      filtered = filtered.filter(h => (h.g || []).includes(sf.value)
+        && (sf.year == null || (h.d || '').slice(0, 4) === String(sf.year)));
     } else if (sf.kind === 'section') {
       filtered = filtered.filter(h => h.s === sf.value);
     } else if (sf.kind === 'month') {
@@ -1004,7 +1003,9 @@ function renderHeadlines() {
   let filtered = state.headlines;
   if (sf) {
     if (sf.kind === 'tag') {
-      filtered = filtered.filter(h => (h.g || []).includes(sf.value));
+      // sf.year (company-chart cell click) narrows to one year.
+      filtered = filtered.filter(h => (h.g || []).includes(sf.value)
+        && (sf.year == null || (h.d || '').slice(0, 4) === String(sf.year)));
     } else if (sf.kind === 'section') {
       filtered = filtered.filter(h => h.s === sf.value);
     } else if (sf.kind === 'word') {
@@ -1046,47 +1047,6 @@ function renderHeadlines() {
   }
 }
 
-function renderCotags() {
-  // Same pattern as renderWords: cumulative state.cotags when no
-  // filter is active, recomputed from the filtered subset when one
-  // is. Skips the original query tag and any tone tag so the list
-  // stays "other keyword tags that travel with this view".
-  const sf = state.structuredFilter;
-  const filtered = sf ? applyActiveFilter(state.headlines) : null;
-  const queryTagId = state.query?.kind === 'tag' ? state.query.id : null;
-  let entries;
-  if (filtered) {
-    const counts = new Map();
-    for (const h of filtered) {
-      if (!h.g) continue;
-      for (const g of h.g) {
-        if (g === queryTagId) continue;
-        if (isUsefulTone(g)) continue;
-        if (!isUsefulTag(g)) continue;
-        counts.set(g, (counts.get(g) || 0) + 1);
-      }
-    }
-    entries = [...counts.entries()];
-  } else {
-    entries = [...state.cotags.entries()];
-  }
-  const top = entries
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-  const totalMatched = (filtered || state.headlines).length || 1;
-  const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
-  const active = sf?.kind === 'tag' ? sf.value : null;
-  cotagsEl.innerHTML = top.map(([id, n]) => {
-    const pct = (n / totalMatched) * 100;
-    const name = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
-    const cls = id === active ? ' class="dd-fc-active"' : '';
-    return `<li data-id="${escapeAttr(id)}"${cls}>
-      <span class="rising-label">${escapeHtml(name)}</span>
-      <span class="rising-jump">${pct.toFixed(0)}%</span>
-    </li>`;
-  }).join('');
-}
-
 // ───────────────── Filter: unified field ─────────────────
 // Single filter control. Two ways to fill it:
 //   1. type into the input      → free-text substring match on headlines
@@ -1115,9 +1075,9 @@ function setStructuredFilter(filter) {
   }
   renderHeadlines();
   // Re-render the faceted blocks so the active row is highlighted.
-  renderCotags();
   renderWords();
   redrawSpark();
+  setCompanyActive(state.structuredFilter);
   if (state._perSectionActual) drawSectionBreakdown(state._perSectionActual);
   if (state._perToneActual) drawToneBreakdown(state._perToneActual);
 }
@@ -1129,17 +1089,23 @@ filterClearEl.addEventListener('click', () => {
   setStructuredFilter(null);
 });
 
-cotagsEl.addEventListener('click', (e) => {
-  const li = e.target.closest('li[data-id]');
-  if (!li) return;
-  const id = li.dataset.id;
-  // Toggle: clicking the active filter clears it.
-  if (state.structuredFilter?.kind === 'tag' && state.structuredFilter.value === id) {
-    clearStructuredFilter(); return;
-  }
-  const catalogIndex = new Map((state.tagCatalog || []).map(t => [t.id, t.name]));
-  const label = catalogIndex.get(id) || id.split('/').pop().replace(/-/g, ' ');
-  setStructuredFilter({ kind: 'tag', value: id, label });
+// The "company it keeps" chart is a filter surface: clicking a companion
+// (or, on desktop, a single year-cell) filters the whole page to that
+// overlap. The chart emits; we own the filter state and tell it back what
+// to highlight (see setStructuredFilter → setCompanyActive). Clicking the
+// already-active companion/cell toggles the filter off.
+document.getElementById('dd-company')?.addEventListener('company:pick', (e) => {
+  const { tagId, label, year } = e.detail;
+  const cur = state.structuredFilter;
+  const sameTag = cur?.kind === 'tag' && cur.value === tagId;
+  const sameYear = (cur?.year ?? null) === (year ?? null);
+  if (sameTag && sameYear) { clearStructuredFilter(); return; }
+  setStructuredFilter({
+    kind: 'tag',
+    value: tagId,
+    year: year ?? undefined,
+    label: year ? `${label} · ${year}` : label,
+  });
 });
 
 wordsEl.addEventListener('click', (e) => {
