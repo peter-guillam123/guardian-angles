@@ -22,6 +22,7 @@
 // shade; the tooltip always carries both numbers.
 
 import { loadCooccur, loadTagIndex, loadTagCatalog } from './data.js';
+import { isUsefulTag } from './skip-tags.js';
 
 const MIN_SHARED = 5;          // display floor — index stores >=3 for headroom
 
@@ -38,28 +39,92 @@ let _renderToken = 0;
 let _yearSumCache = new Map();   // tagId → Map(year → count)
 let _totalsByYear = null;        // Map(year → total headlines)
 
+// Normalised model that build() consumes, so the same renderer serves
+// both a tag (from the precomputed co-occurrence index) and a word
+// (companion tags tallied live from the matched headlines).
+let _years = [];                 // years in the visible range
+let _companionsByYear = null;    // Map(year → Map(companionTagId → shared count))
+let _topicSums = null;           // Map(year → the topic's own article count)
+
 // ───────────────────────── Public API ─────────────────────────
 
+function setData(idx, catalog, co) {
+  if (!_data || _data.idx !== idx) { _yearSumCache = new Map(); _totalsByYear = null; }
+  _data = { co, idx, names: new Map(catalog.map(t => [t.id, t.name])) };
+}
+
+// Tag dive: companions come from the precomputed co-occurrence index,
+// so the chart renders instantly.
 export async function renderCompany({ tagId, label, yearFrom, yearTo }) {
   if (!wrap) return;
-  _current = { tagId, label, yearFrom, yearTo };
+  _current = { label, yearFrom, yearTo };
   const token = ++_renderToken;
   try {
     const [co, idx, catalog] = await Promise.all([
       loadCooccur(), loadTagIndex('monthly'), loadTagCatalog(),
     ]);
     if (token !== _renderToken) return;
-    if (!_data || _data.co !== co) {
-      _data = { co, idx, names: new Map(catalog.map(t => [t.id, t.name])) };
-      _yearSumCache = new Map();
-      _totalsByYear = null;
-    }
+    setData(idx, catalog, co);
     if (!co.tags[tagId]) { hideCompany(); return; }
+    const years = co.years.filter(y => y >= yearFrom && y <= yearTo);
+    const companions = new Map();
+    for (const y of years) {
+      const yi = co.years.indexOf(y);
+      const m = new Map();
+      for (const [ci, c] of (co.tags[tagId][yi] || [])) m.set(co.ids[ci], c);
+      companions.set(y, m);
+    }
+    _years = years;
+    _companionsByYear = companions;
+    _topicSums = yearSumsFor(tagId);
     wrap.hidden = false;
     build();
   } catch (e) {
     // The block is an enrichment — if cooccur.json is missing (e.g. a
     // local clone that hasn't built it), the page works without it.
+    console.error('company block unavailable:', e);
+    hideCompany();
+  }
+}
+
+// Word (or tone) dive: there's no precomputed entry, but the matched
+// headlines are already in memory — each carries its tags and date — so
+// we tally a word's companion tags per year on the fly. Same renderer.
+export async function renderCompanyForHeadlines({ headlines, label, yearFrom, yearTo }) {
+  if (!wrap) return;
+  _current = { label, yearFrom, yearTo };
+  const token = ++_renderToken;
+  try {
+    const [idx, catalog] = await Promise.all([loadTagIndex('monthly'), loadTagCatalog()]);
+    if (token !== _renderToken) return;
+    setData(idx, catalog, _data && _data.co);
+
+    const years = [];
+    for (let y = yearFrom; y <= yearTo; y++) years.push(y);
+    const companions = new Map(years.map(y => [y, new Map()]));
+    const topicSums = new Map(years.map(y => [y, 0]));
+    for (const h of headlines) {
+      const y = +((h.d || '').slice(0, 4));
+      const m = companions.get(y);
+      if (!m) continue;
+      topicSums.set(y, topicSums.get(y) + 1);
+      const seen = new Set();
+      for (const t of (h.g || [])) {
+        if (seen.has(t) || !isUsefulTag(t)) continue;
+        seen.add(t);
+        m.set(t, (m.get(t) || 0) + 1);
+      }
+    }
+    _years = years;
+    _companionsByYear = companions;
+    _topicSums = topicSums;
+
+    // Nothing clears the display floor → hide rather than show an empty grid.
+    const anything = [...companions.values()].some(m => [...m.values()].some(c => c >= MIN_SHARED));
+    if (!anything) { hideCompany(); return; }
+    wrap.hidden = false;
+    build();
+  } catch (e) {
     console.error('company block unavailable:', e);
     hideCompany();
   }
@@ -107,20 +172,16 @@ function distinctiveScore(shared, topicYear, compYear, totalYear) {
 }
 
 function build() {
-  const { co } = _data;
-  const { tagId, yearFrom, yearTo } = _current;
-  const perYear = co.tags[tagId];
-  const years = co.years.filter(y => y >= yearFrom && y <= yearTo);
-
-  const topicSums = yearSumsFor(tagId);
+  const years = _years;
+  const topicSums = _topicSums;
   const totals = totalsByYear();
 
-  // Score every companion in every visible year.
+  // Score every companion in every visible year, from the normalised
+  // model (built from the index for tags, from headlines for words).
   const ranked = new Map();   // year → [{ id, shared, lift, score }] desc
   for (const y of years) {
-    const yi = co.years.indexOf(y);
-    const entries = (perYear[yi] || [])
-      .map(([ci, c]) => ({ id: co.ids[ci], shared: c }))
+    const entries = [...(_companionsByYear.get(y) || new Map()).entries()]
+      .map(([id, c]) => ({ id, shared: c }))
       .filter(e => e.shared >= MIN_SHARED);
     for (const e of entries) {
       const compY = yearSumsFor(e.id).get(y) || 0;

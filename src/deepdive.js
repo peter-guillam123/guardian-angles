@@ -14,7 +14,7 @@ import {
 import { sectionLabel, sectionColor } from './sections.js';
 import { isUsefulTag } from './skip-tags.js';
 import { isUsefulTone, toneLabel, toneColor, getToneCatalog } from './tones.js';
-import { renderCompany, hideCompany } from './company.js';
+import { renderCompany, renderCompanyForHeadlines, hideCompany } from './company.js';
 import { attachShareTools } from './share.js';
 
 // ───────────────── State ─────────────────
@@ -436,9 +436,11 @@ async function runDeepDive() {
   p.set('to', state.yearTo);
   history.replaceState(null, '', `?${p.toString()}`);
 
-  // ─── The company it keeps (tag mode only) ───
-  // Fire-and-forget: it lazy-loads the co-occurrence index and renders
-  // independently of the headline stream below.
+  // ─── The company it keeps ───
+  // Tags render instantly from the precomputed index. Words have no
+  // index entry, so their companion tags are tallied from the matched
+  // headlines once the stream completes (see streamHeadlines). Hide it
+  // for now; it (re)appears below.
   if (state.query.kind === 'tag') {
     renderCompany({
       tagId: state.query.id,
@@ -952,6 +954,18 @@ async function streamHeadlines(myToken) {
   drawSectionBreakdown(perSectionActual);
   state._streamDone = true;
   scheduleRender();
+
+  // Word dives now have every matching headline in memory — tally their
+  // companion tags into the same "company it keeps" chart. (Tags drew it
+  // instantly from the index up top; tones stay out for now.)
+  if (state.query && state.query.kind === 'word') {
+    renderCompanyForHeadlines({
+      headlines: state.headlines,
+      label: state.query.label,
+      yearFrom: state.yearFrom,
+      yearTo: state.yearTo,
+    });
+  }
 }
 
 // ───────────────── Render: headlines + cotags ─────────────────
