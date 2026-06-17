@@ -268,12 +268,18 @@ function renderGrid({ years, rows, maxVal, narrow }) {
   const n = years.length;
 
   // Year header: every label when they fit, every other when they don't.
+  // When stepping, always label the most recent year — but then drop its
+  // immediate neighbour, because forcing the last column on top of the
+  // stepped label beside it crammed two years together (the mobile funk:
+  // "…'21 '23 '24"). Drop the '23 so it reads "…'21    '24".
   const labelStep = n > (narrow ? 7 : 15) ? 2 : 1;
+  const showYear = new Set();
+  for (let i = 0; i < n; i += labelStep) showYear.add(i);
+  if (labelStep > 1) { showYear.add(n - 1); showYear.delete(n - 2); }
   const head = years.map((y, i) => {
-    const show = i === 0 || i === n - 1 || i % labelStep === 0;
     // Narrow columns can't fit a four-digit year — even the first one.
     const lbl = (i === 0 && !narrow) ? String(y) : `'${String(y).slice(2)}`;
-    return `<span class="dd-co-year">${show ? lbl : ''}</span>`;
+    return `<span class="dd-co-year">${showYear.has(i) ? lbl : ''}</span>`;
   }).join('');
 
   const rowsHtml = rows.map(r => {
