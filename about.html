@@ -80,6 +80,11 @@
       <ol class="changelog">
 
         <li>
+          <h3>The numbers behind the chart</h3>
+          <p>Two colleagues asked for the data under the Deep dive chart, not just a picture of it. So there's now a fourth icon beneath it, a small table, that downloads a spreadsheet: each month, how many headlines matched, how many the Guardian published in all, and the share. Will Smith in March 2022 comes out at 34 of 6,993, or about half a per cent, which is a lot for one actor. The icon stays greyed out until the page has finished counting, so you can't download half the numbers by accident. While I was there I fixed an older annoyance: the headline export used to turn curly quotes into gibberish when opened in Excel. It doesn't now.</p>
+        </li>
+
+        <li>
           <h3>Eleven thousand more tags</h3>
           <p>I went looking for Harry Styles, Will Smith and Chris Rock on Deep dive and found none of them. The site only ever knew about the 3,000 busiest tags, which I'd forgotten because I'd never searched for anything below the line. Worse, the line moves. Will Smith has about 240 headlines and the 3,000th tag now has 243, so he was in the list in the spring and quietly fell out of it over the summer. Making every chart carry more tags would have doubled the files a phone has to load, and we spent a long time getting those down. So Deep dive now has a second, lighter list of about 11,000 tags with 20 or more headlines: names and counts only, no chart data. Pick one and Deep dive reads the monthly files directly, as it already does for words, and builds "the company it keeps" live from what it finds. Harry Styles comes back with One Direction, Olivia Wilde and Florence Pugh; Will Smith peaks, as you'd guess, in March 2022. Trends and Topics still stop at 3,000. Proper names for all those tags meant rewriting the script that asks the Guardian's API what each tag is called. It now asks about 50 at a time and checks every name each month, and its first run caught renames the old one had missed: Green politics is now Environment policy, and the Czech Republic is Czechia.</p>
         </li>
