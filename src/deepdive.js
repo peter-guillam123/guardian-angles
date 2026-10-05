@@ -1251,7 +1251,8 @@ function exportCsv() {
       csv(url),
     ].join(','));
   }
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  // BOM so Excel reads UTF-8: headlines are full of curly quotes.
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   const toSlug = (s) => (s || '')
