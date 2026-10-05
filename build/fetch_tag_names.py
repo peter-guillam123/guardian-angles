@@ -1,35 +1,27 @@
 #!/usr/bin/env python3
 """
 Fetch authoritative display names for every tag in data/tag-catalog.json
-from the Guardian's /tags CAPI endpoint and write them to
-data/tag-names.json.
+and data/tag-catalog-long.json from the Guardian's /tags CAPI endpoint,
+and write them to data/tag-names.json.
 
-Why this script exists: Guardian tag slugs are immutable (e.g.
-`politics/brexit-party`), but the Guardian's webTitle on a tag can
-change — e.g. when Brexit Party renamed itself to Reform UK, the
-webTitle became "Reform UK" but the slug stayed. Our build previously
-derived display names from the slug (title-cased), so we'd display
-"Brexit Party" when the Guardian now calls it "Reform UK". This
-script pulls the current webTitle straight from CAPI, which is the
-authoritative editorial name.
+Why: tag slugs never change, but a tag's webTitle can (Brexit Party
+became Reform UK; the slug stayed `politics/brexit-party`). Old slugs
+are also often smooshed (`film/willsmith`), which slug-to-title can't
+split. The webTitle is the Guardian's own current name.
 
-Strategy: iterate /tags?page-size=200 across all pages, filtering
-each page down to the tag IDs in our catalog, until every catalog
-entry has a webTitle. ~250 requests at 1 req/sec max ≈ 4–5 min for
-50k tags, typically much less since we stop when our catalog is fully
-resolved.
-
-Fallbacks in build_tag_index.py pick up anything /tags doesn't return
-(very old tags, deleted tags, etc.): NAME_OVERRIDES first, then
-slug-to-title as the last resort.
+/tags accepts up to 50 ids per call, so ~14,000 tags cost ~280 calls,
+about five minutes at 1 req/s. Every name is refreshed on each run so
+renames are picked up. Names CAPI no longer returns (deleted tags) are
+kept from the previous file; build_tag_index.py falls back to
+NAME_OVERRIDES, then slug-to-title, for anything never resolved.
 
 Usage:
     python3 build/fetch_tag_names.py
 
 Needs GUARDIAN_API_KEY in the environment (same key as fetch_guardian.py).
 """
-import os
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -42,180 +34,60 @@ if not API_KEY:
     sys.exit(1)
 
 API_BASE = "https://content.guardianapis.com/tags"
-SEARCH_BASE = "https://content.guardianapis.com/search"
-PAGE_SIZE = 200
-REQUEST_INTERVAL = 1.0  # seconds — free dev tier is 1 req/s
-# CAPI's /tags endpoint 400s past a hard internal page limit (~190).
-# We stop paginating when we hit it and fall back to per-tag lookups
-# for anything we still haven't resolved.
-PAGE_CEILING_HINT = 190
+BATCH = 50  # CAPI's hard limit on the ids parameter
+REQUEST_INTERVAL = 1.0
 
-CATALOG_PATH = Path("data/tag-catalog.json")
+CATALOG_PATHS = [Path("data/tag-catalog.json"), Path("data/tag-catalog-long.json")]
 OUTPUT_PATH = Path("data/tag-names.json")
 
 
-def fetch_page(page: int) -> dict | None:
-    """Fetch one page of the /tags endpoint with retry on 429/5xx.
-    Returns None on 400 (Guardian's internal page-ceiling hit)."""
-    params = {
-        "api-key": API_KEY,
-        "page-size": PAGE_SIZE,
-        "page": page,
-    }
+def fetch_batch(ids: list[str]) -> dict[str, str]:
+    params = {"api-key": API_KEY, "ids": ",".join(ids), "page-size": BATCH}
     for delay in [0, 5, 15, 45, 120]:
         if delay:
             print(f"    (retry after {delay}s)", file=sys.stderr)
             time.sleep(delay)
         r = requests.get(API_BASE, params=params, timeout=30)
         if r.status_code == 200:
-            return r.json()["response"]
-        if r.status_code == 400:
-            return None  # hit the page ceiling — caller will fall back
+            return {
+                t["id"]: t["webTitle"]
+                for t in r.json()["response"].get("results", [])
+                if t.get("id") and t.get("webTitle")
+            }
         if r.status_code in (429, 500, 502, 503, 504):
             continue
-        r.reason = f"{r.reason} (page {page})"
         r.raise_for_status()
-    raise RuntimeError(f"Gave up on /tags page {page}")
-
-
-def fetch_webtitle_via_search(tag_id: str) -> str | None:
-    """Look up a single tag's webTitle by asking /search for one
-    article carrying it and reading the tag's webTitle out of the
-    response. Costs one API call per tag — used only for tags the
-    /tags pagination sweep didn't resolve."""
-    params = {
-        "api-key": API_KEY,
-        "tag": tag_id,
-        "page-size": 1,
-        "show-tags": "keyword,series,tone",
-    }
-    for delay in [0, 5, 15]:
-        if delay:
-            time.sleep(delay)
-        r = requests.get(SEARCH_BASE, params=params, timeout=30)
-        if r.status_code == 200:
-            data = r.json().get("response", {})
-            results = data.get("results", [])
-            if not results:
-                return None  # no articles with this tag — mute tag, skip
-            for t in results[0].get("tags", []):
-                if t.get("id") == tag_id and t.get("webTitle"):
-                    return t["webTitle"]
-            return None
-        if r.status_code in (429, 500, 502, 503, 504):
-            continue
-        return None  # any other error, give up on this tag
-    return None
+    raise RuntimeError(f"Gave up on batch starting {ids[0]}")
 
 
 def main():
-    catalog = json.loads(CATALOG_PATH.read_text())
-    wanted = {t["id"] for t in catalog}
-    print(f"Catalog has {len(wanted):,} tags to resolve.", file=sys.stderr)
+    wanted: list[str] = []
+    for path in CATALOG_PATHS:
+        if path.exists():
+            wanted += [t["id"] for t in json.loads(path.read_text())]
+    wanted = sorted(set(wanted))
+    print(f"{len(wanted):,} tags to resolve in {-(-len(wanted) // BATCH)} calls.", file=sys.stderr)
 
-    # Preserve any names we've already resolved from a previous run so
-    # we can be resumed / re-run cheaply without re-fetching pages.
-    existing = {}
-    if OUTPUT_PATH.exists():
-        existing = json.loads(OUTPUT_PATH.read_text())
-        print(f"Loaded {len(existing):,} pre-resolved names from previous run.", file=sys.stderr)
-    wanted -= set(existing.keys())
-
-    resolved = dict(existing)
-
-    # Phase 1: paginate /tags. Fast for the bulk of the catalogue —
-    # pulls ~200 tags per call rather than one-at-a-time. Stops when
-    # CAPI returns 400 (page ceiling) or we run out of pages.
-    page = 1
+    resolved = json.loads(OUTPUT_PATH.read_text()) if OUTPUT_PATH.exists() else {}
+    fresh = 0
     last_request = 0.0
-    while wanted:
-        dt = time.monotonic() - last_request
-        if dt < REQUEST_INTERVAL:
-            time.sleep(REQUEST_INTERVAL - dt)
+    for i in range(0, len(wanted), BATCH):
+        wait = REQUEST_INTERVAL - (time.monotonic() - last_request)
+        if wait > 0:
+            time.sleep(wait)
         last_request = time.monotonic()
+        names = fetch_batch(wanted[i:i + BATCH])
+        resolved.update(names)
+        fresh += len(names)
+        if (i // BATCH) % 20 == 0:
+            print(f"  [{i + BATCH:,}/{len(wanted):,}] {fresh:,} resolved", file=sys.stderr)
 
-        resp = fetch_page(page)
-        if resp is None:
-            print(
-                f"[page {page}] CAPI page ceiling hit — moving to per-tag lookups.",
-                file=sys.stderr,
-            )
-            break
-        results = resp.get("results", [])
-        if not results:
-            print(f"[page {page}] empty — CAPI exhausted.", file=sys.stderr)
-            break
-
-        hits = 0
-        for t in results:
-            tid = t.get("id")
-            title = t.get("webTitle")
-            if tid in wanted and title:
-                resolved[tid] = title
-                wanted.discard(tid)
-                hits += 1
-
-        total_pages = resp.get("pages") or "?"
-        print(
-            f"[page {page}/{total_pages}] +{hits} — {len(resolved):,} resolved, "
-            f"{len(wanted):,} remaining",
-            file=sys.stderr,
-        )
-
-        OUTPUT_PATH.write_text(
-            json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
-        )
-
-        if page >= (resp.get("pages") or 0):
-            print("[done] reached last page.", file=sys.stderr)
-            break
-        page += 1
-
-    # Phase 2: per-tag fallback via /search for anything the bulk sweep
-    # missed. ~1 API call per tag, rate-limited to 1/sec. A 3000-tag
-    # catalogue with no pre-resolved entries would take ~50 min; a
-    # typical resume after phase 1 runs this over a 10-25 min tail.
-    if wanted:
-        print(
-            f"\nPhase 2: per-tag lookups for {len(wanted):,} remaining tags "
-            f"(~{len(wanted)}s at 1 req/sec).",
-            file=sys.stderr,
-        )
-        for i, tid in enumerate(sorted(wanted), 1):
-            dt = time.monotonic() - last_request
-            if dt < REQUEST_INTERVAL:
-                time.sleep(REQUEST_INTERVAL - dt)
-            last_request = time.monotonic()
-            title = fetch_webtitle_via_search(tid)
-            if title:
-                resolved[tid] = title
-            if i % 50 == 0 or i == len(wanted):
-                print(
-                    f"  [{i}/{len(wanted)}] {len(resolved):,} total resolved",
-                    file=sys.stderr,
-                )
-                OUTPUT_PATH.write_text(
-                    json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
-                )
-        OUTPUT_PATH.write_text(
-            json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2)
-        )
-
-    # Compute final unresolved set from scratch (phase 2 doesn't mutate
-    # `wanted` since it iterates a snapshot).
-    catalog_ids = {t["id"] for t in catalog}
-    unresolved = catalog_ids - set(resolved.keys())
-    print(
-        f"Wrote {len(resolved):,} / {len(catalog_ids):,} tag names to {OUTPUT_PATH}.",
-        file=sys.stderr,
-    )
-    if unresolved:
-        print(
-            f"  {len(unresolved)} catalog tags had no match — they'll fall back to "
-            f"NAME_OVERRIDES or slug_to_title:",
-            file=sys.stderr,
-        )
-        for t in sorted(unresolved)[:20]:
+    OUTPUT_PATH.write_text(json.dumps(resolved, ensure_ascii=False, sort_keys=True, indent=2))
+    missing = [t for t in wanted if t not in resolved]
+    print(f"Wrote {len(resolved):,} names ({fresh:,} fresh from CAPI).", file=sys.stderr)
+    if missing:
+        print(f"  {len(missing)} tags unresolved; build falls back to overrides / slug:", file=sys.stderr)
+        for t in missing[:20]:
             print(f"    {t}", file=sys.stderr)
 
 

@@ -15,6 +15,10 @@ Outputs:
         [ { "id": "politics/labour", "name": "Labour", "n": 12345 }, ... ]
         Pre-sorted by n desc. Used by the UI autocomplete.
 
+    data/tag-catalog-long.json
+        Same shape, for tags outside the top N with LONG_TAIL_MIN+ headlines.
+        Deep dive only.
+
 `totals` here matches the totals from sections.json / term index — headlines
 per bucket — so per-mille normalisation works the same way for tags.
 """
@@ -34,6 +38,10 @@ SHARD_DIR = REPO_ROOT / "data" / "shards"
 DATA_DIR = REPO_ROOT / "data"
 
 TOP_N = 3000  # top tags to index; rarer tags don't make the catalog
+# Tags outside the top N but with at least this many headlines go into a
+# names-only long-tail catalogue. Deep dive can still search them: it
+# reads the shards directly, so they need no index series.
+LONG_TAIL_MIN = 20
 
 # Manual display-name overrides for tags whose slugs are smooshed
 # (legacy Guardian slugs often concatenate first and last name). Everything
@@ -586,6 +594,16 @@ def build() -> int:
     with open(catalog_path, "w", encoding="utf-8") as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(",", ":"))
     print(f"  tag-catalog.json ({catalog_path.stat().st_size/1024:.0f} KB, {len(catalog)} entries)", file=sys.stderr)
+
+    long_tail = [
+        {"id": t, "name": display_name(t), "n": n}
+        for t, n in global_counts.most_common()
+        if t not in top_tags and n >= LONG_TAIL_MIN
+    ]
+    long_path = DATA_DIR / "tag-catalog-long.json"
+    with open(long_path, "w", encoding="utf-8") as f:
+        json.dump(long_tail, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"  tag-catalog-long.json ({long_path.stat().st_size/1024:.0f} KB, {len(long_tail)} entries)", file=sys.stderr)
 
     return 0
 
