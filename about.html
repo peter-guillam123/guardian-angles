@@ -66,7 +66,7 @@
     <section class="about-section">
       <h2>How it was built, more technically</h2>
       <p>
-        An hourly <a href="https://github.com/peter-guillam123/guardian-angles/actions" target="_blank" rel="noopener">GitHub Action</a> fetches headlines from the Guardian's Open Platform API into compact gzipped JSON shards, one per month. A second step aggregates those into search-ready indexes at monthly, weekly and daily granularity, plus a 3,000-entry tag catalogue. The frontend is a set of vanilla JS modules — no framework, no database, no server — with canvas-rendered charts, the occasional <a href="https://github.com/chenglou/pretext" target="_blank" rel="noopener">Pretext</a> typography effect, and the Guardian's colour palette throughout. The whole thing is a few megabytes of static files served from GitHub Pages.
+        An hourly <a href="https://github.com/peter-guillam123/guardian-angles/actions" target="_blank" rel="noopener">GitHub Action</a> fetches headlines from the Guardian's Open Platform API into compact gzipped JSON shards, one per month. A second step aggregates those into search-ready indexes at monthly, weekly and daily granularity, plus a 3,000-entry tag catalogue and a longer list of about 11,000 rarer tags that Deep dive can search. The frontend is a set of vanilla JS modules — no framework, no database, no server — with canvas-rendered charts, the occasional <a href="https://github.com/chenglou/pretext" target="_blank" rel="noopener">Pretext</a> typography effect, and the Guardian's colour palette throughout. The whole thing is a few megabytes of static files served from GitHub Pages.
       </p>
       <p>
         It's <a href="https://github.com/peter-guillam123/guardian-angles" target="_blank" rel="noopener">open source</a>. Everything that isn't an API key is in the repo.
@@ -78,6 +78,11 @@
       <p class="about-sub">A rough chronological log of what went in when. The newest changes are at the top.</p>
 
       <ol class="changelog">
+
+        <li>
+          <h3>Eleven thousand more tags</h3>
+          <p>I went looking for Harry Styles, Will Smith and Chris Rock on Deep dive and found none of them. The site only ever knew about the 3,000 busiest tags, which I'd forgotten because I'd never searched for anything below the line. Worse, the line moves. Will Smith has about 240 headlines and the 3,000th tag now has 243, so he was in the list in the spring and quietly fell out of it over the summer. Making every chart carry more tags would have doubled the files a phone has to load, and we spent a long time getting those down. So Deep dive now has a second, lighter list of about 11,000 tags with 20 or more headlines: names and counts only, no chart data. Pick one and Deep dive reads the monthly files directly, as it already does for words, and builds "the company it keeps" live from what it finds. Harry Styles comes back with One Direction, Olivia Wilde and Florence Pugh; Will Smith peaks, as you'd guess, in March 2022. Trends and Topics still stop at 3,000. Proper names for all those tags meant rewriting the script that asks the Guardian's API what each tag is called. It now asks about 50 at a time and checks every name each month, and its first run caught renames the old one had missed: Green politics is now Environment policy, and the Czech Republic is Czechia.</p>
+        </li>
 
         <li>
           <h3>The company chart learns to filter</h3>
