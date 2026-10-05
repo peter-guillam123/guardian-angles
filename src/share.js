@@ -184,15 +184,19 @@ function truncate(text, ctx, maxW) {
 const ICONS = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
   download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>',
+  data: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M3 15h18"/><path d="M10 4v16"/></svg>',
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>',
 };
 
-export function attachShareTools(container, getOpts) {
+// Optional getData() adds a fourth button that downloads the numbers
+// behind the chart as CSV. It returns { header, rows, filename }.
+export function attachShareTools(container, getOpts, { getData } = {}) {
   if (!container || container.dataset.shareWired) return;
   container.dataset.shareWired = '1';
   container.innerHTML =
     `<button type="button" class="icon-btn" data-act="copy" title="Copy chart image" aria-label="Copy chart image to clipboard">${ICONS.copy}</button>` +
     `<button type="button" class="icon-btn" data-act="download" title="Download chart image" aria-label="Download chart image">${ICONS.download}</button>` +
+    (getData ? `<button type="button" class="icon-btn" data-act="data" title="Download chart data (CSV)" aria-label="Download chart data as CSV">${ICONS.data}</button>` : '') +
     `<button type="button" class="icon-btn" data-act="link" title="Copy link to this view" aria-label="Copy link to this view">${ICONS.link}</button>` +
     `<span class="visually-hidden" aria-live="polite"></span>`;
   const status = container.querySelector('[aria-live]');
@@ -213,8 +217,34 @@ export function attachShareTools(container, getOpts) {
     catch { status.textContent = 'Could not create image'; }
     b.disabled = false;
   });
+  if (getData) {
+    container.querySelector('[data-act="data"]').addEventListener('click', (e) => {
+      const d = getData();
+      if (!d) return;
+      downloadCsv(d);
+      status.textContent = 'Chart data downloaded';
+      flash(e.currentTarget);
+    });
+  }
   container.querySelector('[data-act="link"]').addEventListener('click', async (e) => {
     try { await navigator.clipboard.writeText(getOpts().url || location.href); status.textContent = 'Link copied'; flash(e.currentTarget); }
     catch { status.textContent = 'Could not copy link'; }
   });
+}
+
+function csvCell(v) {
+  const t = String(v ?? '');
+  return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+}
+
+// The leading BOM makes Excel read the file as UTF-8, so curly quotes
+// and accented names survive.
+export function downloadCsv({ header, rows, filename }) {
+  const lines = [header, ...rows].map(r => r.map(csvCell).join(','));
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }

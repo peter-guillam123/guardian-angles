@@ -127,7 +127,7 @@ const filterClearEl = document.getElementById('dd-filter-clear');
     title: headlineEl.textContent || 'Guardian coverage',
     legendItems: state.query ? [{ color: '#052962', label: state.query.label }] : [],
     url: location.href,
-  }));
+  }), { getData: chartData });
   // Pull query from URL so the page is deep-linkable.
   const params = new URLSearchParams(location.search);
   const tag = params.get('tag');
@@ -412,6 +412,7 @@ async function runDeepDive() {
   state.peakMonth = null;
   state.peakExpanded = false;
   state._streamDone = false;
+  setChartDataReady(false);
   state._perSectionActual = null;
   state._perToneActual = null;
   state.structuredFilter = null;
@@ -541,6 +542,7 @@ async function renderInstantSummary() {
   }
 
   renderSectionMix(sections, months);
+  state._sections = sections;
   // Stash the month grid for recomputeFromHeadlines below.
   state._summaryMonths = months;
 }
@@ -961,6 +963,7 @@ async function streamHeadlines(myToken) {
   // heatmap is current even if the throttle skipped the last tick.
   drawSectionBreakdown(perSectionActual);
   state._streamDone = true;
+  setChartDataReady(true);
   scheduleRender();
 
   // Word and tone dives now have every matching headline in memory —
@@ -1194,6 +1197,35 @@ sectionsEl.addEventListener('click', (e) => {
 });
 
 // ───────────────── CSV export ─────────────────
+// The monthly counts behind the sparkline, with the Guardian's total
+// output each month for context.
+function chartData() {
+  const months = state._summaryMonths;
+  const counts = sparkEl._counts;
+  if (!state._streamDone || !months || !counts || !state._sections) return null;
+  const totIdx = new Map(state._sections.months.map((m, i) => [m, i]));
+  const rows = months.map((m, i) => {
+    const all = state._sections.totals[totIdx.get(m)] || 0;
+    return [m, counts[i], all, all ? (counts[i] / all * 100).toFixed(3) : ''];
+  });
+  return {
+    header: ['month', 'headlines', 'all_guardian_headlines', 'share_of_all_pct'],
+    rows,
+    filename: `guardian-angles-${fileSlug(state.query.label) || 'deep-dive'}-monthly-${state.yearFrom}-${state.yearTo}.csv`,
+  };
+}
+
+function setChartDataReady(ready) {
+  const b = document.querySelector('#dd-actions [data-act="data"]');
+  if (!b) return;
+  b.disabled = !ready;
+  b.title = ready ? 'Download chart data (CSV)' : 'Chart data is available once counting finishes';
+}
+
+function fileSlug(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function exportCsv() {
   if (!state.headlines.length) return;
   // Use the same filter pipeline as the headline list itself —
