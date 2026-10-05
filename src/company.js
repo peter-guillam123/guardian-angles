@@ -21,7 +21,7 @@
 // (raw shared counts). The metric drives both cast selection and cell
 // shade; the tooltip always carries both numbers.
 
-import { loadCooccur, loadTagIndex, loadTagCatalog } from './data.js';
+import { loadCooccur, loadTagIndex, loadTagCatalog, loadLongTagCatalog } from './data.js';
 import { isUsefulTag } from './skip-tags.js';
 
 const MIN_SHARED = 5;          // display floor — index stores >=3 for headroom
@@ -98,9 +98,13 @@ export async function renderCompanyForHeadlines({ headlines, label, yearFrom, ye
   _current = { label, yearFrom, yearTo };
   const token = ++_renderToken;
   try {
-    const [idx, catalog] = await Promise.all([loadTagIndex('monthly'), loadTagCatalog()]);
+    // A live tally can surface any tag, not just the top 3,000, so
+    // names come from both catalogues.
+    const [idx, catalog, long] = await Promise.all([
+      loadTagIndex('monthly'), loadTagCatalog(), loadLongTagCatalog(),
+    ]);
     if (token !== _renderToken) return;
-    setData(idx, catalog, _data && _data.co);
+    setData(idx, catalog.concat(long), _data && _data.co);
 
     const years = [];
     for (let y = yearFrom; y <= yearTo; y++) years.push(y);
@@ -231,7 +235,7 @@ function build() {
       if (!castIds.has(e.id)) continue;
       let r = rowsMap.get(e.id);
       if (!r) {
-        r = { id: e.id, name: _data.names.get(e.id) || e.id, cells: new Map(), weight: 0 };
+        r = { id: e.id, name: tagName(e.id), cells: new Map(), weight: 0 };
         rowsMap.set(e.id, r);
       }
       r.cells.set(y, {
@@ -357,8 +361,16 @@ if (gridEl) {
   });
 }
 
+// Tags too rare for either catalogue have no stored name: tidy the slug.
+function tagName(id) {
+  const known = _data && _data.names.get(id);
+  if (known) return known;
+  const last = id.split('/').pop().replace(/-/g, ' ');
+  return last.charAt(0).toUpperCase() + last.slice(1);
+}
+
 function emitPick(id, year) {
-  const label = (_data && _data.names.get(id)) || id;
+  const label = tagName(id);
   gridEl.dispatchEvent(new CustomEvent('company:pick', {
     bubbles: true,
     detail: { tagId: id, label, year },

@@ -8,7 +8,7 @@
 // of the answer immediately and the detail fills in behind it.
 
 import {
-  loadIndex, loadTagIndex, loadTagCatalog, loadSections, loadShard,
+  loadIndex, loadTagIndex, loadTagCatalog, loadLongTagCatalog, loadSections, loadShard,
   evictShard, makeWordMatcher,
 } from './data.js';
 import { sectionLabel, sectionColor } from './sections.js';
@@ -24,7 +24,8 @@ const state = {
   yearTo: new Date().getUTCFullYear(),
   headlines: [],                   // accumulated results, newest-first
   cancelToken: 0,                  // increment to cancel in-flight streams
-  tagCatalog: null,                // lazy-loaded when tags mode is active
+  tagCatalog: null,                // top 3,000 + long tail, lazy-loaded in tags mode
+  indexedTags: null,               // Set of ids that have index series (the top 3,000)
   words: new Map(),                // word → count of *headlines* containing it
   peakMonth: null,                 // YYYY-MM of the current peak
   peakExpanded: false,             // whether the peak drilldown is open
@@ -215,12 +216,15 @@ async function applyModeUI() {
 }
 
 async function loadCatalogIfNeeded() {
-  if (!state.tagCatalog) state.tagCatalog = await loadTagCatalog();
+  if (state.tagCatalog) return;
+  const [top, long] = await Promise.all([loadTagCatalog(), loadLongTagCatalog()]);
+  state.indexedTags = new Set(top.map(t => t.id));
+  state.tagCatalog = top.concat(long);
 }
 
 // Lightweight autocomplete (reuses the same dropdown CSS as Trends).
 // Takes an explicit catalog so the same UI drives both tag mode
-// (3,000 entries, slug + count visible) and tone mode (~25 entries,
+// (~14,000 entries, slug + count visible) and tone mode (~25 entries,
 // slug + count hidden via opts).
 let _acDropdown = null;
 function attachSimpleAutocomplete(inp, catalog, opts = {}) {
@@ -241,8 +245,12 @@ function attachSimpleAutocomplete(inp, catalog, opts = {}) {
     if (!q && catalog.length <= 30) {
       matches.push(...catalog);
     } else if (q) {
+      // Old slugs are often smooshed ("film/willsmith"), so also try
+      // the query with spaces and hyphens removed against the slug.
+      const qTight = q.replace(/[\s-]+/g, '');
       for (const t of catalog) {
-        if (t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)) {
+        if (t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)
+            || t.id.replace(/-/g, '').includes(qTight)) {
           matches.push(t);
           if (matches.length >= 8) break;
         }
@@ -370,7 +378,12 @@ async function runDeepDive() {
       inputEl.dataset.tagId = match.id;
       inputEl.value = match.name;
     }
-    state.query = { kind: 'tag', id: inputEl.dataset.tagId, label: inputEl.value.trim() };
+    await loadCatalogIfNeeded();
+    const id = inputEl.dataset.tagId;
+    state.query = {
+      kind: 'tag', id, label: inputEl.value.trim(),
+      indexed: state.indexedTags.has(id),
+    };
   } else if (state.mode === 'tones') {
     let toneId = inputEl.dataset.toneId;
     if (!toneId) {
@@ -431,11 +444,12 @@ async function runDeepDive() {
   history.replaceState(null, '', `?${p.toString()}`);
 
   // ─── The company it keeps ───
-  // Tags render instantly from the precomputed index. Words and tones
-  // have no index entry, so their companion tags are tallied from the
-  // matched headlines once the stream completes (see streamHeadlines).
+  // Top-3,000 tags render instantly from the precomputed index. Words,
+  // tones and long-tail tags have no index entry, so their companion
+  // tags are tallied from the matched headlines once the stream
+  // completes (see streamHeadlines).
   // Hide it for now; it (re)appears below.
-  if (state.query.kind === 'tag') {
+  if (state.query.kind === 'tag' && state.query.indexed) {
     renderCompany({
       tagId: state.query.id,
       label: state.query.label,
@@ -511,7 +525,7 @@ async function renderInstantSummary() {
   // those cases the instant summary would read all zeros. Show a
   // "counting…" state instead and let the shard stream fill it in
   // authoritatively via updateSummaryFromHeadlines().
-  const indexHasIt = kind === 'tag' || Boolean(table[key]);
+  const indexHasIt = Boolean(table[key]);
   if (indexHasIt) {
     statTotal.textContent = total.toLocaleString('en-GB');
     statPeak.textContent = peakIdx >= 0 && vals[peakIdx] > 0 ? formatMonth(months[peakIdx]) : '—';
@@ -951,15 +965,16 @@ async function streamHeadlines(myToken) {
 
   // Word and tone dives now have every matching headline in memory —
   // tally their companion tags into the same "company it keeps" chart.
-  // (Tags drew it instantly from the index up top.) A tone dive excludes
+  // (Top-3,000 tags drew it instantly from the index up top.) A tone dive excludes
   // its own tag, which every matched headline carries.
-  if (state.query && (state.query.kind === 'word' || state.query.kind === 'tone')) {
+  const q = state.query;
+  if (q && (q.kind === 'word' || q.kind === 'tone' || (q.kind === 'tag' && !q.indexed))) {
     renderCompanyForHeadlines({
       headlines: state.headlines,
-      label: state.query.label,
+      label: q.label,
       yearFrom: state.yearFrom,
       yearTo: state.yearTo,
-      excludeId: state.query.kind === 'tone' ? state.query.id : null,
+      excludeId: q.kind === 'word' ? null : q.id,
     });
   }
 }

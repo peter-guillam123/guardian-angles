@@ -206,6 +206,17 @@ export function loadTagCatalog() {
   return _tagCatalogPromise;
 }
 
+// Tags outside the top N (names only, no index series). Deep dive only.
+let _longTagCatalogPromise = null;
+export function loadLongTagCatalog() {
+  if (!_longTagCatalogPromise) {
+    _longTagCatalogPromise = fetch(`${DATA_BASE}/tag-catalog-long.json`)
+      .then(r => (r.ok ? r.json() : []))
+      .catch(() => []);
+  }
+  return _longTagCatalogPromise;
+}
+
 export function loadSections() {
   if (!_sectionsPromise) {
     _sectionsPromise = fetch(`${DATA_BASE}/sections.json`).then(r => r.json());
