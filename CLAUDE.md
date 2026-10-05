@@ -1,5 +1,7 @@
 # Guardian Angles — project notes
 
+**Public project:** live at https://guardian-angles.com. Publishing is approved; no need to ask before pushing.
+
 ## What it is
 
 Static-site visualisation of ~1.3M Guardian headlines across 14 years.
@@ -35,11 +37,16 @@ configured via Cloudflare DNS (DNS-only, grey cloud). Repo:
   - `batch_fetch.py` — picks up missing months for hourly backfill.
   - `build_index.py` — aggregates shards into per-granularity term
     indexes (`term-index-{monthly,weekly,daily}.json.gz`).
-  - `build_tag_index.py` — same for tags. Maintains `NAME_OVERRIDES`
+  - `build_tag_index.py` — same for tags, top 3,000 only (`TOP_N`).
+    Also writes `tag-catalog-long.json`: names and counts for tags
+    outside the top 3,000 with 20+ headlines (~11,000). Deep dive
+    searches both; long-tail dives count from shards, like words.
+    Maintains `NAME_OVERRIDES`
     for hand-curated display names (mostly redundant now CAPI names
     are wired up, but kept as a safety net).
   - `fetch_tag_names.py` — pulls authoritative webTitles from the
-    Guardian `/tags` CAPI endpoint, writes `data/tag-names.json`.
+    Guardian `/tags` CAPI endpoint (`ids=`, 50 per call, ~280 calls),
+    refreshes every name each run, writes `data/tag-names.json`.
     Run monthly via the `Refresh tag names from CAPI` workflow.
   - `build_cooccurrence.py` — per-year companion tags for every
     catalogued tag (top 12, ≥3 shared articles), for Deep dive's
